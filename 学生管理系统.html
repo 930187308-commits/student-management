@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学员管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
+
+        .header { background: linear-gradient(135deg, #2c3e50, #3498db); color: white; padding: 20px 30px; }
+        .header h1 { font-size: 24px; font-weight: 600; }
+        .header p { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        /* 统计卡片 */
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .stat-card .value { font-size: 32px; font-weight: 700; color: #2c3e50; }
+        .stat-card .label { font-size: 13px; color: #888; margin-top: 4px; }
+
+        /* 标签页 */
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .tab { padding: 10px 20px; background: transparent; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; color: #666; transition: all 0.2s; }
+        .tab:hover { background: #f0f2f5; color: #333; }
+        .tab.active { background: #3498db; color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* 卡片 */
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+        .card-title { font-size: 16px; font-weight: 600; color: #2c3e50; }
+
+        /* 表格 */
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; white-space: nowrap; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; position: sticky; top: 0; }
+        tr:hover { background: #f8f9fa; }
+        tr.edited { background: #fff9e6; }
+        tr.row-warning { background: #fff3cd; }
+
+        /* 可编辑单元格 */
+        td.editable { cursor: pointer; padding: 6px 8px; border: 1px solid transparent; border-radius: 4px; min-height: 20px; }
+        td.editable:hover { border-color: #3498db; background: #f0f8ff; }
+        td.editable:focus { border-color: #3498db; background: white; outline: none; }
+        td.editable input { width: 100%; border: none; background: transparent; font-size: 13px; padding: 0; }
+        td.editable input:focus { outline: none; }
+
+        /* 考勤表格 */
+        .attendance-table { border-collapse: collapse; width: 100%; }
+        .attendance-table th, .attendance-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: center; font-size: 12px; }
+        .attendance-table th { background: #f8f9fa; }
+        .attendance-table td:first-child { text-align: left; background: #fafafa; font-weight: 500; }
+        .attendance-input { width: 40px; text-align: center; border: 1px solid #ddd; border-radius: 4px; padding: 4px; font-size: 13px; }
+        .attendance-input.present { background: #d4edda; color: #155724; }
+        .attendance-input.absent { background: #f8d7da; color: #721c24; }
+
+        /* 按钮 */
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover { background: #2980b9; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #219a52; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn-xs { padding: 3px 8px; font-size: 11px; }
+        .btn-warning { background: #f39c12; color: white; }
+        .btn-warning:hover { background: #d68910; }
+
+        /* 表单 */
+        .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 150px; }
+        .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #3498db; }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+
+        /* 搜索栏 */
+        .search-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .search-bar input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; min-width: 150px; }
+        .search-bar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+
+        /* 模态框 */
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #eee; }
+        .modal-header h3 { font-size: 18px; color: #2c3e50; }
+        .modal-close { background: none; border: none; font-size: 28px; cursor: pointer; color: #999; line-height: 1; }
+        .modal-close:hover { color: #333; }
+        .modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }
+
+        /* 标签徽章 */
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-trial { background: #fff3cd; color: #856404; }
+        .badge-pending { background: #f8d7da; color: #721c24; }
+        .badge-paid { background: #d4edda; color: #155724; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-normal { background: #e8f4fd; color: #1976d2; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.3s; }
+        .toast.show { opacity: 1; }
+
+        /* 空状态 */
+        .empty-state { text-align: center; padding: 40px; color: #999; }
+
+        /* 两栏布局 */
+        .two-col { display: grid; grid-template-columns: 280px 1fr; gap: 20px; min-height: 400px; }
+        .left-panel { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        .right-panel { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow-y: auto; max-height: 600px; }
+
+        .student-list { max-height: 400px; overflow-y: auto; }
+        .student-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: all 0.2s; }
+        .student-item:hover { background: #f0f2f5; }
+        .student-item.active { background: #3498db; color: white; }
+        .student-item .name { font-weight: 600; font-size: 14px; }
+        .student-item .info { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+        /* 明细卡片 */
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+        .detail-item { padding: 12px; background: #f8f9fa; border-radius: 8px; }
+        .detail-item .label { font-size: 12px; color: #888; }
+        .detail-item .value { font-size: 16px; color: #333; margin-top: 4px; font-weight: 600; }
+        .detail-item.highlight { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+        .detail-item.highlight .label { color: rgba(255,255,255,0.8); }
+        .detail-item.highlight .value { color: white; }
+        .detail-item.warning { background: #fff3cd; }
+        .detail-item.warning .value { color: #856404; }
+
+        /* 图表容器 */
+        .chart-container { height: 250px; margin-top: 16px; }
+
+        /* 工具栏 */
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .toolbar .divider { width: 1px; height: 24px; background: #ddd; margin: 0 8px; }
+
+        /* 文件上传 */
+        .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
+        .file-input-wrapper input { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+        /* 自动保存指示器 */
+        .autosave-indicator { font-size: 11px; color: #888; display: flex; align-items: center; gap: 4px; }
+        .autosave-indicator.saving { color: #f39c12; }
+        .autosave-indicator.saved { color: #27ae60; }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .two-col { grid-template-columns: 1fr; }
+            .left-panel { max-height: 300px; }
+        }
+        @media (max-width: 768px) {
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+            .form-row { flex-direction: column; }
+            .form-group { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>学员管理系统</h1>
+                <p>数据存储在本地浏览器 · 建议定期导出备份</p>
+            </div>
+            <div class="toolbar">
+                <span class="autosave-indicator" id="autosaveIndicator">● 已保存</span>
+                <button class="btn btn-secondary btn-sm" onclick="exportBackup()">导出备份</button>
+                <div class="file-input-wrapper">
+                    <button class="btn btn-warning btn-sm">导入备份</button>
+                    <input type="file" accept=".json" onchange="importBackup(event)">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="openDataManager()">数据管理</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stat-grid" id="statGrid"></div>
+
+        <!-- 标签页 -->
+        <div class="tabs">
+            <button class="tab active" data-tab="dashboard">首页</button>
+            <button class="tab" data-tab="classes">班级管理</button>
+            <button class="tab" data-tab="students">学员管理</button>
+            <button class="tab" data-tab="fees">收费记录</button>
+            <button class="tab" data-tab="attendance">考勤记录</button>
+            <button class="tab" data-tab="grades">成绩记录</button>
+            <button class="tab" data-tab="communications">沟通记录</button>
+            <button class="tab" data-tab="reports">统计报表</button>
+        </div>
+
+        <!-- 首页 -->
+        <div class="tab-content active" id="tab-dashboard"></div>
+
+        <!-- 班级管理 -->
+        <div class="tab-content" id="tab-classes"></div>
+
+        <!-- 学员管理 -->
+        <div class="tab-content" id="tab-students"></div>
+
+        <!-- 收费记录 -->
+        <div class="tab-content" id="tab-fees"></div>
+
+        <!-- 考勤记录 -->
+        <div class="tab-content" id="tab-attendance"></div>
+
+        <!-- 成绩记录 -->
+        <div class="tab-content" id="tab-grades"></div>
+
+        <!-- 沟通记录 -->
+        <div class="tab-content" id="tab-communications"></div>
+
+        <!-- 统计报表 -->
+        <div class="tab-content" id="tab-reports"></div>
+    </div>
+
+    <!-- 通用模态框 -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"></h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== 数据存储 ====================
+        let data = {
+            classes: [],
+            students: [],
+            fees: [],
+            attendance: [], // { id, classId, date, records: { studentId: 1|0 } }
+            grades: [],
+            communications: []
+        };
+
+        let currentTab = 'dashboard';
+        let currentEditId = null;
+        let currentStudentId = null;
+        let editingCell = null;
+        let autoSaveTimer = null;
+        let lastSaveTime = null;
+
+        // 初始化
+        function init() {
+            loadData();
+            if (data.classes.length === 0) {
+                data = getSampleData();
+                saveData();
+            }
+            initTabs();
+            render();
+            startAutoSave();
+        }
+
+        // 加载数据
+        function loadData() {
+            const stored = localStorage.getItem('studentManagementSystem_v3');
+            if (stored) {
+                data = JSON.parse(stored);
+            }
+        }
+
+        // 保存数据
+        function saveData() {
+            localStorage.setItem('studentManagementSystem_v3', JSON.stringify(data));
+            lastSaveTime = new Date();
+            updateAutoSaveIndicator();
+        }
+
+        // 自动保存
+        function startAutoSave() {
+            // 每30秒自动保存
+            autoSaveTimer = setInterval(() => {
+                saveData();
+            }, 30000);
+
+            // 页面离开前保存
+            window.addEventListener('beforeunload', () => {
+                saveData();
+            });
+
+            // 页面隐藏时保存
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    saveData();
+                }
+            });
+        }
+
+        function updateAutoSaveIndicator() {
+            const indicator = document.getElementById('autosaveIndicator');
+            if (indicator) {
+                indicator.className = 'autosave-indicator saved';
+                indicator.innerHTML = '● 已保存 ' + (lastSaveTime ? lastSaveTime.toLocaleTimeString() : '');
+            }
+        }
+
+        // 备份导出
+        function exportBackup() {
+            const backup = {
+                version: '1.0',
+                exportDate: new Date().toISOString(),
+                data: data
+            };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `学员管理系统备份_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('备份已导出');
+        }
+
+        // 备份导入
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const backup = JSON.parse(e.target.result);
+                    if (backup.data) {
+                        if (confirm('导入将覆盖当前所有数据，确定继续？')) {
+                            data = backup.data;
+                            saveData();
+                            render();
+                            showToast('导入成功');
+                        }
+                    } else {
+                        showToast('文件格式不正确');
+                    }
+                } catch (err) {
+                    showToast('导入失败：' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // 示例数据
+        function getSampleData() {
+            return {
+                classes: [
+                    { id: 'c1', name: '初一基础-周四18:00', grade: '初一', classType: '基础', schedule: '周四 18:00-20:00', semester: '2025秋季', maxStudents: 10, status: 'active', summerSchedule: '周一至周五上午' },
+                    { id: 'c2', name: '初一拔高-周六09:00', grade: '初一', classType: '拔高', schedule: '周六 09:00-11:00', semester: '2025秋季', maxStudents: 10, status: 'active', summerSchedule: '周一至周五下午' },
+                    { id: 'c3', name: '六年级基础-周三18:00', grade: '六年级', classType: '基础', schedule: '周三 18:00-20:00', semester: '2025秋季', maxStudents: 10, status: 'active', summerSchedule: '周一至周五上午' },
+                    { id: 'c4', name: '六年级奥数-周五18:00', grade: '六年级', classType: '奥数', schedule: '周五 18:00-20:00', semester: '2025秋季', maxStudents: 8, status: 'active', summerSchedule: '周一至周五下午' },
+                    { id: 'c5', name: '六年级拔高-周六14:00', grade: '六年级', classType: '拔高', schedule: '周六 14:00-16:00', semester: '2025秋季', maxStudents: 10, status: 'active', summerSchedule: '周一至周五上午' }
+                ],
+                students: [
+                    { id: 's1', name: '张三', gender: '男', grade: '六年级', classId: 'c4', teacher: '白老师', enrollDate: '2025-09-01', phone: '13800138001', emergencyContact: '13900139001', status: 'active', remark: '数学基础扎实，思维活跃。' },
+                    { id: 's2', name: '李四', gender: '女', grade: '初一', classId: 'c1', teacher: '白老师', enrollDate: '2025-03-15', phone: '13800138002', emergencyContact: '13900139002', status: 'active', remark: '需要加强计算准确性。' },
+                    { id: 's3', name: '王五', gender: '男', grade: '六年级', classId: 'c5', teacher: '白老师', enrollDate: '2025-09-01', phone: '13800138003', emergencyContact: '13900139003', status: 'active', remark: '课堂参与度高。' },
+                    { id: 's4', name: '赵六', gender: '女', grade: '初一', classId: 'c2', teacher: '白老师', enrollDate: '2025-03-01', phone: '13800138004', emergencyContact: '13900139004', status: 'active', remark: '接受能力强。' },
+                    { id: 's5', name: '钱七', gender: '男', grade: '六年级', classId: 'c3', teacher: '白老师', enrollDate: '2025-09-01', phone: '13800138005', emergencyContact: '13900139005', status: 'active', remark: '基础较薄弱。' }
+                ],
+                fees: [
+                    { id: 'f1', studentId: 's1', studentName: '张三', amount: 8000, pricePerHour: 200, hours: 40, paymentDate: '2025-09-01', package: '秋季班40课时', paymentMethod: '微信转账', status: 'paid', remark: '' },
+                    { id: 'f2', studentId: 's2', studentName: '李四', amount: 6000, pricePerHour: 200, hours: 30, paymentDate: '2025-03-15', package: '春季班30课时', paymentMethod: '支付宝', status: 'paid', remark: '' },
+                    { id: 'f3', studentId: 's3', studentName: '王五', amount: 8000, pricePerHour: 200, hours: 40, paymentDate: '2025-09-01', package: '秋季班40课时', paymentMethod: '微信转账', status: 'paid', remark: '' },
+                    { id: 'f4', studentId: 's4', studentName: '赵六', amount: 6000, pricePerHour: 200, hours: 30, paymentDate: '2025-03-01', package: '春季班30课时', paymentMethod: '银行转账', status: 'paid', remark: '' },
+                    { id: 'f5', studentId: 's5', studentName: '钱七', amount: 6000, pricePerHour: 200, hours: 30, paymentDate: '2025-09-01', package: '秋季班30课时', paymentMethod: '支付宝', status: 'pending', remark: '欠费2000' }
+                ],
+                attendance: [],
+                grades: [
+                    { id: 'g1', studentId: 's1', studentName: '张三', classId: 'c4', testName: '期中测试', testDate: '2025-10-15', score: 88, fullScore: 100, ranking: 3, weakPoints: '几何证明题', remark: '' },
+                    { id: 'g2', studentId: 's1', studentName: '张三', classId: 'c4', testName: '期末测试', testDate: '2025-12-15', score: 92, fullScore: 100, ranking: 2, weakPoints: '辅助线构造', remark: '' },
+                    { id: 'g3', studentId: 's2', studentName: '李四', classId: 'c1', testName: '期中测试', testDate: '2025-10-20', score: 75, fullScore: 100, ranking: 8, weakPoints: '计算准确性', remark: '' },
+                    { id: 'g4', studentId: 's3', studentName: '王五', classId: 'c5', testName: '期中测试', testDate: '2025-10-15', score: 85, fullScore: 100, ranking: 5, weakPoints: '行程问题', remark: '' }
+                ],
+                communications: []
+            };
+        }
+
+        // 初始化标签页
+        function initTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentTab = tab.dataset.tab;
+                    document.getElementById('tab-' + currentTab).classList.add('active');
+                    render();
+                });
+            });
+        }
+
+        // 渲染
+        function render() {
+            renderStats();
+            renderDashboard();
+            renderClasses();
+            renderStudents();
+            renderFees();
+            renderAttendance();
+            renderGrades();
+            renderCommunications();
+            renderReports();
+        }
+
+        // 渲染统计卡片
+        function renderStats() {
+            const activeStudents = data.students.filter(s => s.status === 'active').length;
+            const totalClasses = data.classes.filter(c => c.status === 'active').length;
+            const totalRevenue = data.fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
+            const pendingAmount = data.fees.filter(f => f.status === 'pending').reduce((sum, f) => sum + f.amount, 0);
+
+            document.getElementById('statGrid').innerHTML = `
+                <div class="stat-card"><div class="value">${activeStudents}</div><div class="label">在读学员</div></div>
+                <div class="stat-card"><div class="value">${totalClasses}</div><div class="label">班级数量</div></div>
+                <div class="stat-card"><div class="value">¥${totalRevenue.toLocaleString()}</div><div class="label">已收学费</div></div>
+                <div class="stat-card"><div class="value">¥${pendingAmount.toLocaleString()}</div><div class="label">欠费金额</div></div>
+            `;
+        }
+
+        // 生成ID
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Toast提示
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // ==================== 首页 ====================
+        function renderDashboard() {
+            const container = document.getElementById('tab-dashboard');
+            const pendingFees = data.fees.filter(f => f.status === 'pending');
+
+            const classStats = data.classes.filter(c => c.status === 'active').map(c => {
+                const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
+                return { ...c, currentCount: count };
+            });
+
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">班级概览</span>
+                        <button class="btn btn-primary btn-sm" onclick="openClassModal()">+ 新增班级</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>班级名称</th><th>年级</th><th>上课时间</th><th>人数/满班</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${classStats.map(c => `
+                                    <tr>
+                                        <td><strong>${c.name}</strong></td>
+                                        <td>${c.grade}</td>
+                                        <td>${c.schedule}</td>
+                                        <td>${c.currentCount}/${c.maxStudents}</td>
+                                        <td>
+                                            <button class="btn btn-secondary btn-xs" onclick="openClassModal('${c.id}')">编辑</button>
+                                            <button class="btn btn-xs" onclick="switchTab('students'); selectClass('${c.id}')">查看学员</button>
+                                            <button class="btn btn-xs" onclick="switchTab('attendance'); loadAttendanceClass('${c.id}')">考勤</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">欠费提醒</span></div>
+                        ${pendingFees.length === 0 ? '<div class="empty-state">暂无欠费记录</div>' : `
+                            <table>
+                                <thead><tr><th>学员</th><th>欠费金额</th><th>操作</th></tr></thead>
+                                <tbody>
+                                    ${pendingFees.map(f => `<tr class="row-warning"><td>${f.studentName}</td><td><strong style="color:#e74c3c">¥${f.amount.toLocaleString()}</strong></td><td><button class="btn btn-success btn-xs" onclick="openFeeModal('${f.id}')">去缴费</button></td></tr>`).join('')}
+                                </tbody>
+                            </table>
+                        `}
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">快捷操作</span></div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                            <button class="btn btn-primary" onclick="switchTab('students'); setTimeout(() => openStudentModal(), 100)">+ 新增学员</button>
+                            <button class="btn btn-success" onclick="switchTab('fees'); setTimeout(() => openFeeModal(), 100)">+ 新增缴费</button>
+                            <button class="btn btn-primary" onclick="switchTab('grades'); setTimeout(() => openGradeModal(), 100)">+ 新增成绩</button>
+                            <button class="btn btn-secondary" onclick="switchTab('reports')">查看统计报表</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+            currentTab = tab;
+        }
+
+        function selectClass(classId) {
+            setTimeout(() => {
+                const selector = document.getElementById('studentClassFilter');
+                if (selector) { selector.value = classId; renderStudents(); }
+            }, 100);
+        }
+
+        // ==================== 班级管理 ====================
+        function renderClasses() {
+            const container = document.getElementById('tab-classes');
+            const grades = [...new Set(data.classes.map(c => c.grade))];
+
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="search-bar">
+                            <select id="classGradeFilter" onchange="renderClasses()">
+                                <option value="">全部年级</option>
+                                ${grades.map(g => `<option value="${g}">${g}</option>`).join('')}
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="openClassModal()">+ 新增班级</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr><th>班级名称</th><th>年级</th><th>班型</th><th>上课时间</th><th>学期</th><th>人数/满班</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${data.classes.filter(c => {
+                                    const filter = document.getElementById('classGradeFilter')?.value || '';
+                                    return !filter || c.grade === filter;
+                                }).map(c => {
+                                    const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
+                                    return `<tr><td><strong>${c.name}</strong></td><td>${c.grade}</td><td>${c.classType}</td><td>${c.schedule}</td><td>${c.semester}</td><td>${count}/${c.maxStudents}</td><td><span class="badge ${c.status === 'active' ? 'badge-active' : 'badge-pending'}">${c.status === 'active' ? '正常' : '已结课'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openClassModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteClass('${c.id}')">删除</button></td></tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        function openClassModal(id = null) {
+            currentEditId = id;
+            const cls = id ? data.classes.find(c => c.id === id) : null;
+
+            document.getElementById('modalTitle').textContent = id ? '编辑班级' : '新增班级';
+            document.getElementById('modalBody').innerHTML = `
+                <form onsubmit="saveClass(event)">
+                    <div class="form-row">
+                        <div class="form-group"><label>班级名称 *</label><input type="text" name="name" value="${cls?.name || ''}" required placeholder="如：初一基础-周四18:00"></div>
+                        <div class="form-group">
+                            <label>年级</label>
+                            <select name="grade">
+                                <option value="五年级" ${cls?.grade === '五年级' ? 'selected' : ''}>五年级</option>
+                                <option value="六年级" ${cls?.grade === '六年级' ? 'selected' : ''}>六年级</option>
+                                <option value="初一" ${(!cls || cls?.grade === '初一') ? 'selected' : ''}>初一</option>
+                                <option value="初二" ${cls?.grade === '初二' ? 'selected' : ''}>初二</option>
+                                <option value="初三" ${cls?.grade === '初三' ? 'selected' : ''}>初三</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>班型</label>
+                            <select name="classType">
+                                <option value="基础" ${cls?.classType === '基础' ? 'selected' : ''}>基础</option>
+                                <option value="拔高" ${cls?.classType === '拔高' ? 'selected' : ''}>拔高</option>
+                                <option value="奥数" ${cls?.classType === '奥数' ? 'selected' : ''}>奥数</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>上课时间</label><input type="text" name="schedule" value="${cls?.schedule || ''}" placeholder="如：周四 18:00-20:00"></div>
+                        <div class="form-group"><label>学期</label><input type="text" name="semester" value="${cls?.semester || '2025秋季'}"></div>
+                        <div class="form-group"><label>满班人数</label><input type="number" name="maxStudents" value="${cls?.maxStudents || 10}" min="1"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>状态</label>
+                            <select name="status">
+                                <option value="active" ${(!cls || cls?.status === 'active') ? 'selected' : ''}>正常</option>
+                                <option value="finished" ${cls?.status === 'finished' ? 'selected' : ''}>已结课</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:2;"><label>暑假排课</label><input type="text" name="summerSchedule" value="${cls?.summerSchedule || ''}" placeholder="如：周一至周五上午"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            `;
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function saveClass(e) {
+            e.preventDefault();
+            const form = e.target;
+            const classData = {
+                id: currentEditId || generateId(),
+                name: form.name.value, grade: form.grade.value, classType: form.classType.value,
+                schedule: form.schedule.value, semester: form.semester.value,
+                maxStudents: parseInt(form.maxStudents.value), status: form.status.value,
+                summerSchedule: form.summerSchedule.value
+            };
+            if (currentEditId) {
+                const index = data.classes.findIndex(c => c.id === currentEditId);
+                data.classes[index] = classData;
+            } else {
+                data.classes.push(classData);
+            }
+            saveData();
+            closeModal();
+            showToast('保存成功');
+            render();
+        }
+
+        function deleteClass(id) {
+            if (!confirm('删除班级后，班级下学员将变为"未分班"状态。确定删除？')) return;
+            data.classes = data.classes.filter(c => c.id !== id);
+            data.students.forEach(s => { if (s.classId === id) s.classId = ''; });
+            saveData();
+            showToast('删除成功');
+            render();
+        }
+
+        // ==================== 学员管理 ====================
+        function renderStudents() {
+            const container = document.getElementById('tab-students');
+            const grades = [...new Set(data.classes.map(c => c.grade))];
+
+            let html = `
+                <div class="two-col">
+                    <div class="left-panel">
+                        <div class="search-bar" style="flex-direction: column; gap: 8px;">
+                            <select id="studentGradeFilter" onchange="onGradeFilterChange()">
+                                <option value="">全部年级</option>
+                                ${grades.map(g => `<option value="${g}">${g}</option>`).join('')}
+                            </select>
+                            <select id="studentClassFilter" onchange="renderStudentList()">
+                                <option value="">全部班级</option>
+                            </select>
+                            <input type="text" id="studentSearchInput" placeholder="搜索学员姓名..." oninput="renderStudentList()">
+                        </div>
+                        <div class="student-list" id="studentList"></div>
+                        <button class="btn btn-primary" style="width: 100%; margin-top: 12px;" onclick="openStudentModal()">+ 新增学员</button>
+                    </div>
+                    <div class="right-panel" id="studentDetail">
+                        <div class="empty-state">请选择左侧学员查看详情</div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+            onGradeFilterChange();
+        }
+
+        function onGradeFilterChange() {
+            const grade = document.getElementById('studentGradeFilter').value;
+            const classSelect = document.getElementById('studentClassFilter');
+            const classes = grade ? data.classes.filter(c => c.grade === grade && c.status === 'active') : data.classes.filter(c => c.status === 'active');
+            classSelect.innerHTML = `<option value="">全部班级</option>${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}`;
+            renderStudentList();
+        }
+
+        function renderStudentList() {
+            const grade = document.getElementById('studentGradeFilter')?.value || '';
+            const classId = document.getElementById('studentClassFilter')?.value || '';
+            const search = document.getElementById('studentSearchInput')?.value?.toLowerCase() || '';
+
+            const filtered = data.students.filter(s => {
+                if (grade && s.grade !== grade) return false;
+                if (classId && s.classId !== classId) return false;
+                if (search && !s.name.toLowerCase().includes(search)) return false;
+                return true;
+            });
+
+            const list = document.getElementById('studentList');
+            list.innerHTML = filtered.map(s => {
+                const cls = data.classes.find(c => c.id === s.classId);
+                return `<div class="student-item ${currentStudentId === s.id ? 'active' : ''}" onclick="selectStudent('${s.id}')"><div class="name">${s.name}</div><div class="info">${s.grade} · ${cls?.name || '未分班'}</div></div>`;
+            }).join('');
+        }
+
+        function selectStudent(id) {
+            currentStudentId = id;
+            renderStudentList();
+            renderStudentDetail();
+        }
+
+        function renderStudentDetail() {
+            if (!currentStudentId) return;
+            const student = data.students.find(s => s.id === currentStudentId);
+            if (!student) return;
+
+            const cls = data.classes.find(c => c.id === student.classId);
+            const studentFees = data.fees.filter(f => f.studentId === student.id);
+            const studentGrades = data.grades.filter(g => g.studentId === student.id).sort((a, b) => a.testDate.localeCompare(b.testDate));
+            const studentComms = data.communications.filter(c => c.studentId === student.id);
+
+            // 计算课时统计
+            const totalPaidHours = studentFees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.hours, 0);
+            const totalPaidAmount = studentFees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
+
+            // 计算已消课时（从考勤记录）
+            let usedHours = 0;
+            data.attendance.forEach(a => {
+                if (a.records && a.records[student.id] === 1) usedHours++;
+            });
+            const remainingHours = totalPaidHours - usedHours;
+
+            const detail = document.getElementById('studentDetail');
+            let chartHtml = '';
+            if (studentGrades.length >= 2) {
+                chartHtml = `
+                    <div style="margin-top: 24px;">
+                        <div style="font-weight: 600; color: #2c3e50; margin-bottom: 12px;">成绩趋势</div>
+                        <div class="chart-container"><canvas id="gradeChart"></canvas></div>
+                    </div>
+                `;
+            }
+
+            detail.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+                    <div>
+                        <h3 style="font-size: 20px; color: #2c3e50;">${student.name}</h3>
+                        <p style="color: #888; font-size: 13px; margin-top: 4px;">${student.grade} · ${cls?.name || '未分班'}</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary btn-sm" onclick="openStudentModal('${student.id}')">编辑</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteStudent('${student.id}')">删除</button>
+                    </div>
+                </div>
+
+                <!-- 课时统计卡片 -->
+                <div class="detail-grid" style="margin-bottom: 20px;">
+                    <div class="detail-item highlight">
+                        <div class="label">已缴课时</div>
+                        <div class="value">${totalPaidHours} 课时</div>
+                        <div class="label" style="margin-top:4px;">¥${totalPaidAmount.toLocaleString()}</div>
+                    </div>
+                    <div class="detail-item ${remainingHours <= 5 ? 'warning' : ''}">
+                        <div class="label">已消课时</div>
+                        <div class="value">${usedHours} 课时</div>
+                    </div>
+                    <div class="detail-item ${remainingHours <= 5 ? 'warning' : ''}">
+                        <div class="label">剩余课时</div>
+                        <div class="value">${remainingHours} 课时</div>
+                    </div>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">性别</div><div class="value">${student.gender}</div></div>
+                    <div class="detail-item"><div class="label">授课老师</div><div class="value">${student.teacher}</div></div>
+                    <div class="detail-item"><div class="label">入班时间</div><div class="value">${student.enrollDate}</div></div>
+                    <div class="detail-item"><div class="label">联系电话</div><div class="value">${student.phone || '-'}</div></div>
+                </div>
+
+                ${student.remark ? `<div style="margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 8px;"><div class="label">备注</div><div class="value">${student.remark}</div></div>` : ''}
+
+                <!-- 成绩记录 -->
+                <div style="margin-top: 24px;">
+                    <div style="font-weight: 600; color: #2c3e50; margin-bottom: 12px;">成绩记录 (${studentGrades.length})</div>
+                    ${studentGrades.length === 0 ? '<div class="empty-state" style="padding: 20px;">暂无记录</div>' : `
+                        <div class="table-wrapper">
+                            <table>
+                                <thead><tr><th>测试</th><th>日期</th><th>得分</th><th>排名</th></tr></thead>
+                                <tbody>
+                                    ${studentGrades.map(g => `<tr><td>${g.testName}</td><td>${g.testDate}</td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>第${g.ranking}名</td></tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                </div>
+
+                ${chartHtml}
+            `;
+
+            // 渲染成绩趋势图
+            if (studentGrades.length >= 2) {
+                setTimeout(() => {
+                    const ctx = document.getElementById('gradeChart');
+                    if (ctx) {
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: studentGrades.map(g => g.testName),
+                                datasets: [{
+                                    label: '得分',
+                                    data: studentGrades.map(g => g.score),
+                                    borderColor: '#3498db',
+                                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                                    fill: true,
+                                    tension: 0.3
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: { y: { beginAtZero: false, min: 60, max: 100 } }
+                            }
+                        });
+                    }
+                }, 50);
+            }
+        }
+
+        function openStudentModal(id = null) {
+            currentEditId = id;
+            const student = id ? data.students.find(s => s.id === id) : null;
+            const classOptions = data.classes.filter(c => c.status === 'active').map(c => `<option value="${c.id}" ${student?.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+
+            document.getElementById('modalTitle').textContent = id ? '编辑学员' : '新增学员';
+            document.getElementById('modalBody').innerHTML = `
+                <form onsubmit="saveStudent(event)">
+                    <div class="form-row">
+                        <div class="form-group"><label>姓名 *</label><input type="text" name="name" value="${student?.name || ''}" required></div>
+                        <div class="form-group">
+                            <label>性别</label>
+                            <select name="gender">
+                                <option value="男" ${(!student || student?.gender === '男') ? 'selected' : ''}>男</option>
+                                <option value="女" ${student?.gender === '女' ? 'selected' : ''}>女</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>年级</label>
+                            <select name="grade">
+                                <option value="五年级" ${student?.grade === '五年级' ? 'selected' : ''}>五年级</option>
+                                <option value="六年级" ${student?.grade === '六年级' ? 'selected' : ''}>六年级</option>
+                                <option value="初一" ${(!student || student?.grade === '初一') ? 'selected' : ''}>初一</option>
+                                <option value="初二" ${student?.grade === '初二' ? 'selected' : ''}>初二</option>
+                                <option value="初三" ${student?.grade === '初三' ? 'selected' : ''}>初三</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>所在班级</label><select name="classId"><option value="">未分班</option>${classOptions}</select></div>
+                        <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="${student?.teacher || '白老师'}"></div>
+                        <div class="form-group"><label>入班时间</label><input type="date" name="enrollDate" value="${student?.enrollDate || new Date().toISOString().split('T')[0]}"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>联系电话</label><input type="tel" name="phone" value="${student?.phone || ''}"></div>
+                        <div class="form-group"><label>紧急联系人</label><input type="tel" name="emergencyContact" value="${student?.emergencyContact || ''}"></div>
+                        <div class="form-group">
+                            <label>状态</label>
+                            <select name="status">
+                                <option value="active" ${(!student || student?.status === 'active') ? 'selected' : ''}>在读</option>
+                                <option value="inactive" ${student?.status === 'inactive' ? 'selected' : ''}>已停课</option>
+                                <option value="graduated" ${student?.status === 'graduated' ? 'selected' : ''}>已毕业</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${student?.remark || ''}</textarea></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            `;
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function saveStudent(e) {
+            e.preventDefault();
+            const form = e.target;
+            const studentData = {
+                id: currentEditId || generateId(),
+                name: form.name.value, gender: form.gender.value, grade: form.grade.value,
+                classId: form.classId.value, teacher: form.teacher.value, enrollDate: form.enrollDate.value,
+                phone: form.phone.value, emergencyContact: form.emergencyContact.value,
+                status: form.status.value, remark: form.remark.value
+            };
+            if (currentEditId) {
+                const index = data.students.findIndex(s => s.id === currentEditId);
+                data.students[index] = studentData;
+            } else {
+                data.students.push(studentData);
+            }
+            saveData();
+            closeModal();
+            showToast('保存成功');
+            render();
+        }
+
+        function deleteStudent(id) {
+            if (!confirm('确定删除该学员？')) return;
+            data.students = data.students.filter(s => s.id !== id);
+            if (currentStudentId === id) currentStudentId = null;
+            saveData();
+            showToast('删除成功');
+            render();
+        }
+
+        // ==================== 收费记录 ====================
+        function renderFees() {
+            const container = document.getElementById('tab-fees');
+            const totalPaid = data.fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
+            const totalPending = data.fees.filter(f => f.status === 'pending').reduce((sum, f) => sum + f.amount, 0);
+
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="search-bar">
+                            <input type="text" id="feeSearch" placeholder="搜索学员姓名...">
+                            <select id="feeStatusFilter"><option value="">全部状态</option><option value="paid">已缴</option><option value="pending">欠费</option></select>
+                        </div>
+                        <button class="btn btn-success" onclick="openFeeModal()">+ 新增缴费</button>
+                    </div>
+                    <div style="display: flex; gap: 24px; margin-bottom: 16px; flex-wrap: wrap;">
+                        <div><span style="color: #888;">已缴合计：</span><strong style="color: #27ae60;">¥${totalPaid.toLocaleString()}</strong></div>
+                        <div><span style="color: #888;">欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table><thead><tr><th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
+                    </div>
+                    <div style="margin-top: 16px; display: flex; gap: 12px;">
+                        <button class="btn btn-secondary" onclick="exportFees()">导出Excel</button>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+            document.getElementById('feeSearch').addEventListener('input', renderFeeTable);
+            document.getElementById('feeStatusFilter').addEventListener('change', renderFeeTable);
+            renderFeeTable();
+        }
+
+        function renderFeeTable() {
+            const search = document.getElementById('feeSearch')?.value?.toLowerCase() || '';
+            const status = document.getElementById('feeStatusFilter')?.value || '';
+            const filtered = data.fees.filter(f => (!search || f.studentName.toLowerCase().includes(search)) && (!status || f.status === status));
+            const tbody = document.getElementById('feeTableBody');
+            tbody.innerHTML = filtered.map(f => `<tr><td>${f.studentName}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate}</td><td>${f.package}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
+        }
+
+        function openFeeModal(id = null) {
+            currentEditId = id;
+            const fee = id ? data.fees.find(f => f.id === id) : null;
+            const studentOptions = data.students.filter(s => s.status === 'active').map(s => `<option value="${s.id}" ${fee?.studentId === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+
+            document.getElementById('modalTitle').textContent = id ? '编辑缴费记录' : '新增缴费';
+            document.getElementById('modalBody').innerHTML = `
+                <form onsubmit="saveFee(event)">
+                    <div class="form-row">
+                        <div class="form-group"><label>学员 *</label><select name="studentId" required><option value="">请选择学员</option>${studentOptions}</select></div>
+                        <div class="form-group"><label>缴费金额 *</label><input type="number" name="amount" value="${fee?.amount || ''}" required min="0"></div>
+                        <div class="form-group"><label>课时单价</label><input type="number" name="pricePerHour" value="${fee?.pricePerHour || 200}" min="0"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>购买课时</label><input type="number" name="hours" value="${fee?.hours || ''}" min="0"></div>
+                        <div class="form-group"><label>缴费日期</label><input type="date" name="paymentDate" value="${fee?.paymentDate || new Date().toISOString().split('T')[0]}"></div>
+                        <div class="form-group"><label>状态</label><select name="status"><option value="paid" ${(!fee || fee?.status === 'paid') ? 'selected' : ''}>已缴</option><option value="pending" ${fee?.status === 'pending' ? 'selected' : ''}>欠费</option></select></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>套餐名称</label><input type="text" name="package" value="${fee?.package || ''}" placeholder="如：秋季班40课时"></div>
+                        <div class="form-group"><label>付款方式</label><select name="paymentMethod"><option value="微信转账" ${(!fee || fee?.paymentMethod === '微信转账') ? 'selected' : ''}>微信转账</option><option value="支付宝" ${fee?.paymentMethod === '支付宝' ? 'selected' : ''}>支付宝</option><option value="银行转账" ${fee?.paymentMethod === '银行转账' ? 'selected' : ''}>银行转账</option><option value="现金" ${fee?.paymentMethod === '现金' ? 'selected' : ''}>现金</option></select></div>
+                    </div>
+                    <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${fee?.remark || ''}</textarea></div>
+                    <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+                </form>
+            `;
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function saveFee(e) {
+            e.preventDefault();
+            const form = e.target;
+            const student = data.students.find(s => s.id === form.studentId.value);
+            const feeData = {
+                id: currentEditId || generateId(), studentId: form.studentId.value, studentName: student?.name || '',
+                amount: parseInt(form.amount.value), pricePerHour: parseInt(form.pricePerHour.value),
+                hours: parseInt(form.hours.value), paymentDate: form.paymentDate.value, package: form.package.value,
+                paymentMethod: form.paymentMethod.value, status: form.status.value, remark: form.remark.value
+            };
+            if (currentEditId) {
+                const index = data.fees.findIndex(f => f.id === currentEditId);
+                data.fees[index] = feeData;
+            } else {
+                data.fees.push(feeData);
+            }
+            saveData();
+            closeModal();
+            showToast('保存成功');
+            render();
+        }
+
+        function deleteFee(id) {
+            if (!confirm('确定删除该缴费记录？')) return;
+            data.fees = data.fees.filter(f => f.id !== id);
+            saveData();
+            showToast('删除成功');
+            render();
+        }
+
+        function exportFees() {
+            const headers = ['学员', '缴费金额', '课时单价', '购买课时', '缴费日期', '套餐', '付款方式', '状态'];
+            const rows = data.fees.map(f => [f.studentName, f.amount, f.pricePerHour, f.hours, f.paymentDate, f.package, f.paymentMethod, f.status === 'paid' ? '已缴' : '欠费']);
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            XLSX.writeFile(XLSX.utils.book_new(), '收费记录.xlsx');
+            showToast('导出成功');
+        }
+
+        // ==================== 考勤记录 ====================
+        let currentAttendanceClassId = null;
+
+        function renderAttendance() {
+            const container = document.getElementById('tab-attendance');
+            const classes = data.classes.filter(c => c.status === 'active');
+
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="search-bar">
+                            <select id="attendanceClassSelect" onchange="loadAttendanceClass(this.value)">
+                                <option value="">请选择班级</option>
+                                ${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                            </select>
+                            <button class="btn btn-primary btn-sm" onclick="addAttendanceSession()">+ 新增课次</button>
+                        </div>
+                    </div>
+                    <div id="attendanceContent">
+                        <div class="empty-state">请先选择班级</div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+
+            if (currentAttendanceClassId) {
+                document.getElementById('attendanceClassSelect').value = currentAttendanceClassId;
+                loadAttendanceClass(currentAttendanceClassId);
+            }
+        }
+
+        function loadAttendanceClass(classId) {
+            currentAttendanceClassId = classId;
+            const content = document.getElementById('attendanceContent');
+            if (!classId) { content.innerHTML = '<div class="empty-state">请先选择班级</div>'; return; }
+
+            const cls = data.classes.find(c => c.id === classId);
+            const students = data.students.filter(s => s.classId === classId && s.status === 'active');
+            const sessions = data.attendance.filter(a => a.classId === classId).sort((a, b) => a.date.localeCompare(b.date));
+
+            // 获取所有有记录的日期
+            const allDates = [...new Set(sessions.map(s => s.date))].sort();
+
+            let tableHtml = '';
+            if (students.length === 0) {
+                tableHtml = '<div class="empty-state">该班级暂无学员</div>';
+            } else if (allDates.length === 0) {
+                tableHtml = '<div class="empty-state">暂无考勤记录，请点击"新增课次"添加上课日期</div>';
+            } else {
+                tableHtml = `
+                    <table class="attendance-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:80px;">学员</th>
+                                ${allDates.map((d, i) => `<th style="min-width:60px;">第${i+1}次<br><small>${d}</small></th>`).join('')}
+                                <th style="min-width:50px;">出勤</th>
+                                <th style="min-width:50px;">请假</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${students.map(s => {
+                                const totalSessions = allDates.length;
+                                let present = 0, absent = 0;
+                                allDates.forEach(date => {
+                                    const session = sessions.find(sess => sess.date === date);
+                                    const status = session?.records?.[s.id];
+                                    if (status === 1) present++;
+                                    else if (status === 0) absent++;
+                                });
+                                return `
+                                    <tr>
+                                        <td>${s.name}</td>
+                                        ${allDates.map((date, i) => {
+                                            const session = sessions.find(sess => sess.date === date);
+                                            const status = session?.records?.[s.id];
+                                            const cls = status === 1 ? 'present' : status === 0 ? 'absent' : '';
+                                            return `<td><input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" onchange="updateAttendance(this)"></td>`;
+                                        }).join('')}
+                                        <td><strong>${present}</strong></td>
+                                        <td><strong style="color:#e74c3c;">${absent}</strong></td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center;">
+                        <span style="font-size: 12px; color: #888;">说明：1=正常出勤 0=请假</span>
+                        <button class="btn btn-secondary btn-sm" onclick="exportAttendance()">导出Excel</button>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = tableHtml;
+        }
+
+        function addAttendanceSession() {
+            if (!currentAttendanceClassId) { showToast('请先选择班级'); return; }
+
+            const date = prompt('请输入上课日期（格式：YYYY-MM-DD）：', new Date().toISOString().split('T')[0]);
+            if (!date) return;
+
+            // 检查是否已存在
+            if (data.attendance.some(a => a.classId === currentAttendanceClassId && a.date === date)) {
+                showToast('该日期已存在');
+                return;
+            }
+
+            // 获取该班级的学员
+            const students = data.students.filter(s => s.classId === currentAttendanceClassId && s.status === 'active');
+            const records = {};
+            students.forEach(s => { records[s.id] = 1; }); // 默认全勤
+
+            data.attendance.push({
+                id: generateId(),
+                classId: currentAttendanceClassId,
+                date: date,
+                records: records
+            });
+
+            saveData();
+            loadAttendanceClass(currentAttendanceClassId);
+            showToast('已添加第' + (data.attendance.filter(a => a.classId === currentAttendanceClassId).length) + '次课');
+        }
+
+        function updateAttendance(input) {
+            const date = input.dataset.date;
+            const studentId = input.dataset.student;
+            const value = parseInt(input.value);
+
+            // 验证输入
+            if (value !== 0 && value !== 1 && value !== '') {
+                input.value = '';
+                return;
+            }
+
+            // 更新样式
+            input.className = 'attendance-input';
+            if (value === 1) input.classList.add('present');
+            else if (value === 0) input.classList.add('absent');
+
+            // 找到对应的考勤记录并更新
+            const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
+            if (session) {
+                if (value === 1 || value === 0) {
+                    session.records[studentId] = value;
+                } else {
+                    delete session.records[studentId];
+                }
+                saveData();
+            }
+        }
+
+        function exportAttendance() {
+            if (!currentAttendanceClassId) return;
+
+            const cls = data.classes.find(c => c.id === currentAttendanceClassId);
+            const students = data.students.filter(s => s.classId === currentAttendanceClassId && s.status === 'active');
+            const sessions = data.attendance.filter(a => a.classId === currentAttendanceClassId).sort((a, b) => a.date.localeCompare(b.date));
+            const allDates = [...new Set(sessions.map(s => s.date))].sort();
+
+            const headers = ['学员', ...allDates.map((d, i) => `第${i+1}次(${d})`), '出勤次数', '请假次数'];
+            const rows = students.map(s => {
+                let present = 0, absent = 0;
+                const recordValues = allDates.map(date => {
+                    const session = sessions.find(sess => sess.date === date);
+                    const status = session?.records?.[s.id];
+                    if (status === 1) { present++; return '1'; }
+                    else if (status === 0) { absent++; return '0'; }
+                    return '';
+                });
+                return [s.name, ...recordValues, present, absent];
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            XLSX.writeFile(XLSX.utils.book_new(), `${cls?.name || '考勤记录'}.xlsx`);
+            showToast('导出成功');
+        }
+
+        // ==================== 成绩记录 ====================
+        function renderGrades() {
+            const container = document.getElementById('tab-grades');
+
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="search-bar">
+                            <input type="text" id="gradeSearch" placeholder="搜索学员姓名...">
+                            <select id="gradeClassFilter">
+                                <option value="">全部班级</option>
+                                ${data.classes.filter(c => c.status === 'active').map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="toolbar">
+                            <button class="btn btn-success" onclick="openGradeModal()">+ 新增成绩</button>
+                            <div class="divider"></div>
+                            <button class="btn btn-secondary" onclick="downloadGradeTemplate()">下载导入模板</button>
+                            <div class="file-input-wrapper">
+                                <button class="btn btn-warning">导入Excel</button>
+                                <input type="file" accept=".xlsx,.xls" onchange="importGrades(event)">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table><thead><tr><th>学员</th><th>测试名称</th><th>日期</th><th>得分</th><th>排名</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <button class="btn btn-secondary" onclick="exportGrades()">导出Excel</button>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+            document.getElementById('gradeSearch').addEventListener('input', renderGradeTable);
+            document.getElementById('gradeClassFilter').addEventListener('change', renderGradeTable);
+            renderGradeTable();
+        }
+
+        function renderGradeTable() {
+            const search = document.getElementById('gradeSearch')?.value?.toLowerCase() || '';
+            const classId = document.getElementById('gradeClassFilter')?.value || '';
+            const filtered = data.grades.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId));
+
+            const tbody = document.getElementById('gradeTableBody');
+            tbody.innerHTML = filtered.map(g => `<tr><td>${g.studentName}</td><td>${g.testName}</td><td>${g.testDate}</td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>第${g.ranking}名</td><td>${g.weakPoints || '-'}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
+        }
+
+        function openGradeModal(id = null) {
+            currentEditId = id;
+            const grade = id ? data.grades.find(g => g.id === id) : null;
+            const studentOptions = data.students.filter(s => s.status === 'active').map(s => `<option value="${s.id}" ${grade?.studentId === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+
+            document.getElementById('modalTitle').textContent = id ? '编辑成绩' : '新增成绩';
+            document.getElementById('modalBody').innerHTML = `
+                <form onsubmit="saveGrade(event)">
+                    <div class="form-row">
+                        <div class="form-group"><label>学员 *</label><select name="studentId" required><option value="">请选择学员</option>${studentOptions}</select></div>
+                        <div class="form-group"><label>测试名称 *</label><input type="text" name="testName" value="${grade?.testName || ''}" required></div>
+                        <div class="form-group"><label>测试日期</label><input type="date" name="testDate" value="${grade?.testDate || new Date().toISOString().split('T')[0]}"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>得分 *</label><input type="number" name="score" value="${grade?.score || ''}" required min="0"></div>
+                        <div class="form-group"><label>满分</label><input type="number" name="fullScore" value="${grade?.fullScore || 100}" min="0"></div>
+                        <div class="form-group"><label>班级排名</label><input type="number" name="ranking" value="${grade?.ranking || ''}" min="1"></div>
+                    </div>
+                    <div class="form-group"><label>薄弱点</label><input type="text" name="weakPoints" value="${grade?.weakPoints || ''}" placeholder="如：计算准确性、几何证明题"></div>
+                    <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${grade?.remark || ''}</textarea></div>
+                    <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+                </form>
+            `;
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function saveGrade(e) {
+            e.preventDefault();
+            const form = e.target;
+            const student = data.students.find(s => s.id === form.studentId.value);
+            const gradeData = {
+                id: currentEditId || generateId(), studentId: form.studentId.value, studentName: student?.name || '',
+                classId: student?.classId || '', testName: form.testName.value, testDate: form.testDate.value,
+                score: parseInt(form.score.value), fullScore: parseInt(form.fullScore.value),
+                ranking: parseInt(form.ranking.value), weakPoints: form.weakPoints.value, remark: form.remark.value
+            };
+            if (currentEditId) {
+                const index = data.grades.findIndex(g => g.id === currentEditId);
+                data.grades[index] = gradeData;
+            } else {
+                data.grades.push(gradeData);
+            }
+            saveData();
+            closeModal();
+            showToast('保存成功');
+            render();
+        }
+
+        function deleteGrade(id) {
+            if (!confirm('确定删除该成绩记录？')) return;
+            data.grades = data.grades.filter(g => g.id !== id);
+            saveData();
+            showToast('删除成功');
+            render();
+        }
+
+        // 下载成绩导入模板
+        function downloadGradeTemplate() {
+            const headers = [['学员姓名', '测试名称', '测试日期', '得分', '满分', '班级排名', '薄弱点', '备注']];
+            const sampleRows = [['张三', '期中测试', '2025-10-15', '85', '100', '5', '计算准确性', '']];
+            const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
+            XLSX.writeFile(XLSX.utils.book_new(), '成绩导入模板.xlsx');
+            showToast('模板已下载');
+        }
+
+        // 导入成绩Excel
+        function importGrades(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                    const sheetName = workbook.SheetNames[0];
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+
+                    // 跳过表头，从第二行开始
+                    let imported = 0;
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row[0] || !row[1] || !row[3]) continue; // 学员名、测试名、得分必填
+
+                        const studentName = String(row[0]).trim();
+                        const student = data.students.find(s => s.name === studentName);
+                        if (!student) continue;
+
+                        const gradeData = {
+                            id: generateId(),
+                            studentId: student.id,
+                            studentName: student.name,
+                            classId: student.classId,
+                            testName: String(row[1]).trim(),
+                            testDate: String(row[2] || new Date().toISOString().split('T')[0]),
+                            score: parseInt(row[3]) || 0,
+                            fullScore: parseInt(row[4]) || 100,
+                            ranking: parseInt(row[5]) || 0,
+                            weakPoints: String(row[6] || '').trim(),
+                            remark: String(row[7] || '').trim()
+                        };
+                        data.grades.push(gradeData);
+                        imported++;
+                    }
+
+                    saveData();
+                    render();
+                    showToast(`成功导入 ${imported} 条成绩记录`);
+                } catch (err) {
+                    showToast('导入失败：' + err.message);
+                }
+            };
+            reader.readAsBinaryString(file);
+            event.target.value = '';
+        }
+
+        function exportGrades() {
+            const headers = ['学员', '测试名称', '测试日期', '得分', '满分', '班级排名', '薄弱点', '备注'];
+            const rows = data.grades.map(g => [g.studentName, g.testName, g.testDate, g.score, g.fullScore, `第${g.ranking}名`, g.weakPoints || '', g.remark || '']);
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            XLSX.writeFile(XLSX.utils.book_new(), '成绩记录.xlsx');
+            showToast('导出成功');
+        }
+
+        // ==================== 沟通记录 ====================
+        function renderCommunications() {
+            const container = document.getElementById('tab-communications');
+
+            let html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="search-bar">
+                            <input type="text" id="commSearch" placeholder="搜索学员姓名...">
+                        </div>
+                        <button class="btn btn-primary" onclick="openCommModal()">+ 新增沟通</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table><thead><tr><th>学员</th><th>日期</th><th>方式</th><th>沟通对象</th><th>操作</th></tr></thead><tbody id="commTableBody"></tbody></table>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+            document.getElementById('commSearch').addEventListener('input', renderCommTable);
+            renderCommTable();
+        }
+
+        function renderCommTable() {
+            const search = document.getElementById('commSearch')?.value?.toLowerCase() || '';
+            const filtered = data.communications.filter(c => !search || c.studentName.toLowerCase().includes(search));
+            document.getElementById('commTableBody').innerHTML = filtered.map(c => `<tr><td>${c.studentName}</td><td>${c.contactDate}</td><td>${c.contactType}</td><td>${c.contactPerson}</td><td><button class="btn btn-secondary btn-xs" onclick="openCommDetail('${c.id}')">查看</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td></tr>`).join('');
+        }
+
+        function openCommModal() {
+            const studentOptions = data.students.filter(s => s.status === 'active').map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+            document.getElementById('modalTitle').textContent = '新增沟通';
+            document.getElementById('modalBody').innerHTML = `
+                <form onsubmit="saveComm(event)">
+                    <div class="form-row">
+                        <div class="form-group"><label>学员 *</label><select name="studentId" required><option value="">请选择学员</option>${studentOptions}</select></div>
+                        <div class="form-group"><label>沟通日期</label><input type="date" name="contactDate" value="${new Date().toISOString().split('T')[0]}"></div>
+                        <div class="form-group"><label>沟通方式</label><select name="contactType"><option value="电话">电话</option><option value="微信">微信</option><option value="面谈">面谈</option><option value="家长会">家长会</option></select></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>沟通对象</label><input type="text" name="contactPerson" placeholder="如：张三妈妈"></div>
+                        <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="白老师"></div>
+                    </div>
+                    <div class="form-group"><label>沟通内容</label><textarea name="content" rows="4"></textarea></div>
+                    <div class="form-group"><label>后续跟进</label><textarea name="followUp" rows="2"></textarea></div>
+                    <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+                </form>
+            `;
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function saveComm(e) {
+            e.preventDefault();
+            const form = e.target;
+            const student = data.students.find(s => s.id === form.studentId.value);
+            const commData = {
+                id: generateId(), studentId: form.studentId.value, studentName: student?.name || '',
+                contactDate: form.contactDate.value, contactType: form.contactType.value,
+                contactPerson: form.contactPerson.value, teacher: form.teacher.value,
+                content: form.content.value, followUp: form.followUp.value
+            };
+            data.communications.push(commData);
+            saveData();
+            closeModal();
+            showToast('保存成功');
+            render();
+        }
+
+        function openCommDetail(id) {
+            const comm = data.communications.find(c => c.id === id);
+            document.getElementById('modalTitle').textContent = '沟通详情';
+            document.getElementById('modalBody').innerHTML = `
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">学员</div><div class="value">${comm.studentName}</div></div>
+                    <div class="detail-item"><div class="label">日期</div><div class="value">${comm.contactDate}</div></div>
+                    <div class="detail-item"><div class="label">方式</div><div class="value">${comm.contactType}</div></div>
+                    <div class="detail-item"><div class="label">沟通对象</div><div class="value">${comm.contactPerson}</div></div>
+                </div>
+                <div style="margin-top: 16px;"><div class="label">沟通内容</div><div style="padding: 12px; background: #f8f9fa; border-radius: 8px; margin-top: 4px; white-space: pre-wrap;">${comm.content}</div></div>
+                ${comm.followUp ? `<div style="margin-top: 16px;"><div class="label">后续跟进</div><div style="padding: 12px; background: #fff3cd; border-radius: 8px; margin-top: 4px;">${comm.followUp}</div></div>` : ''}
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+            `;
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function deleteComm(id) {
+            if (!confirm('确定删除该沟通记录？')) return;
+            data.communications = data.communications.filter(c => c.id !== id);
+            saveData();
+            showToast('删除成功');
+            render();
+        }
+
+        // ==================== 统计报表 ====================
+        function renderReports() {
+            const container = document.getElementById('tab-reports');
+
+            // 收入统计
+            const monthlyRevenue = {};
+            data.fees.filter(f => f.status === 'paid').forEach(f => {
+                const month = f.paymentDate.substring(0, 7);
+                monthlyRevenue[month] = (monthlyRevenue[month] || 0) + f.amount;
+            });
+
+            // 课消统计（通过考勤）
+            const studentConsumptionSummary = data.students.filter(s => s.status === 'active').map(s => {
+                const totalHours = data.fees.filter(f => f.studentId === s.id && f.status === 'paid').reduce((sum, f) => sum + f.hours, 0);
+                let usedHours = 0;
+                data.attendance.forEach(a => {
+                    if (a.records && a.records[s.id] === 1) usedHours++;
+                });
+                return { ...s, totalHours, usedHours, remainingHours: totalHours - usedHours };
+            });
+
+            // 班级统计
+            const classStats = data.classes.filter(c => c.status === 'active').map(c => {
+                const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
+                return { ...c, currentCount: count, fillRate: (count / c.maxStudents * 100).toFixed(0) + '%' };
+            });
+
+            let html = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">收入统计（按月）</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
+                        <div class="table-wrapper">
+                            <table><thead><tr><th>月份</th><th>金额</th></tr></thead><tbody>
+                                ${Object.keys(monthlyRevenue).sort().reverse().map(month => `<tr><td>${month}</td><td><strong style="color:#27ae60;">¥${monthlyRevenue[month].toLocaleString()}</strong></td></tr>`).join('') || '<tr><td colspan="2">暂无数据</td></tr>'}
+                            </tbody></table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">班级统计</span><button class="btn btn-secondary btn-sm" onclick="exportClassStats()">导出</button></div>
+                        <div class="table-wrapper">
+                            <table><thead><tr><th>班级</th><th>人数/满班</th><th>满班率</th></tr></thead><tbody>
+                                ${classStats.map(c => `<tr><td>${c.name}</td><td>${c.currentCount}/${c.maxStudents}</td><td>${c.fillRate}</td></tr>`).join('') || '<tr><td colspan="3">暂无数据</td></tr>'}
+                            </tbody></table>
+                        </div>
+                    </div>
+
+                    <div class="card" style="grid-column: 1 / -1;">
+                        <div class="card-header"><span class="card-title">课消统计（剩余课时）</span><button class="btn btn-secondary btn-sm" onclick="exportConsumptionSummary()">导出</button></div>
+                        <div class="table-wrapper">
+                            <table><thead><tr><th>学员</th><th>年级</th><th>总课时</th><th>已消课时</th><th>剩余课时</th><th>状态</th></tr></thead><tbody>
+                                ${studentConsumptionSummary.map(s => {
+                                    const cls = data.classes.find(c => c.id === s.classId);
+                                    const status = s.remainingHours <= 5 ? 'row-warning' : '';
+                                    const badge = s.remainingHours <= 5 ? 'badge-pending' : 'badge-active';
+                                    const text = s.remainingHours <= 5 ? '需续费' : '正常';
+                                    return `<tr class="${status}"><td>${s.name}</td><td>${s.grade}</td><td>${s.totalHours}</td><td>${s.usedHours}</td><td><strong>${s.remainingHours}</strong></td><td><span class="badge ${badge}">${text}</span></td></tr>`;
+                                }).join('') || '<tr><td colspan="6">暂无数据</td></tr>'}
+                            </tbody></table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        function exportMonthlyRevenue() {
+            const monthlyRevenue = {};
+            data.fees.filter(f => f.status === 'paid').forEach(f => {
+                const month = f.paymentDate.substring(0, 7);
+                monthlyRevenue[month] = (monthlyRevenue[month] || 0) + f.amount;
+            });
+            const ws = XLSX.utils.aoa_to_sheet([['月份', '金额'], ...Object.keys(monthlyRevenue).sort().reverse().map(month => [month, monthlyRevenue[month]])]);
+            XLSX.writeFile(XLSX.utils.book_new(), '收入统计.xlsx');
+            showToast('导出成功');
+        }
+
+        function exportClassStats() {
+            const classStats = data.classes.filter(c => c.status === 'active').map(c => {
+                const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
+                return [c.name, `${count}/${c.maxStudents}`, (count / c.maxStudents * 100).toFixed(0) + '%'];
+            });
+            const ws = XLSX.utils.aoa_to_sheet([['班级', '人数/满班', '满班率'], ...classStats]);
+            XLSX.writeFile(XLSX.utils.book_new(), '班级统计.xlsx');
+            showToast('导出成功');
+        }
+
+        function exportConsumptionSummary() {
+            const studentConsumptionSummary = data.students.filter(s => s.status === 'active').map(s => {
+                const totalHours = data.fees.filter(f => f.studentId === s.id && f.status === 'paid').reduce((sum, f) => sum + f.hours, 0);
+                let usedHours = 0;
+                data.attendance.forEach(a => {
+                    if (a.records && a.records[s.id] === 1) usedHours++;
+                });
+                return [s.name, s.grade, totalHours, usedHours, totalHours - usedHours, totalHours - usedHours <= 5 ? '需续费' : '正常'];
+            });
+            const ws = XLSX.utils.aoa_to_sheet([['学员', '年级', '总课时', '已消课时', '剩余课时', '状态'], ...studentConsumptionSummary]);
+            XLSX.writeFile(XLSX.utils.book_new(), '课消统计.xlsx');
+            showToast('导出成功');
+        }
+
+        // ==================== 数据管理 ====================
+        function openDataManager() {
+            const jsonStr = JSON.stringify(data, null, 2);
+            const size = new Blob([jsonStr]).size;
+            const sizeStr = size > 1024 ? (size / 1024).toFixed(1) + ' KB' : size + ' B';
+
+            document.getElementById('modalTitle').textContent = '数据管理';
+            document.getElementById('modalBody').innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-weight: 600;">JSON 数据预览</span>
+                        <span style="font-size: 12px; color: #888;">数据大小：${sizeStr}</span>
+                    </div>
+                    <textarea id="dataJsonPreview" style="width: 100%; height: 400px; font-family: monospace; font-size: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 12px; resize: vertical;" readonly>${jsonStr}</textarea>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-secondary" onclick="copyJsonData()">复制JSON</button>
+                    <button class="btn btn-success" onclick="saveJsonToFile()">保存到本地文件</button>
+                </div>
+                <div style="padding: 16px; background: #fff3cd; border-radius: 8px; font-size: 13px;">
+                    <strong>说明：</strong>JSON 数据包含所有班级、学员、收费、考勤、成绩、沟通记录。
+                    <br>点击「保存到本地文件」可将数据保存到本地文件夹，方便您查看和备份。
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+            `;
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function copyJsonData() {
+            const jsonStr = JSON.stringify(data, null, 2);
+            navigator.clipboard.writeText(jsonStr).then(() => {
+                showToast('已复制到剪贴板');
+            }).catch(() => {
+                showToast('复制失败，请手动复制');
+            });
+        }
+
+        function saveJsonToFile() {
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `学员管理系统数据_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('已保存到本地文件');
+        }
+
+        // ==================== 通用 ====================
+        function closeModal() {
+            document.getElementById('modal').classList.remove('show');
+            currentEditId = null;
+        }
+
+        document.getElementById('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+        // 初始化
+        init();
+    </script>
+</body>
+</html>
