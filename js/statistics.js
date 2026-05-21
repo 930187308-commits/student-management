@@ -5,11 +5,18 @@ let currentReportClassId = '';
 function renderReports() {
     const container = document.getElementById('tab-reports');
 
-    // 收入统计
-    const monthlyRevenue = {};
-    data.fees.filter(f => f.status === 'paid').forEach(f => {
-        const month = f.paymentDate.substring(0, 7);
-        monthlyRevenue[month] = (monthlyRevenue[month] || 0) + f.amount;
+    // 课消统计（按月 - 基于考勤记录）
+    const monthlyConsumption = {};
+    data.attendance.forEach(session => {
+        const month = session.date.substring(0, 7);
+        Object.entries(session.records || {}).forEach(([studentId, status]) => {
+            if (status === 1) { // 出勤
+                const fee = data.fees.find(f => f.studentId === studentId && f.status === 'paid');
+                if (fee && fee.pricePerHour) {
+                    monthlyConsumption[month] = (monthlyConsumption[month] || 0) + fee.pricePerHour;
+                }
+            }
+        });
     });
 
     // 课消统计（通过考勤）
@@ -74,10 +81,10 @@ function renderReports() {
     let html = `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="card">
-                <div class="card-header"><span class="card-title">收入统计（按月）</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
+                <div class="card-header"><span class="card-title">课消统计（按月）</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
                 <div class="table-wrapper">
                     <table><thead><tr><th>月份</th><th>金额</th></tr></thead><tbody>
-                        ${Object.keys(monthlyRevenue).sort().reverse().map(month => `<tr><td>${month}</td><td><strong style="color:#27ae60;">¥${monthlyRevenue[month].toLocaleString()}</strong></td></tr>`).join('') || '<tr><td colspan="2">暂无数据</td></tr>'}
+                        ${Object.keys(monthlyConsumption).sort().reverse().map(month => `<tr><td>${month}</td><td><strong style="color:#27ae60;">¥${monthlyConsumption[month].toLocaleString()}</strong></td></tr>`).join('') || '<tr><td colspan="2">暂无数据</td></tr>'}
                     </tbody></table>
                 </div>
             </div>
@@ -211,15 +218,22 @@ function switchReportClass(classId) {
 }
 
 function exportMonthlyRevenue() {
-    const monthlyRevenue = {};
-    data.fees.filter(f => f.status === 'paid').forEach(f => {
-        const month = f.paymentDate.substring(0, 7);
-        monthlyRevenue[month] = (monthlyRevenue[month] || 0) + f.amount;
+    const monthlyConsumption = {};
+    data.attendance.forEach(session => {
+        const month = session.date.substring(0, 7);
+        Object.entries(session.records || {}).forEach(([studentId, status]) => {
+            if (status === 1) {
+                const fee = data.fees.find(f => f.studentId === studentId && f.status === 'paid');
+                if (fee && fee.pricePerHour) {
+                    monthlyConsumption[month] = (monthlyConsumption[month] || 0) + fee.pricePerHour;
+                }
+            }
+        });
     });
-    const ws = XLSX.utils.aoa_to_sheet([['月份', '金额'], ...Object.keys(monthlyRevenue).sort().reverse().map(month => [month, monthlyRevenue[month]])]);
+    const ws = XLSX.utils.aoa_to_sheet([['月份', '金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, monthlyConsumption[month]])]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '收入统计');
-    XLSX.writeFile(wb, '收入统计.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, '课消统计');
+    XLSX.writeFile(wb, '课消统计.xlsx');
     showToast('导出成功');
 }
 
