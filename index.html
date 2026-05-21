@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学员管理系统</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>学员管理系统</h1>
+                <p>数据存储在本地浏览器 · 建议定期导出备份</p>
+            </div>
+            <div class="toolbar">
+                <button class="theme-toggle" onclick="toggleDarkMode()" title="切换夜间模式">🌙</button>
+                <span class="autosave-indicator" id="autosaveIndicator">● 已保存</span>
+                <button class="btn btn-secondary btn-sm" onclick="exportBackup()">导出备份</button>
+                <div class="file-input-wrapper">
+                    <button class="btn btn-warning btn-sm">导入备份</button>
+                    <input type="file" accept=".json" onchange="importBackup(event)">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="openDataManager()">数据管理</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stat-grid" id="statGrid"></div>
+
+        <!-- 标签页 -->
+        <div class="tabs">
+            <button class="tab active" data-tab="dashboard">首页</button>
+            <button class="tab" data-tab="classes">班级管理</button>
+            <button class="tab" data-tab="students">学员管理</button>
+            <button class="tab" data-tab="prospects">意向学员</button>
+            <button class="tab" data-tab="fees">收费记录</button>
+            <button class="tab" data-tab="attendance">考勤记录</button>
+            <button class="tab" data-tab="grades">成绩记录</button>
+            <button class="tab" data-tab="communications">沟通记录</button>
+            <button class="tab" data-tab="reports">统计报表</button>
+        </div>
+
+        <!-- 首页 -->
+        <div class="tab-content active" id="tab-dashboard"></div>
+
+        <!-- 班级管理 -->
+        <div class="tab-content" id="tab-classes"></div>
+
+        <!-- 学员管理 -->
+        <div class="tab-content" id="tab-students"></div>
+
+        <!-- 意向学员 -->
+        <div class="tab-content" id="tab-prospects"></div>
+
+        <!-- 收费记录 -->
+        <div class="tab-content" id="tab-classes"></div>
+
+        <!-- 学员管理 -->
+        <div class="tab-content" id="tab-students"></div>
+
+        <!-- 收费记录 -->
+        <div class="tab-content" id="tab-fees"></div>
+
+        <!-- 考勤记录 -->
+        <div class="tab-content" id="tab-attendance"></div>
+
+        <!-- 成绩记录 -->
+        <div class="tab-content" id="tab-grades"></div>
+
+        <!-- 沟通记录 -->
+        <div class="tab-content" id="tab-communications"></div>
+
+        <!-- 统计报表 -->
+        <div class="tab-content" id="tab-reports"></div>
+    </div>
+
+    <!-- 通用模态框 -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"></h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- JS 模块 (按依赖顺序) -->
+    <script src="js/data.js"></script>
+    <script src="js/class.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/student.js"></script>
+    <script src="js/fee.js"></script>
+    <script src="js/attendance.js"></script>
+    <script src="js/grade.js"></script>
+    <script src="js/communication.js"></script>
+    <script src="js/prospects.js"></script>
+    <script src="js/statistics.js"></script>
+    <script src="js/data-management.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

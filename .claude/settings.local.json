@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sI \"https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js\")",
+      "Bash(curl -sI \"https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js\")",
+      "Bash(open index.html)"
+    ]
+  }
+}

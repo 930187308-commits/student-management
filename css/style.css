@@ -1,0 +1,253 @@
+/* ==================== 夜间模式变量 ==================== */
+:root {
+    --bg-primary: #f0f2f5;
+    --bg-card: #ffffff;
+    --bg-header: linear-gradient(135deg, #2c3e50, #3498db);
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-muted: #888888;
+    --border-color: #dddddd;
+    --hover-bg: #f0f2f5;
+    --shadow: rgba(0,0,0,0.06);
+    --input-bg: #ffffff;
+    --table-header-bg: #f8f9fa;
+    --table-border: #eeeeee;
+    --modal-overlay: rgba(0,0,0,0.5);
+}
+
+body.dark-mode {
+    --bg-primary: #1a1a2e;
+    --bg-card: #16213e;
+    --bg-header: linear-gradient(135deg, #0f0f23, #1a1a2e);
+    --text-primary: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --border-color: #3f3f46;
+    --hover-bg: #27273a;
+    --shadow: rgba(0,0,0,0.3);
+    --input-bg: #27273a;
+    --table-header-bg: #27273a;
+    --table-border: #3f3f46;
+    --modal-overlay: rgba(0,0,0,0.7);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); transition: background 0.3s, color 0.3s; }
+
+.header { background: var(--bg-header); color: white; padding: 20px 30px; }
+.header h1 { font-size: 24px; font-weight: 600; }
+.header p { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+/* 主题切换按钮 */
+.theme-toggle { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 12px; }
+.theme-toggle:hover { background: rgba(255,255,255,0.25); }
+body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+
+/* 统计卡片 - 6列等宽：第一个占2列，右边四个各1列 */
+.stat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 24px; align-items: stretch; }
+.stat-card { background: var(--bg-card); padding: 8px; border-radius: 10px; box-shadow: 0 2px 12px var(--shadow); transition: background 0.3s, box-shadow 0.3s; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+.stat-card .value { font-size: 26px; font-weight: 700; color: var(--text-primary); }
+.stat-card .label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* 课时概览第一个 - 占2列，左对齐内容 */
+.stat-grid .stat-card:first-child { grid-column: span 2; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; padding: 10px 14px; }
+
+@media (max-width: 900px) {
+    .stat-grid { grid-template-columns: repeat(3, 1fr); }
+    .stat-grid .stat-card:first-child { grid-column: span 3; }
+}
+@media (max-width: 600px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .stat-grid .stat-card:first-child { grid-column: span 2; }
+}
+
+/* 欠费提醒/警告行 */
+tr.row-warning { background: #fff3cd; }
+body.dark-mode tr.row-warning { background: #3d3520; }
+body.dark-mode tr.row-warning td { color: #fbbf24; }
+body.dark-mode tr.row-warning strong { color: #fbbf24; }
+
+/* 仪表盘卡片 */
+body.dark-mode .card .card-title { color: var(--text-primary); }
+body.dark-mode .card td { color: var(--text-primary); }
+body.dark-mode .card strong { color: var(--text-primary); }
+
+/* 待续费徽章 */
+.badge-renewal { background: #f39c12; color: white; }
+
+/* 统计报表需续费行 */
+.stat-card.row-warning .value { color: #856404; }
+body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
+
+/* 标签页 */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-card); padding: 8px; border-radius: 12px; box-shadow: 0 2px 12px var(--shadow); }
+.tab { padding: 10px 20px; background: transparent; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: all 0.2s; }
+.tab:hover { background: var(--hover-bg); color: var(--text-primary); }
+.tab.active { background: #3498db; color: white; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* 卡片 */
+.card { background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 12px var(--shadow); transition: background 0.3s, box-shadow 0.3s; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+.card-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+
+/* 表格 */
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 600px; }
+th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--table-border); font-size: 13px; white-space: nowrap; }
+th { background: var(--table-header-bg); font-weight: 600; color: var(--text-secondary); position: sticky; top: 0; }
+tr:hover { background: var(--hover-bg); }
+tr.edited { background: #fff9e6; }
+tr.row-warning { background: #fff3cd; }
+
+/* 表格第一列居中 */
+table td:first-child,
+table th:first-child,
+.attendance-table td:first-child,
+.attendance-table th:first-child { text-align: center; }
+
+/* 可编辑单元格 */
+td.editable { cursor: pointer; padding: 6px 8px; border: 1px solid transparent; border-radius: 4px; min-height: 20px; }
+td.editable:hover { border-color: #3498db; background: var(--hover-bg); }
+td.editable:focus { border-color: #3498db; background: var(--input-bg); outline: none; }
+td.editable input { width: 100%; border: none; background: transparent; font-size: 13px; padding: 0; }
+td.editable input:focus { outline: none; }
+
+/* 考勤表格 */
+.attendance-table { border-collapse: collapse; width: 100%; }
+.attendance-table th, .attendance-table td { border: 1px solid var(--border-color); padding: 6px 8px; text-align: center; font-size: 12px; }
+.attendance-table th { background: var(--table-header-bg); }
+.attendance-table td:first-child { text-align: center; background: var(--hover-bg); font-weight: 500; }
+.attendance-input { width: 40px; text-align: center; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px; font-size: 13px; background: var(--input-bg); color: var(--text-primary); }
+.attendance-input.present { background: #d4edda; color: #155724; }
+.attendance-input.absent { background: #f8d7da; color: #721c24; }
+
+/* 按钮 */
+.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: #3498db; color: white; }
+.btn-primary:hover { background: #2980b9; }
+.btn-success { background: #27ae60; color: white; }
+.btn-success:hover { background: #219a52; }
+.btn-danger { background: #e74c3c; color: white; }
+.btn-danger:hover { background: #c0392b; }
+.btn-secondary { background: #95a5a6; color: white; }
+.btn-secondary:hover { background: #7f8c8d; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-xs { padding: 3px 8px; font-size: 11px; }
+.btn-warning { background: #f39c12; color: white; }
+.btn-warning:hover { background: #d68910; }
+
+/* 表单 */
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 150px; }
+.form-group label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--input-bg); color: var(--text-primary); }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #3498db; }
+.form-group textarea { resize: vertical; min-height: 60px; }
+
+/* 搜索栏 */
+.search-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.search-bar input { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; min-width: 150px; background: var(--input-bg); color: var(--text-primary); }
+.search-bar select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--input-bg); color: var(--text-primary); }
+
+/* 模态框 */
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--modal-overlay); z-index: 1000; align-items: center; justify-content: center; }
+.modal.show { display: flex; }
+.modal-content { background: var(--bg-card); border-radius: 16px; padding: 24px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 24px var(--shadow); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--table-border); }
+.modal-header h3 { font-size: 18px; color: var(--text-primary); }
+.modal-close { background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+.modal-close:hover { color: var(--text-primary); }
+.modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--table-border); }
+
+/* 标签徽章 */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+.badge-active { background: #d4edda; color: #155724; }
+.badge-trial { background: #fff3cd; color: #856404; }
+.badge-pending { background: #f8d7da; color: #721c24; }
+.badge-paid { background: #d4edda; color: #155724; }
+.badge-success { background: #d4edda; color: #155724; }
+.badge-normal { background: #e8f4fd; color: #1976d2; }
+
+/* Toast */
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--text-primary); color: var(--bg-primary); padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.3s; }
+.toast.show { opacity: 1; }
+
+/* 空状态 */
+.empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+
+/* 两栏布局 */
+.two-col { display: grid; grid-template-columns: 280px 1fr; gap: 20px; min-height: 400px; }
+.left-panel { background: var(--bg-card); border-radius: 12px; padding: 16px; box-shadow: 0 2px 12px var(--shadow); }
+.right-panel { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px var(--shadow); overflow-y: auto; max-height: 600px; }
+
+.student-list { max-height: 400px; overflow-y: auto; }
+.student-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: all 0.2s; color: var(--text-primary); }
+.student-item:hover { background: var(--hover-bg); }
+.student-item.active { background: #3498db; color: white; }
+.student-item .name { font-weight: 600; font-size: 14px; }
+.student-item .info { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+/* 明细卡片 */
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.detail-item { padding: 12px; background: var(--hover-bg); border-radius: 8px; }
+.detail-item .label { font-size: 12px; color: var(--text-muted); }
+.detail-item .value { font-size: 16px; color: var(--text-primary); margin-top: 4px; font-weight: 600; }
+.detail-item.highlight { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+.detail-item.highlight .label { color: rgba(255,255,255,0.8); }
+.detail-item.highlight .value { color: white; }
+/* 欠费提醒/警告行 */
+tr.row-warning { background: #fff3cd; }
+body.dark-mode tr.row-warning { background: #3d3520; }
+body.dark-mode tr.row-warning td { color: #fbbf24; }
+body.dark-mode tr.row-warning strong { color: #fbbf24; }
+
+/* 待续费徽章 */
+.badge-renewal { background: #f39c12; color: white; }
+
+/* 统计报表需续费行 */
+.stat-card.row-warning .value { color: #856404; }
+body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
+
+/* 图表容器 */
+.chart-container { height: 250px; margin-top: 16px; }
+
+/* 工具栏 */
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.toolbar .divider { width: 1px; height: 24px; background: var(--border-color); margin: 0 8px; }
+
+/* 文件上传 */
+.file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
+.file-input-wrapper input { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+/* 自动保存指示器 */
+.autosave-indicator { font-size: 11px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 4px; }
+.autosave-indicator.saving { color: #f39c12; }
+.autosave-indicator.saved { color: #a3e635; }
+
+/* 响应式 */
+@media (max-width: 1024px) {
+    .two-col { grid-template-columns: 1fr; }
+    .left-panel { max-height: 300px; }
+}
+@media (max-width: 768px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-row { flex-direction: column; }
+    .form-group { min-width: 100%; }
+}
+
+/* 日期输入 - 日历图标 */
+input[type="date"] {
+    position: relative;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
