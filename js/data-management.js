@@ -123,6 +123,7 @@ function confirmClearAllData() {
         prospectSources: ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'],
         classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班']
     };
+    dataModified = false; // 重置改动标记
     saveData();
     closeModal();
     showToast('已清空所有数据');
@@ -132,6 +133,7 @@ function confirmClearAllData() {
 function resetToSampleData() {
     if (!confirm('确定重置为示例数据？这将覆盖当前所有数据！')) return;
     data = getSampleData();
+    dataModified = false; // 重置改动标记
     saveData();
     closeModal();
     showToast('已重置为示例数据');
@@ -141,6 +143,7 @@ function resetToSampleData() {
 function copyJsonData() {
     const jsonStr = JSON.stringify(data, null, 2);
     navigator.clipboard.writeText(jsonStr).then(() => {
+        dataModified = false; // 复制后重置改动标记
         showToast('已复制到剪贴板');
     }).catch(() => {
         showToast('复制失败，请手动复制');
@@ -156,5 +159,6 @@ function saveJsonToFile() {
     a.download = `学员管理系统数据_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    dataModified = false; // 保存后重置改动标记
     showToast('已保存到本地文件');
 }

@@ -27,6 +27,7 @@ let currentStudentId = null;
 let editingCell = null;
 let autoSaveTimer = null;
 let lastSaveTime = null;
+let dataModified = false; // 追踪数据是否有改动
 
 // 存储键名
 const STORAGE_KEY = 'studentManagementSystem_v3';
@@ -82,6 +83,7 @@ function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     lastSaveTime = new Date();
     updateAutoSaveIndicator();
+    dataModified = true; // 标记为有改动
 }
 
 // 自动保存
@@ -91,9 +93,16 @@ function startAutoSave() {
         saveData();
     }, 30000);
 
-    // 页面离开前保存
-    window.addEventListener('beforeunload', () => {
-        saveData();
+    // 页面离开前保存并弹出提醒
+    window.addEventListener('beforeunload', (e) => {
+        if (dataModified) {
+            // 保存数据
+            saveData();
+            // 弹出浏览器原生提醒框
+            e.preventDefault();
+            e.returnValue = '您有未导出的改动，关闭前建议导出备份。';
+            return e.returnValue;
+        }
     });
 
     // 页面隐藏时保存
@@ -126,6 +135,7 @@ function exportBackup() {
     a.download = `学员管理系统备份_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    dataModified = false; // 导出后重置改动标记
     showToast('备份已导出');
 }
 
@@ -141,6 +151,7 @@ function importBackup(event) {
             if (backup.data) {
                 if (confirm('导入将覆盖当前所有数据，确定继续？')) {
                     data = backup.data;
+                    dataModified = false; // 导入后重置改动标记
                     saveData();
                     render();
                     showToast('导入成功');
