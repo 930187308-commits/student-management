@@ -67,7 +67,8 @@ async function loadFromJsonBin() {
 
         if (!response.ok) {
             if (response.status === 404) {
-                throw new Error('Collection 不存在，请检查配置');
+                // 404 可能是 Collection 空的，返回 null 让调用方处理
+                return null;
             }
             throw new Error(`JSONBin API 错误: ${response.status}`);
         }
