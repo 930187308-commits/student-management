@@ -159,7 +159,7 @@ async function saveToGist(data) {
 // 标记本地数据待同步
 function markPendingSync() {
     localStorage.setItem('pendingSync', 'true');
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // 不再同时保存 data 到 localStorage，因为 saveData 已经在保存了
 }
 
 // 尝试同步待同步的数据
@@ -315,10 +315,20 @@ function clearGistConfig() {
 // 初始化
 async function init() {
     await loadData();
-    if (data.classes.length === 0) {
+
+    // 只有在数据完全为空（没有任何班级）时才加载示例数据
+    // 不要仅因为 classes.length === 0 就加载示例数据，可能是有其他原因
+    const hasAnyData = data.classes?.length > 0 ||
+                       data.students?.length > 0 ||
+                       data.fees?.length > 0 ||
+                       data.attendance?.length > 0 ||
+                       data.grades?.length > 0;
+
+    if (!hasAnyData) {
         data = getSampleData();
         await saveData();
     }
+
     initDarkMode();
     initTabs();
     render();
@@ -333,36 +343,74 @@ async function loadData() {
             showToast('正在从云端加载...', 5000);
             const gistData = await loadFromGist();
             if (gistData) {
-                // 如果本地有待同步数据，需要处理冲突
                 const localData = localStorage.getItem(STORAGE_KEY);
                 const localPending = localStorage.getItem('pendingSync');
 
+                // 如果本地有待同步数据
                 if (localPending && localData) {
-                    // 本地有未同步的修改，询问用户用哪个
                     const localObj = JSON.parse(localData);
-                    const gistTime = new Date(gistData.lastModified || 0);
-                    const localTime = new Date(localObj.lastModified || 0);
+                    const gistTime = new Date(gistData.lastModified || 0).getTime();
+                    const localTime = new Date(localObj.lastModified || 0).getTime();
 
-                    if (localTime > gistTime) {
-                        // 本地更新，使用本地数据
+                    // 比较所有数据的最后修改时间
+                    const gistClassesTime = new Date(gistData.classes?.slice(-1)[0]?.createDate || gistTime).getTime();
+                    const localClassesTime = new Date(localObj.classes?.slice(-1)[0]?.createDate || localTime).getTime();
+                    const gistMaxTime = Math.max(gistTime, ...(gistData.grades?.map(g => new Date(g.testDate).getTime()) || [0]), ...(gistData.communications?.map(c => new Date(c.contactDate).getTime()) || [0]));
+                    const localMaxTime = Math.max(localTime, ...(localObj.grades?.map(g => new Date(g.testDate).getTime()) || [0]), ...(localObj.communications?.map(c => new Date(c.contactDate).getTime()) || [0]));
+
+                    // 如果本地数据更新（检查关键数据的时间戳）
+                    if (localMaxTime > gistMaxTime + 5000) { // 5秒容差
                         data = localObj;
-                        // 尝试保存到 Gist
-                        try {
-                            await saveToGist(data);
-                            showToast('本地数据已同步到云端');
-                        } catch (e) {
-                            showToast('云端同步失败，本地数据已保存', 3000);
-                            markPendingSync();
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                        showToast('使用本地最新数据');
+
+                        // 尝试同步到 Gist
+                        if (!lastGistSaveTime || (Date.now() - lastGistSaveTime) >= SAVE_COOLDOWN_MS) {
+                            try {
+                                await saveToGist(data);
+                                lastGistSaveTime = Date.now();
+                                localStorage.removeItem('pendingSync');
+                                showToast('本地数据已同步到云端');
+                            } catch (e) {
+                                // 保持 pendingSync 标记，下次再试
+                            }
                         }
                     } else {
-                        // 云端更新，使用云端数据
+                        // 云端数据更新，使用云端数据
                         data = gistData;
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
                         localStorage.removeItem('pendingSync');
                         showToast('已加载云端最新数据');
                     }
+                } else if (localData) {
+                    // 本地有数据但没有待同步标记，比较时间
+                    const localObj = JSON.parse(localData);
+                    const gistTime = new Date(gistData.lastModified || 0).getTime();
+                    const localTime = new Date(localObj.lastModified || 0).getTime();
+
+                    if (localTime > gistTime + 5000) {
+                        // 本地数据更新，但之前同步失败了
+                        data = localObj;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                        showToast('使用本地最新数据');
+
+                        // 尝试同步
+                        if (!lastGistSaveTime || (Date.now() - lastGistSaveTime) >= SAVE_COOLDOWN_MS) {
+                            try {
+                                await saveToGist(data);
+                                lastGistSaveTime = Date.now();
+                            } catch (e) {
+                                localStorage.setItem('pendingSync', 'true');
+                            }
+                        }
+                    } else {
+                        // 使用云端数据
+                        data = gistData;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                        showToast('已加载云端数据');
+                    }
                 } else {
-                    // 没有冲突，直接使用 Gist 数据
+                    // 没有本地数据，直接使用云端
                     data = gistData;
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
                     showToast('已加载云端数据');
@@ -430,17 +478,19 @@ function loadDataFromLocal() {
 
 // 保存数据（支持 Gist 同步）
 async function saveData() {
+    // 添加时间戳
+    data.lastModified = new Date().toISOString();
+
+    // 总是先保存到本地（不管是否在冷却期）
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSaveTime = new Date();
+
     // 节流：检查是否在保存冷却期内
     if (lastGistSaveTime && (Date.now() - lastGistSaveTime) < SAVE_COOLDOWN_MS) {
-        // 只保存到本地，不调用 Gist API
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        lastSaveTime = new Date();
+        // 在冷却期内，只保存本地，不调用 Gist API
         updateAutoSaveIndicator();
         return;
     }
-
-    // 添加时间戳
-    data.lastModified = new Date().toISOString();
 
     if (isGistConfigured()) {
         try {
@@ -448,19 +498,16 @@ async function saveData() {
             lastGistSaveTime = Date.now(); // 更新最后保存时间
             updateAutoSaveIndicator();
             dataModified = false;
+            localStorage.removeItem('pendingSync');
         } catch (error) {
             console.error('保存到 Gist 失败，保存到本地:', error);
-            // Gist 保存失败，保存在本地
-            markPendingSync();
+            // Gist 保存失败，标记待同步
+            localStorage.setItem('pendingSync', 'true');
             updateAutoSaveIndicator();
             showToast('网络不稳定，数据已保存在本地', 3000);
             dataModified = true;
         }
     } else {
-        // 未配置 Gist，只保存到本地
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        localStorage.removeItem('pendingSync');
-        lastSaveTime = new Date();
         updateAutoSaveIndicator();
         dataModified = true;
     }
