@@ -39,6 +39,8 @@ const GIST_ID_KEY = 'gistId';
 const GIST_FILENAME = 'student-management-data.json';
 const DATA_VERSION_KEY = 'dataVersion'; // 用于冲突检测的时间戳
 const SAVE_COOLDOWN_MS = 60000; // 保存间隔限制：60秒内不重复保存
+let lastRateLimitTime = 0; // 上次触发限流的时间
+const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000; // 限流后等待5分钟再试
 
 // ========== Gist API 操作 ==========
 
@@ -89,6 +91,11 @@ async function saveToGist(data) {
     const token = localStorage.getItem(GIST_TOKEN_KEY);
     const gistId = localStorage.getItem(GIST_ID_KEY);
 
+    // 检查是否在限流冷却期
+    if (Date.now() - lastRateLimitTime < RATE_LIMIT_COOLDOWN_MS) {
+        throw new Error('API 限流中，等待冷却');
+    }
+
     // 添加时间戳用于冲突检测
     const dataWithTimestamp = {
         ...data,
@@ -105,6 +112,10 @@ async function saveToGist(data) {
         });
 
         if (!getResponse.ok) {
+            if (getResponse.status === 403) {
+                lastRateLimitTime = Date.now();
+                throw new Error('API 限流');
+            }
             throw new Error(`获取 Gist 失败: ${getResponse.status}`);
         }
 
@@ -141,6 +152,10 @@ async function saveToGist(data) {
         });
 
         if (!saveResponse.ok) {
+            if (saveResponse.status === 403) {
+                lastRateLimitTime = Date.now();
+                throw new Error('API 限流');
+            }
             const errorText = await saveResponse.text();
             throw new Error(`保存失败: ${saveResponse.status} - ${errorText}`);
         }
