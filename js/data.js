@@ -27,146 +27,93 @@ let currentStudentId = null;
 let editingCell = null;
 let autoSaveTimer = null;
 let lastSaveTime = null;
-let lastGistSaveTime = null; // 记录上次 Gist 保存时间，用于节流
+let lastCloudSaveTime = null; // 记录上次云端保存时间，用于节流
 let dataModified = false; // 追踪数据是否有改动
 
 // 存储键名
 const STORAGE_KEY = 'studentManagementSystem_v3';
 
-// Gist 同步配置
-const GIST_TOKEN_KEY = 'gistToken';
-const GIST_ID_KEY = 'gistId';
-const GIST_FILENAME = 'student-management-data.json';
-const DATA_VERSION_KEY = 'dataVersion'; // 用于冲突检测的时间戳
-const SAVE_COOLDOWN_MS = 60000; // 保存间隔限制：60秒内不重复保存
-let lastRateLimitTime = 0; // 上次触发限流的时间
-const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000; // 限流后等待5分钟再试
+// JSONBin.io 同步配置
+const JSONBIN_COLLECTION_KEY = 'jsonbinCollectionId';
+const JSONBIN_MASTER_KEY = 'jsonbinMasterKey';
+const JSONBIN_API_BASE = 'https://api.jsonbin.io/v3';
 
-// ========== Gist API 操作 ==========
+// ========== JSONBin API 操作 ==========
 
-// 检查是否配置了 Gist
+// 检查是否配置了 JSONBin
+function isJsonBinConfigured() {
+    return localStorage.getItem(JSONBIN_COLLECTION_KEY) && localStorage.getItem(JSONBIN_MASTER_KEY);
+}
+
+// 兼容旧的 Gist 配置（保留但默认不使用）
 function isGistConfigured() {
-    const token = localStorage.getItem(GIST_TOKEN_KEY);
-    const gistId = localStorage.getItem(GIST_ID_KEY);
+    const token = localStorage.getItem('gistToken');
+    const gistId = localStorage.getItem('gistId');
     return token && gistId;
 }
 
-// 从 Gist 加载数据
-async function loadFromGist() {
-    const token = localStorage.getItem(GIST_TOKEN_KEY);
-    const gistId = localStorage.getItem(GIST_ID_KEY);
+// 从 JSONBin 加载数据
+async function loadFromJsonBin() {
+    const collectionId = localStorage.getItem(JSONBIN_COLLECTION_KEY);
+    const masterKey = localStorage.getItem(JSONBIN_MASTER_KEY);
 
     try {
-        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+        const response = await fetch(`${JSONBIN_API_BASE}/c/${collectionId}/latest`, {
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
+                'X-Master-Key': masterKey,
+                'X-Bin-Versioning': 'false'
             }
         });
 
         if (!response.ok) {
             if (response.status === 404) {
-                throw new Error('Gist 不存在，请检查 Gist ID 是否正确');
+                throw new Error('Collection 不存在，请检查配置');
             }
-            throw new Error(`GitHub API 错误: ${response.status}`);
+            throw new Error(`JSONBin API 错误: ${response.status}`);
         }
 
-        const gistData = await response.json();
-        const file = gistData.files[GIST_FILENAME];
-
-        if (!file) {
-            // Gist 存在但没有数据文件，需要创建
-            return null;
-        }
-
-        return JSON.parse(file.content);
+        const result = await response.json();
+        return result.record;
     } catch (error) {
-        console.error('从 Gist 加载失败:', error);
+        console.error('从 JSONBin 加载失败:', error);
         throw error;
     }
 }
 
-// 保存数据到 Gist
-async function saveToGist(data) {
-    const token = localStorage.getItem(GIST_TOKEN_KEY);
-    const gistId = localStorage.getItem(GIST_ID_KEY);
+// 保存数据到 JSONBin
+async function saveToJsonBin(data) {
+    const collectionId = localStorage.getItem(JSONBIN_COLLECTION_KEY);
+    const masterKey = localStorage.getItem(JSONBIN_MASTER_KEY);
 
-    // 检查是否在限流冷却期
-    if (Date.now() - lastRateLimitTime < RATE_LIMIT_COOLDOWN_MS) {
-        throw new Error('API 限流中，等待冷却');
-    }
-
-    // 添加时间戳用于冲突检测
+    // 添加时间戳
     const dataWithTimestamp = {
         ...data,
         lastModified: new Date().toISOString()
     };
 
     try {
-        // 先获取当前 Gist，确认文件存在
-        const getResponse = await fetch(`https://api.github.com/gists/${gistId}`, {
+        const response = await fetch(`${JSONBIN_API_BASE}/c/${collectionId}`, {
+            method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-
-        if (!getResponse.ok) {
-            if (getResponse.status === 403) {
-                lastRateLimitTime = Date.now();
-                throw new Error('API 限流');
-            }
-            throw new Error(`获取 Gist 失败: ${getResponse.status}`);
-        }
-
-        const gistData = await getResponse.json();
-        const file = gistData.files[GIST_FILENAME];
-
-        // 根据文件是否存在决定是更新还是创建
-        const url = `https://api.github.com/gists/${gistId}`;
-        const method = file ? 'PATCH' : 'POST';
-
-        const body = {
-            description: '学员管理系统数据备份',
-            files: {
-                [GIST_FILENAME]: {
-                    content: JSON.stringify(dataWithTimestamp, null, 2)
-                }
-            }
-        };
-
-        // 如果是更新，需要传入原文件的 filename
-        if (file) {
-            body.files[GIST_FILENAME].filename = file.filename;
-            body.files[GIST_FILENAME].truncated = false;
-        }
-
-        const saveResponse = await fetch(url, {
-            method: method,
-            headers: {
-                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
-                'Accept': 'application/vnd.github.v3+json'
+                'X-Master-Key': masterKey,
+                'X-Bin-Versioning': 'false'
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(dataWithTimestamp)
         });
 
-        if (!saveResponse.ok) {
-            if (saveResponse.status === 403) {
-                lastRateLimitTime = Date.now();
-                throw new Error('API 限流');
-            }
-            const errorText = await saveResponse.text();
-            throw new Error(`保存失败: ${saveResponse.status} - ${errorText}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`保存失败: ${response.status} - ${errorText}`);
         }
 
-        // 保存成功，同时更新本地备份
+        // 保存成功，更新本地备份
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         localStorage.removeItem('pendingSync');
 
         return true;
     } catch (error) {
-        console.error('保存到 Gist 失败:', error);
+        console.error('保存到 JSONBin 失败:', error);
         throw error;
     }
 }
@@ -174,16 +121,15 @@ async function saveToGist(data) {
 // 标记本地数据待同步
 function markPendingSync() {
     localStorage.setItem('pendingSync', 'true');
-    // 不再同时保存 data 到 localStorage，因为 saveData 已经在保存了
 }
 
 // 尝试同步待同步的数据
 async function trySyncPendingData() {
-    if (!isGistConfigured()) return false;
+    if (!isJsonBinConfigured()) return false;
     if (!localStorage.getItem('pendingSync')) return false;
 
     try {
-        await saveToGist(data);
+        await saveToJsonBin(data);
         showToast('已同步到云端');
         return true;
     } catch (error) {
@@ -192,137 +138,164 @@ async function trySyncPendingData() {
     }
 }
 
-// 显示 Gist 设置弹窗
+// 显示 JSONBin 设置弹窗
 function showGistSetupModal() {
-    const token = localStorage.getItem(GIST_TOKEN_KEY) || '';
-    const gistId = localStorage.getItem(GIST_ID_KEY) || '';
-    const isConfigured = token && gistId;
+    showJsonBinSetupModal();
+}
+
+function showJsonBinSetupModal() {
+    const collectionId = localStorage.getItem(JSONBIN_COLLECTION_KEY) || '';
+    const masterKey = localStorage.getItem(JSONBIN_MASTER_KEY) || '';
+    const isConfigured = collectionId && masterKey;
 
     const modal = document.getElementById('modal');
     modal.classList.add('show');
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
-                <h3>Gist 同步设置</h3>
-                <button class="modal-close" onclick="closeGistSetupModal()">&times;</button>
+                <h3>云端同步设置</h3>
+                <button class="modal-close" onclick="closeJsonBinSetupModal()">&times;</button>
             </div>
             <div class="modal-body">
-                ${isConfigured ? '<p style="color: #27ae60; font-size: 13px; margin-bottom: 15px;">✓ 已配置 Gist 同步</p>' : '<p style="color: #666; font-size: 13px; margin-bottom: 15px;">设置 GitHub Gist 以实现多设备数据同步。需要先在 GitHub 创建 Gist 并生成 Token。</p>'}
+                ${isConfigured ? '<p style="color: #27ae60; font-size: 13px; margin-bottom: 15px;">✓ 已配置云端同步</p>' : '<p style="color: #666; font-size: 13px; margin-bottom: 15px;">设置 JSONBin.io 以实现多设备数据同步。国内直接访问，不需要 VPN。</p>'}
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">GitHub Token</label>
-                    <input type="password" id="gistTokenInput" placeholder="ghp_xxxxxxxxxxxx"
-                        value="${token}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Gist ID</label>
-                    <input type="text" id="gistIdInput" placeholder="例如: abc123def456"
-                        value="${gistId}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Collection ID</label>
+                    <input type="text" id="jsonbinCollectionInput" placeholder="例如: 6652a9b5ad1adafc279e1234"
+                        value="${collectionId}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <p style="color: #999; font-size: 11px; margin-top: 5px;">
-                        Gist ID 是 Gist URL 中的最后一部分，如 gist.github.com/用户名/<b>abc123def456</b>
+                        Collection ID 是创建 Collection 后获得，格式类似：6652a9b5ad1adafc279e1234
                     </p>
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <button onclick="showGistHelp()" style="background: #f5f5f5; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                        📖 如何获取 Token 和 Gist ID？
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Master Key</label>
+                    <input type="password" id="jsonbinMasterKeyInput" placeholder="例如: $2a$10$xxxxxx"
+                        value="${masterKey}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <p style="color: #999; font-size: 11px; margin-top: 5px;">
+                        Master Key 用于读写你的 Collection，在创建页面可以看到
+                    </p>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <button onclick="showJsonBinHelp()" style="background: #f5f5f5; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                        📖 如何获取 Collection ID 和 Master Key？
                     </button>
                 </div>
             </div>
             <div class="modal-footer">
-                ${isConfigured ? '<button onclick="clearGistConfig()" style="padding: 8px 16px; margin-right: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">解除同步</button>' : ''}
-                <button onclick="closeGistSetupModal()" style="padding: 8px 16px; margin-right: 10px; background: #ccc; border: none; border-radius: 4px; cursor: pointer;">取消</button>
-                <button onclick="saveGistConfig()" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+                ${isConfigured ? '<button onclick="clearJsonBinConfig()" style="padding: 8px 16px; margin-right: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">解除同步</button>' : ''}
+                <button onclick="closeJsonBinSetupModal()" style="padding: 8px 16px; margin-right: 10px; background: #ccc; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+                <button onclick="saveJsonBinConfig()" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
             </div>
         </div>
     `;
 }
 
 // 关闭设置弹窗
-function closeGistSetupModal() {
+function closeJsonBinSetupModal() {
     document.getElementById('modal').classList.remove('show');
 }
 
 // 显示帮助信息
-function showGistHelp() {
+function showJsonBinHelp() {
     const modal = document.getElementById('modal');
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h3>如何获取 Token 和 Gist ID</h3>
-                <button class="modal-close" onclick="showGistSetupModal()">&times;</button>
+                <h3>如何获取 JSONBin 配置</h3>
+                <button class="modal-close" onclick="showJsonBinSetupModal()">&times;</button>
             </div>
             <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
-                <h4>第一步：创建 Gist</h4>
+                <h4>第一步：注册 JSONBin.io</h4>
                 <ol style="color: #666; font-size: 13px; line-height: 1.8;">
-                    <li>访问 <a href="https://gist.github.com" target="_blank">gist.github.com</a> 并登录</li>
-                    <li>点击 "Create a gist"</li>
-                    <li>文件名填写：<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">student-management-data.json</code></li>
-                    <li>Description 填写：<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">学员管理系统数据备份</code></li>
-                    <li>选择 <b>Secret</b>（私有）</li>
-                    <li>点击 "Create secret gist"</li>
-                    <li>创建成功后，浏览器地址栏会显示类似：<br>
-                        <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">gist.github.com/你的用户名/<b style="color: #e74c3c;">abc123def456</b></code>
-                    </li>
-                    <li>复制 <b style="color: #e74c3c;">abc123def456</b> 这一段，这就是 Gist ID</li>
+                    <li>访问 <a href="https://jsonbin.io" target="_blank">jsonbin.io</a> 并登录（可以用 Google 账号）</li>
+                    <li>登录后进入控制台</li>
                 </ol>
 
-                <h4 style="margin-top: 20px;">第二步：生成 GitHub Token</h4>
+                <h4 style="margin-top: 20px;">第二步：创建 Collection</h4>
                 <ol style="color: #666; font-size: 13px; line-height: 1.8;">
-                    <li>访问 <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings → Personal Access Tokens</a></li>
-                    <li>点击 "Generate new token (classic)"</li>
-                    <li>Note 填写：<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">学员管理系统</code></li>
-                    <li>勾选范围：<b>gist</b>（只需要这个）</li>
-                    <li>点击 "Generate token"</li>
-                    <li><b style="color: #e74c3c;">立即复制 Token</b>（只显示一次！）</li>
+                    <li>点击 "Create a Collection" 或 "New Collection"</li>
+                    <li>Name 填写：<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">student-management</code></li>
+                    <li>Visibility 选择：<b>Private</b>（私有）</li>
+                    <li>点击创建</li>
+                    <li>创建完成后，你会看到：<br>
+                        <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">Collection ID: <b style="color: #e74c3c;">6652a9b5ad1adafc279e1234</b></code><br>
+                        <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">Master Key: <b style="color: #e74c3c;">$2a$10$xxxxxxxx</b></code>
+                    </li>
+                    <li><b style="color: #e74c3c;">复制这两个值</b>，Master Key 只显示一次！</li>
                 </ol>
 
                 <h4 style="margin-top: 20px;">第三步：回到这里填写</h4>
                 <p style="color: #666; font-size: 13px;">
-                    填入 Token 和 Gist ID 后点击"保存"即可。
+                    填入 Collection ID 和 Master Key 后点击"保存"即可。
                 </p>
             </div>
             <div class="modal-footer">
-                <button onclick="showGistSetupModal()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">返回设置</button>
+                <button onclick="showJsonBinSetupModal()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">返回设置</button>
             </div>
         </div>
     `;
 }
 
-// 保存 Gist 配置
-function saveGistConfig() {
-    const token = document.getElementById('gistTokenInput').value.trim();
-    const gistId = document.getElementById('gistIdInput').value.trim();
+// 保存 JSONBin 配置
+function saveJsonBinConfig() {
+    const collectionId = document.getElementById('jsonbinCollectionInput').value.trim();
+    const masterKey = document.getElementById('jsonbinMasterKeyInput').value.trim();
 
-    if (!token) {
-        alert('请输入 GitHub Token');
+    if (!collectionId) {
+        alert('请输入 Collection ID');
         return;
     }
-    if (!gistId) {
-        alert('请输入 Gist ID');
+    if (!masterKey) {
+        alert('请输入 Master Key');
         return;
     }
 
-    localStorage.setItem(GIST_TOKEN_KEY, token);
-    localStorage.setItem(GIST_ID_KEY, gistId);
+    localStorage.setItem(JSONBIN_COLLECTION_KEY, collectionId);
+    localStorage.setItem(JSONBIN_MASTER_KEY, masterKey);
 
-    closeGistSetupModal();
-    showToast('Gist 配置已保存');
+    // 清除旧的 Gist 配置（如果有）
+    localStorage.removeItem('gistToken');
+    localStorage.removeItem('gistId');
+
+    closeJsonBinSetupModal();
+    showToast('云端配置已保存');
 
     // 重新加载数据
     init();
 }
 
-// 清除 Gist 配置
-function clearGistConfig() {
-    if (!confirm('确定要解除 Gist 同步吗？解除后数据将只保存在本地。')) return;
+// 清除 JSONBin 配置
+function clearJsonBinConfig() {
+    if (!confirm('确定要解除云端同步吗？解除后数据将只保存在本地。')) return;
 
-    localStorage.removeItem(GIST_TOKEN_KEY);
-    localStorage.removeItem(GIST_ID_KEY);
+    localStorage.removeItem(JSONBIN_COLLECTION_KEY);
+    localStorage.removeItem(JSONBIN_MASTER_KEY);
     localStorage.removeItem('pendingSync');
 
-    closeGistSetupModal();
-    showToast('已解除 Gist 同步');
-    updateGistSyncButton();
+    closeJsonBinSetupModal();
+    showToast('已解除云端同步');
+    updateJsonBinSyncButton();
     updateAutoSaveIndicator();
+}
+
+// 兼容旧的 Gist 弹窗
+function showGistSetupModal() {
+    showJsonBinSetupModal();
+}
+
+function closeGistSetupModal() {
+    closeJsonBinSetupModal();
+}
+
+function saveGistConfig() {
+    saveJsonBinConfig();
+}
+
+function clearGistConfig() {
+    clearJsonBinConfig();
+}
+
+function showGistHelp() {
+    showJsonBinHelp();
 }
 
 // ========== 初始化 ==========
@@ -350,40 +323,42 @@ async function init() {
     startAutoSave();
 }
 
-// 加载数据（支持 Gist 同步）
+// 加载数据（支持 JSONBin 同步）
 async function loadData() {
-    // 如果配置了 Gist，优先从 Gist 加载
-    if (isGistConfigured()) {
+    // 如果配置了 JSONBin，优先从 JSONBin 加载
+    if (isJsonBinConfigured()) {
         try {
             showToast('正在从云端加载...', 5000);
-            const gistData = await loadFromGist();
-            if (gistData) {
+            const cloudData = await loadFromJsonBin();
+            if (cloudData) {
                 const localData = localStorage.getItem(STORAGE_KEY);
                 const localPending = localStorage.getItem('pendingSync');
 
                 // 如果本地有待同步数据
                 if (localPending && localData) {
                     const localObj = JSON.parse(localData);
-                    const gistTime = new Date(gistData.lastModified || 0).getTime();
+                    const cloudTime = new Date(cloudData.lastModified || 0).getTime();
                     const localTime = new Date(localObj.lastModified || 0).getTime();
 
                     // 比较所有数据的最后修改时间
-                    const gistClassesTime = new Date(gistData.classes?.slice(-1)[0]?.createDate || gistTime).getTime();
-                    const localClassesTime = new Date(localObj.classes?.slice(-1)[0]?.createDate || localTime).getTime();
-                    const gistMaxTime = Math.max(gistTime, ...(gistData.grades?.map(g => new Date(g.testDate).getTime()) || [0]), ...(gistData.communications?.map(c => new Date(c.contactDate).getTime()) || [0]));
-                    const localMaxTime = Math.max(localTime, ...(localObj.grades?.map(g => new Date(g.testDate).getTime()) || [0]), ...(localObj.communications?.map(c => new Date(c.contactDate).getTime()) || [0]));
+                    const cloudMaxTime = Math.max(cloudTime,
+                        ...(cloudData.grades?.map(g => new Date(g.testDate).getTime()) || [0]),
+                        ...(cloudData.communications?.map(c => new Date(c.contactDate).getTime()) || [0]));
+                    const localMaxTime = Math.max(localTime,
+                        ...(localObj.grades?.map(g => new Date(g.testDate).getTime()) || [0]),
+                        ...(localObj.communications?.map(c => new Date(c.contactDate).getTime()) || [0]));
 
                     // 如果本地数据更新（检查关键数据的时间戳）
-                    if (localMaxTime > gistMaxTime + 5000) { // 5秒容差
+                    if (localMaxTime > cloudMaxTime + 5000) { // 5秒容差
                         data = localObj;
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
                         showToast('使用本地最新数据');
 
-                        // 尝试同步到 Gist
-                        if (!lastGistSaveTime || (Date.now() - lastGistSaveTime) >= SAVE_COOLDOWN_MS) {
+                        // 尝试同步到云端
+                        if (!lastCloudSaveTime || (Date.now() - lastCloudSaveTime) >= SAVE_COOLDOWN_MS) {
                             try {
-                                await saveToGist(data);
-                                lastGistSaveTime = Date.now();
+                                await saveToJsonBin(data);
+                                lastCloudSaveTime = Date.now();
                                 localStorage.removeItem('pendingSync');
                                 showToast('本地数据已同步到云端');
                             } catch (e) {
@@ -392,7 +367,7 @@ async function loadData() {
                         }
                     } else {
                         // 云端数据更新，使用云端数据
-                        data = gistData;
+                        data = cloudData;
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
                         localStorage.removeItem('pendingSync');
                         showToast('已加载云端最新数据');
@@ -400,40 +375,58 @@ async function loadData() {
                 } else if (localData) {
                     // 本地有数据但没有待同步标记，比较时间
                     const localObj = JSON.parse(localData);
-                    const gistTime = new Date(gistData.lastModified || 0).getTime();
+                    const cloudTime = new Date(cloudData.lastModified || 0).getTime();
                     const localTime = new Date(localObj.lastModified || 0).getTime();
 
-                    if (localTime > gistTime + 5000) {
+                    if (localTime > cloudTime + 5000) {
                         // 本地数据更新，但之前同步失败了
                         data = localObj;
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
                         showToast('使用本地最新数据');
 
                         // 尝试同步
-                        if (!lastGistSaveTime || (Date.now() - lastGistSaveTime) >= SAVE_COOLDOWN_MS) {
+                        if (!lastCloudSaveTime || (Date.now() - lastCloudSaveTime) >= SAVE_COOLDOWN_MS) {
                             try {
-                                await saveToGist(data);
-                                lastGistSaveTime = Date.now();
+                                await saveToJsonBin(data);
+                                lastCloudSaveTime = Date.now();
                             } catch (e) {
                                 localStorage.setItem('pendingSync', 'true');
                             }
                         }
                     } else {
                         // 使用云端数据
-                        data = gistData;
+                        data = cloudData;
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
                         showToast('已加载云端数据');
                     }
                 } else {
                     // 没有本地数据，直接使用云端
-                    data = gistData;
+                    data = cloudData;
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
                     showToast('已加载云端数据');
                 }
             } else {
-                // Gist 是空的，加载本地数据并尝试创建 Gist
+                // 云端是空的，加载本地数据并尝试创建
                 loadDataFromLocal();
-                showToast('云端暂无数据，将创建新数据', 3000);
+                showToast('云端暂无数据，将使用本地数据', 3000);
+            }
+        } catch (error) {
+            console.error('从 JSONBin 加载失败，尝试本地数据:', error);
+            loadDataFromLocal();
+            showToast('云端加载失败，使用本地数据', 3000);
+        }
+    } else if (isGistConfigured()) {
+        // 兼容旧的 Gist 配置
+        try {
+            showToast('正在从云端加载...', 5000);
+            const gistData = await loadFromGist();
+            if (gistData) {
+                data = gistData;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                showToast('已加载云端数据');
+            } else {
+                loadDataFromLocal();
+                showToast('云端暂无数据', 3000);
             }
         } catch (error) {
             console.error('从 Gist 加载失败，尝试本地数据:', error);
@@ -441,7 +434,7 @@ async function loadData() {
             showToast('云端加载失败，使用本地数据', 3000);
         }
     } else {
-        // 未配置 Gist，使用本地数据
+        // 未配置云端，使用本地数据
         loadDataFromLocal();
     }
 
@@ -491,7 +484,7 @@ function loadDataFromLocal() {
     }
 }
 
-// 保存数据（支持 Gist 同步）
+// 保存数据（支持 JSONBin 同步）
 async function saveData() {
     // 添加时间戳
     data.lastModified = new Date().toISOString();
@@ -501,22 +494,37 @@ async function saveData() {
     lastSaveTime = new Date();
 
     // 节流：检查是否在保存冷却期内
-    if (lastGistSaveTime && (Date.now() - lastGistSaveTime) < SAVE_COOLDOWN_MS) {
-        // 在冷却期内，只保存本地，不调用 Gist API
+    if (lastCloudSaveTime && (Date.now() - lastCloudSaveTime) < SAVE_COOLDOWN_MS) {
+        // 在冷却期内，只保存本地，不调用云端 API
         updateAutoSaveIndicator();
         return;
     }
 
-    if (isGistConfigured()) {
+    if (isJsonBinConfigured()) {
+        try {
+            await saveToJsonBin(data);
+            lastCloudSaveTime = Date.now(); // 更新最后保存时间
+            updateAutoSaveIndicator();
+            dataModified = false;
+            localStorage.removeItem('pendingSync');
+        } catch (error) {
+            console.error('保存到 JSONBin 失败，保存到本地:', error);
+            // 保存失败，标记待同步
+            localStorage.setItem('pendingSync', 'true');
+            updateAutoSaveIndicator();
+            showToast('网络不稳定，数据已保存在本地', 3000);
+            dataModified = true;
+        }
+    } else if (isGistConfigured()) {
+        // 兼容旧的 Gist 配置
         try {
             await saveToGist(data);
-            lastGistSaveTime = Date.now(); // 更新最后保存时间
+            lastCloudSaveTime = Date.now();
             updateAutoSaveIndicator();
             dataModified = false;
             localStorage.removeItem('pendingSync');
         } catch (error) {
             console.error('保存到 Gist 失败，保存到本地:', error);
-            // Gist 保存失败，标记待同步
             localStorage.setItem('pendingSync', 'true');
             updateAutoSaveIndicator();
             showToast('网络不稳定，数据已保存在本地', 3000);
@@ -562,10 +570,10 @@ function updateAutoSaveIndicator() {
         }
     }
     // 更新同步按钮状态
-    updateGistSyncButton();
+    updateJsonBinSyncButton();
 }
 
-function updateGistSyncButton() {
+function updateJsonBinSyncButton() {
     const btn = document.getElementById('gistSyncBtn');
     if (!btn) return;
 
@@ -573,7 +581,7 @@ function updateGistSyncButton() {
     if (pending) {
         btn.className = 'btn btn-warning btn-sm';
         btn.innerHTML = '☁️ 待同步';
-    } else if (isGistConfigured()) {
+    } else if (isJsonBinConfigured() || isGistConfigured()) {
         btn.className = 'btn btn-success btn-sm';
         btn.innerHTML = '☁️ 已同步';
     } else {
