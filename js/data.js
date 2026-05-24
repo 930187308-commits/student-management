@@ -32,12 +32,290 @@ let dataModified = false; // 追踪数据是否有改动
 // 存储键名
 const STORAGE_KEY = 'studentManagementSystem_v3';
 
+// Gist 同步配置
+const GIST_TOKEN_KEY = 'gistToken';
+const GIST_ID_KEY = 'gistId';
+const GIST_FILENAME = 'student-management-data.json';
+const DATA_VERSION_KEY = 'dataVersion'; // 用于冲突检测的时间戳
+
+// ========== Gist API 操作 ==========
+
+// 检查是否配置了 Gist
+function isGistConfigured() {
+    const token = localStorage.getItem(GIST_TOKEN_KEY);
+    const gistId = localStorage.getItem(GIST_ID_KEY);
+    return token && gistId;
+}
+
+// 从 Gist 加载数据
+async function loadFromGist() {
+    const token = localStorage.getItem(GIST_TOKEN_KEY);
+    const gistId = localStorage.getItem(GIST_ID_KEY);
+
+    try {
+        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('Gist 不存在，请检查 Gist ID 是否正确');
+            }
+            throw new Error(`GitHub API 错误: ${response.status}`);
+        }
+
+        const gistData = await response.json();
+        const file = gistData.files[GIST_FILENAME];
+
+        if (!file) {
+            // Gist 存在但没有数据文件，需要创建
+            return null;
+        }
+
+        return JSON.parse(file.content);
+    } catch (error) {
+        console.error('从 Gist 加载失败:', error);
+        throw error;
+    }
+}
+
+// 保存数据到 Gist
+async function saveToGist(data) {
+    const token = localStorage.getItem(GIST_TOKEN_KEY);
+    const gistId = localStorage.getItem(GIST_ID_KEY);
+
+    // 添加时间戳用于冲突检测
+    const dataWithTimestamp = {
+        ...data,
+        lastModified: new Date().toISOString()
+    };
+
+    try {
+        // 先获取当前 Gist，确认文件存在
+        const getResponse = await fetch(`https://api.github.com/gists/${gistId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        if (!getResponse.ok) {
+            throw new Error(`获取 Gist 失败: ${getResponse.status}`);
+        }
+
+        const gistData = await getResponse.json();
+        const file = gistData.files[GIST_FILENAME];
+
+        // 根据文件是否存在决定是更新还是创建
+        const url = `https://api.github.com/gists/${gistId}`;
+        const method = file ? 'PATCH' : 'POST';
+
+        const body = {
+            description: '学员管理系统数据备份',
+            files: {
+                [GIST_FILENAME]: {
+                    content: JSON.stringify(dataWithTimestamp, null, 2)
+                }
+            }
+        };
+
+        // 如果是更新，需要传入原文件的 filename
+        if (file) {
+            body.files[GIST_FILENAME].filename = file.filename;
+            body.files[GIST_FILENAME].truncated = false;
+        }
+
+        const saveResponse = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!saveResponse.ok) {
+            const errorText = await saveResponse.text();
+            throw new Error(`保存失败: ${saveResponse.status} - ${errorText}`);
+        }
+
+        // 保存成功，同时更新本地备份
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.removeItem('pendingSync');
+
+        return true;
+    } catch (error) {
+        console.error('保存到 Gist 失败:', error);
+        throw error;
+    }
+}
+
+// 标记本地数据待同步
+function markPendingSync() {
+    localStorage.setItem('pendingSync', 'true');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// 尝试同步待同步的数据
+async function trySyncPendingData() {
+    if (!isGistConfigured()) return false;
+    if (!localStorage.getItem('pendingSync')) return false;
+
+    try {
+        await saveToGist(data);
+        showToast('已同步到云端');
+        return true;
+    } catch (error) {
+        console.error('同步待同步数据失败:', error);
+        return false;
+    }
+}
+
+// 显示 Gist 设置弹窗
+function showGistSetupModal() {
+    const token = localStorage.getItem(GIST_TOKEN_KEY) || '';
+    const gistId = localStorage.getItem(GIST_ID_KEY) || '';
+    const isConfigured = token && gistId;
+
+    const modal = document.getElementById('modal');
+    modal.classList.add('show');
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Gist 同步设置</h3>
+                <button class="modal-close" onclick="closeGistSetupModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                ${isConfigured ? '<p style="color: #27ae60; font-size: 13px; margin-bottom: 15px;">✓ 已配置 Gist 同步</p>' : '<p style="color: #666; font-size: 13px; margin-bottom: 15px;">设置 GitHub Gist 以实现多设备数据同步。需要先在 GitHub 创建 Gist 并生成 Token。</p>'}
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">GitHub Token</label>
+                    <input type="password" id="gistTokenInput" placeholder="ghp_xxxxxxxxxxxx"
+                        value="${token}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Gist ID</label>
+                    <input type="text" id="gistIdInput" placeholder="例如: abc123def456"
+                        value="${gistId}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <p style="color: #999; font-size: 11px; margin-top: 5px;">
+                        Gist ID 是 Gist URL 中的最后一部分，如 gist.github.com/用户名/<b>abc123def456</b>
+                    </p>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <button onclick="showGistHelp()" style="background: #f5f5f5; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                        📖 如何获取 Token 和 Gist ID？
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                ${isConfigured ? '<button onclick="clearGistConfig()" style="padding: 8px 16px; margin-right: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">解除同步</button>' : ''}
+                <button onclick="closeGistSetupModal()" style="padding: 8px 16px; margin-right: 10px; background: #ccc; border: none; border-radius: 4px; cursor: pointer;">取消</button>
+                <button onclick="saveGistConfig()" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
+            </div>
+        </div>
+    `;
+}
+
+// 关闭设置弹窗
+function closeGistSetupModal() {
+    document.getElementById('modal').classList.remove('show');
+}
+
+// 显示帮助信息
+function showGistHelp() {
+    const modal = document.getElementById('modal');
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>如何获取 Token 和 Gist ID</h3>
+                <button class="modal-close" onclick="showGistSetupModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <h4>第一步：创建 Gist</h4>
+                <ol style="color: #666; font-size: 13px; line-height: 1.8;">
+                    <li>访问 <a href="https://gist.github.com" target="_blank">gist.github.com</a> 并登录</li>
+                    <li>点击 "Create a gist"</li>
+                    <li>文件名填写：<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">student-management-data.json</code></li>
+                    <li>Description 填写：<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">学员管理系统数据备份</code></li>
+                    <li>选择 <b>Secret</b>（私有）</li>
+                    <li>点击 "Create secret gist"</li>
+                    <li>创建成功后，浏览器地址栏会显示类似：<br>
+                        <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">gist.github.com/你的用户名/<b style="color: #e74c3c;">abc123def456</b></code>
+                    </li>
+                    <li>复制 <b style="color: #e74c3c;">abc123def456</b> 这一段，这就是 Gist ID</li>
+                </ol>
+
+                <h4 style="margin-top: 20px;">第二步：生成 GitHub Token</h4>
+                <ol style="color: #666; font-size: 13px; line-height: 1.8;">
+                    <li>访问 <a href="https://github.com/settings/tokens" target="_blank">GitHub Settings → Personal Access Tokens</a></li>
+                    <li>点击 "Generate new token (classic)"</li>
+                    <li>Note 填写：<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">学员管理系统</code></li>
+                    <li>勾选范围：<b>gist</b>（只需要这个）</li>
+                    <li>点击 "Generate token"</li>
+                    <li><b style="color: #e74c3c;">立即复制 Token</b>（只显示一次！）</li>
+                </ol>
+
+                <h4 style="margin-top: 20px;">第三步：回到这里填写</h4>
+                <p style="color: #666; font-size: 13px;">
+                    填入 Token 和 Gist ID 后点击"保存"即可。
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="showGistSetupModal()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">返回设置</button>
+            </div>
+        </div>
+    `;
+}
+
+// 保存 Gist 配置
+function saveGistConfig() {
+    const token = document.getElementById('gistTokenInput').value.trim();
+    const gistId = document.getElementById('gistIdInput').value.trim();
+
+    if (!token) {
+        alert('请输入 GitHub Token');
+        return;
+    }
+    if (!gistId) {
+        alert('请输入 Gist ID');
+        return;
+    }
+
+    localStorage.setItem(GIST_TOKEN_KEY, token);
+    localStorage.setItem(GIST_ID_KEY, gistId);
+
+    closeGistSetupModal();
+    showToast('Gist 配置已保存');
+
+    // 重新加载数据
+    init();
+}
+
+// 清除 Gist 配置
+function clearGistConfig() {
+    if (!confirm('确定要解除 Gist 同步吗？解除后数据将只保存在本地。')) return;
+
+    localStorage.removeItem(GIST_TOKEN_KEY);
+    localStorage.removeItem(GIST_ID_KEY);
+    localStorage.removeItem('pendingSync');
+
+    closeGistSetupModal();
+    showToast('已解除 Gist 同步');
+    updateGistSyncButton();
+    updateAutoSaveIndicator();
+}
+
+// ========== 初始化 ==========
+
 // 初始化
-function init() {
-    loadData();
+async function init() {
+    await loadData();
     if (data.classes.length === 0) {
         data = getSampleData();
-        saveData();
+        await saveData();
     }
     initDarkMode();
     initTabs();
@@ -45,60 +323,149 @@ function init() {
     startAutoSave();
 }
 
-// 加载数据
-function loadData() {
+// 加载数据（支持 Gist 同步）
+async function loadData() {
+    // 如果配置了 Gist，优先从 Gist 加载
+    if (isGistConfigured()) {
+        try {
+            showToast('正在从云端加载...', 5000);
+            const gistData = await loadFromGist();
+            if (gistData) {
+                // 如果本地有待同步数据，需要处理冲突
+                const localData = localStorage.getItem(STORAGE_KEY);
+                const localPending = localStorage.getItem('pendingSync');
+
+                if (localPending && localData) {
+                    // 本地有未同步的修改，询问用户用哪个
+                    const localObj = JSON.parse(localData);
+                    const gistTime = new Date(gistData.lastModified || 0);
+                    const localTime = new Date(localObj.lastModified || 0);
+
+                    if (localTime > gistTime) {
+                        // 本地更新，使用本地数据
+                        data = localObj;
+                        // 尝试保存到 Gist
+                        try {
+                            await saveToGist(data);
+                            showToast('本地数据已同步到云端');
+                        } catch (e) {
+                            showToast('云端同步失败，本地数据已保存', 3000);
+                            markPendingSync();
+                        }
+                    } else {
+                        // 云端更新，使用云端数据
+                        data = gistData;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                        localStorage.removeItem('pendingSync');
+                        showToast('已加载云端最新数据');
+                    }
+                } else {
+                    // 没有冲突，直接使用 Gist 数据
+                    data = gistData;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                    showToast('已加载云端数据');
+                }
+            } else {
+                // Gist 是空的，加载本地数据并尝试创建 Gist
+                loadDataFromLocal();
+                showToast('云端暂无数据，将创建新数据', 3000);
+            }
+        } catch (error) {
+            console.error('从 Gist 加载失败，尝试本地数据:', error);
+            loadDataFromLocal();
+            showToast('云端加载失败，使用本地数据', 3000);
+        }
+    } else {
+        // 未配置 Gist，使用本地数据
+        loadDataFromLocal();
+    }
+
+    // 兼容旧数据格式
+    if (data.attendances && !data.attendance) {
+        data.attendance = data.attendances;
+        delete data.attendances;
+    }
+    // 确保 communicationTopics 存在
+    if (!data.communicationTopics) {
+        data.communicationTopics = [
+            { id: 't1', name: '续费沟通', color: '#27ae60' },
+            { id: 't2', name: '学情反馈', color: '#3498db' },
+            { id: 't3', name: '请假沟通', color: '#f39c12' },
+            { id: 't4', name: '投诉处理', color: '#e74c3c' },
+            { id: 't5', name: '其他', color: '#95a5a6' }
+        ];
+    }
+    // 确保 prospectSources 存在
+    if (!data.prospectSources) {
+        data.prospectSources = ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'];
+    }
+    // 确保 classTypes 存在
+    if (!data.classTypes) {
+        data.classTypes = ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'];
+    }
+    // 兼容旧版 grades 数据（添加 examType 字段）
+    if (data.grades) {
+        data.grades.forEach(g => { if (!g.examType) g.examType = 'external'; });
+    }
+
+    // 如果是首次使用（没有数据），初始化为空结构
+    if (!data.classes) data.classes = [];
+    if (!data.students) data.students = [];
+    if (!data.fees) data.fees = [];
+    if (!data.attendance) data.attendance = [];
+    if (!data.grades) data.grades = [];
+    if (!data.communications) data.communications = [];
+    if (!data.prospects) data.prospects = [];
+}
+
+// 从本地存储加载数据
+function loadDataFromLocal() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
         data = JSON.parse(stored);
-        // 兼容旧数据格式
-        if (data.attendances && !data.attendance) {
-            data.attendance = data.attendances;
-            delete data.attendances;
-        }
-        // 确保 communicationTopics 存在
-        if (!data.communicationTopics) {
-            data.communicationTopics = [
-                { id: 't1', name: '续费沟通', color: '#27ae60' },
-                { id: 't2', name: '学情反馈', color: '#3498db' },
-                { id: 't3', name: '请假沟通', color: '#f39c12' },
-                { id: 't4', name: '投诉处理', color: '#e74c3c' },
-                { id: 't5', name: '其他', color: '#95a5a6' }
-            ];
-        }
-        // 确保 prospectSources 存在
-        if (!data.prospectSources) {
-            data.prospectSources = ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'];
-        }
-        // 确保 classTypes 存在
-        if (!data.classTypes) {
-            data.classTypes = ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'];
-        }
-        // 兼容旧版 grades 数据（添加 examType 字段）
-        data.grades.forEach(g => { if (!g.examType) g.examType = 'external'; });
     }
 }
 
-// 保存数据
-function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    lastSaveTime = new Date();
-    updateAutoSaveIndicator();
-    dataModified = true; // 标记为有改动
+// 保存数据（支持 Gist 同步）
+async function saveData() {
+    // 添加时间戳
+    data.lastModified = new Date().toISOString();
+
+    if (isGistConfigured()) {
+        try {
+            await saveToGist(data);
+            updateAutoSaveIndicator();
+            dataModified = false;
+        } catch (error) {
+            console.error('保存到 Gist 失败，保存到本地:', error);
+            // Gist 保存失败，保存在本地
+            markPendingSync();
+            updateAutoSaveIndicator();
+            showToast('网络不稳定，数据已保存在本地', 3000);
+            dataModified = true;
+        }
+    } else {
+        // 未配置 Gist，只保存到本地
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.removeItem('pendingSync');
+        lastSaveTime = new Date();
+        updateAutoSaveIndicator();
+        dataModified = true;
+    }
 }
 
 // 自动保存
 function startAutoSave() {
     // 每30秒自动保存
     autoSaveTimer = setInterval(() => {
-        saveData();
+        saveData(); // fire and forget
     }, 30000);
 
-    // 页面离开前保存并弹出提醒
+    // 页面离开前保存
     window.addEventListener('beforeunload', (e) => {
         if (dataModified) {
-            // 保存数据
-            saveData();
-            // 弹出浏览器原生提醒框
+            // 同步保存（阻塞确保完成）
+            navigator.sendBeacon?.('data:;base64,');
             e.preventDefault();
             e.returnValue = '您有未导出的改动，关闭前建议导出备份。';
             return e.returnValue;
@@ -108,7 +475,7 @@ function startAutoSave() {
     // 页面隐藏时保存
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
-            saveData();
+            saveData(); // fire and forget
         }
     });
 }
@@ -116,8 +483,33 @@ function startAutoSave() {
 function updateAutoSaveIndicator() {
     const indicator = document.getElementById('autosaveIndicator');
     if (indicator) {
-        indicator.className = 'autosave-indicator saved';
-        indicator.innerHTML = '● 已保存 ' + (lastSaveTime ? lastSaveTime.toLocaleTimeString() : '');
+        const pending = localStorage.getItem('pendingSync');
+        if (pending) {
+            indicator.className = 'autosave-indicator pending';
+            indicator.innerHTML = '⚠️ 待同步';
+        } else {
+            indicator.className = 'autosave-indicator saved';
+            indicator.innerHTML = '● 已保存 ' + (lastSaveTime ? lastSaveTime.toLocaleTimeString() : '');
+        }
+    }
+    // 更新同步按钮状态
+    updateGistSyncButton();
+}
+
+function updateGistSyncButton() {
+    const btn = document.getElementById('gistSyncBtn');
+    if (!btn) return;
+
+    const pending = localStorage.getItem('pendingSync');
+    if (pending) {
+        btn.className = 'btn btn-warning btn-sm';
+        btn.innerHTML = '☁️ 待同步';
+    } else if (isGistConfigured()) {
+        btn.className = 'btn btn-success btn-sm';
+        btn.innerHTML = '☁️ 已同步';
+    } else {
+        btn.className = 'btn btn-info btn-sm';
+        btn.innerHTML = '☁️ 同步';
     }
 }
 
