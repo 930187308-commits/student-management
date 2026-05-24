@@ -27,6 +27,7 @@ let currentStudentId = null;
 let editingCell = null;
 let autoSaveTimer = null;
 let lastSaveTime = null;
+let lastGistSaveTime = null; // 记录上次 Gist 保存时间，用于节流
 let dataModified = false; // 追踪数据是否有改动
 
 // 存储键名
@@ -37,6 +38,7 @@ const GIST_TOKEN_KEY = 'gistToken';
 const GIST_ID_KEY = 'gistId';
 const GIST_FILENAME = 'student-management-data.json';
 const DATA_VERSION_KEY = 'dataVersion'; // 用于冲突检测的时间戳
+const SAVE_COOLDOWN_MS = 60000; // 保存间隔限制：60秒内不重复保存
 
 // ========== Gist API 操作 ==========
 
@@ -428,12 +430,22 @@ function loadDataFromLocal() {
 
 // 保存数据（支持 Gist 同步）
 async function saveData() {
+    // 节流：检查是否在保存冷却期内
+    if (lastGistSaveTime && (Date.now() - lastGistSaveTime) < SAVE_COOLDOWN_MS) {
+        // 只保存到本地，不调用 Gist API
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        lastSaveTime = new Date();
+        updateAutoSaveIndicator();
+        return;
+    }
+
     // 添加时间戳
     data.lastModified = new Date().toISOString();
 
     if (isGistConfigured()) {
         try {
             await saveToGist(data);
+            lastGistSaveTime = Date.now(); // 更新最后保存时间
             updateAutoSaveIndicator();
             dataModified = false;
         } catch (error) {
@@ -454,12 +466,12 @@ async function saveData() {
     }
 }
 
-// 自动保存
+// 自动保存（节流版）
 function startAutoSave() {
-    // 每30秒自动保存
+    // 每60秒自动保存（节流，避免 API 频率限制）
     autoSaveTimer = setInterval(() => {
         saveData(); // fire and forget
-    }, 30000);
+    }, 60000);
 
     // 页面离开前保存
     window.addEventListener('beforeunload', (e) => {
@@ -472,12 +484,7 @@ function startAutoSave() {
         }
     });
 
-    // 页面隐藏时保存
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            saveData(); // fire and forget
-        }
-    });
+    // 页面可见性变化时不再保存，避免频繁触发 API
 }
 
 function updateAutoSaveIndicator() {
