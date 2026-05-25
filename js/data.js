@@ -1,7 +1,7 @@
 // ==================== 数据存储 ====================
 
 // 本地服务器同步配置
-const SERVER_URL = 'http://192.168.1.97:8080';
+const SERVER_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 const DATA_ENDPOINT = SERVER_URL + '/data';
 
 // 全局数据对象
