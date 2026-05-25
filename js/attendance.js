@@ -161,10 +161,11 @@ function saveAttendanceSession(e) {
 function updateAttendance(input) {
     const date = input.dataset.date;
     const studentId = input.dataset.student;
-    const value = parseInt(input.value);
+    const rawValue = input.value.trim();
+    const value = rawValue === '' ? null : parseInt(rawValue, 10);
 
     // 验证输入
-    if (value !== 0 && value !== 1 && value !== '') {
+    if (value !== 0 && value !== 1 && value !== null) {
         input.value = '';
         return;
     }
