@@ -175,11 +175,14 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
                                 const sess = sessions.find(s => s.date === date);
                                 const status = ts.dates[date];
                                 const cls = status === 1 ? 'present' : status === 0 ? 'absent' : '';
-                                return `<td><input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${ts.studentId}" data-temp="true" onchange="updateAttendance(this)"></td>`;
+                                const isTempHere = status != null;
+                                return `<td>
+                                    <input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${ts.studentId}" data-temp="true" onchange="updateAttendance(this)">
+                                    ${isTempHere ? `<br><button class="btn btn-danger btn-xs" style="margin-top:4px;" onclick="removeTemporaryStudent('${ts.studentId}', '${date}')">移除</button>` : ''}
+                                </td>`;
                             }).join('')}
                             <td><strong style="color:#27ae60;">${present}</strong></td>
                             <td><strong style="color:#e74c3c;">${absent}</strong></td>
-                            <td><button class="btn btn-danger btn-xs" onclick="removeTemporaryStudent('${ts.studentId}', '${date}')">移除</button></td>
                         </tr>
                     `;
                 }).join('')}
