@@ -119,7 +119,7 @@ function openCommModal(id = null) {
             <div class="form-row">
                 <div class="form-group" style="flex:2;">
                     <label>学员 *</label>
-                    <input type="text" id="commStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterCommStudentList()" style="width: 100%;" value="${existingStudent ? existingStudent.name : ''}">
+                    <input type="text" id="commStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterCommStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
                     <select id="commStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectCommStudent(this)"></select>
                     <input type="hidden" name="studentId" id="commStudentId" value="${comm?.studentId || ''}">
                 </div>
@@ -128,14 +128,14 @@ function openCommModal(id = null) {
             </div>
             <div class="form-row">
                 <div class="form-group"><label>沟通方式</label><select name="contactType"><option value="电话" ${comm?.contactType === '电话' ? 'selected' : ''}>电话</option><option value="微信" ${comm?.contactType === '微信' ? 'selected' : ''}>微信</option><option value="面谈" ${comm?.contactType === '面谈' ? 'selected' : ''}>面谈</option><option value="家长会" ${comm?.contactType === '家长会' ? 'selected' : ''}>家长会</option></select></div>
-                <div class="form-group"><label>沟通对象</label><input type="text" name="contactPerson" value="${comm?.contactPerson || ''}" placeholder="如：张三妈妈"></div>
+                <div class="form-group"><label>沟通对象</label><input type="text" name="contactPerson" value="${escapeHtml(comm?.contactPerson || '')}" placeholder="如：张三妈妈"></div>
                 <div class="form-group"><label>状态</label><select name="status"><option value="pending" ${(!comm || comm?.status === 'pending') ? 'selected' : ''}>待沟通</option><option value="done" ${comm?.status === 'done' ? 'selected' : ''}>已完成</option></select></div>
             </div>
             <div class="form-row">
                 <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="${comm?.teacher || '白老师'}"></div>
             </div>
-            <div class="form-group"><label>沟通内容</label><textarea name="content" rows="4">${comm?.content || ''}</textarea></div>
-            <div class="form-group"><label>后续跟进</label><textarea name="followUp" rows="2">${comm?.followUp || ''}</textarea></div>
+            <div class="form-group"><label>沟通内容</label><textarea name="content" rows="4">${escapeHtml(comm?.content || '')}</textarea></div>
+            <div class="form-group"><label>后续跟进</label><textarea name="followUp" rows="2">${escapeHtml(comm?.followUp || '')}</textarea></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
         </form>
     `;
@@ -180,6 +180,7 @@ function saveComm(e) {
     const form = e.target;
     const studentId = document.getElementById('commStudentId').value || form.studentId?.value;
     const student = data.students.find(s => s.id === studentId);
+    if (!studentId || !student) { showToast('请从下拉列表选择学员'); return; }
     const commData = {
         id: currentEditId || generateId(), studentId: studentId, studentName: student?.name || '',
         topicId: form.topicId.value, contactDate: form.contactDate.value, contactType: form.contactType.value,

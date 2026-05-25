@@ -57,11 +57,11 @@ function openGradeModal(id = null) {
             <div class="form-row">
                 <div class="form-group" style="flex:2;">
                     <label>学员 *</label>
-                    <input type="text" id="gradeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterGradeStudentList()" style="width: 100%;" value="${existingStudent ? existingStudent.name : ''}">
+                    <input type="text" id="gradeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterGradeStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
                     <select id="gradeStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectGradeStudent(this)"></select>
                     <input type="hidden" name="studentId" id="gradeStudentId" value="${grade?.studentId || ''}">
                 </div>
-                <div class="form-group"><label>测试名称 *</label><input type="text" name="testName" value="${grade?.testName || ''}" required></div>
+                <div class="form-group"><label>测试名称 *</label><input type="text" name="testName" value="${escapeHtml(grade?.testName || '')}" required></div>
                 <div class="form-group"><label>测试日期</label><input type="date" name="testDate" value="${grade?.testDate || new Date().toISOString().split('T')[0]}"></div>
             </div>
             <div class="form-row">
@@ -77,9 +77,9 @@ function openGradeModal(id = null) {
                         <option value="school" ${grade?.examType === 'school' ? 'selected' : ''}>校内成绩</option>
                     </select>
                 </div>
-                <div class="form-group" style="flex:2;"><label>薄弱点</label><input type="text" name="weakPoints" value="${grade?.weakPoints || ''}" placeholder="如：计算准确性、几何证明题"></div>
+                <div class="form-group" style="flex:2;"><label>薄弱点</label><input type="text" name="weakPoints" value="${escapeHtml(grade?.weakPoints || '')}" placeholder="如：计算准确性、几何证明题"></div>
             </div>
-            <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${grade?.remark || ''}</textarea></div>
+            <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${escapeHtml(grade?.remark || '')}</textarea></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
         </form>
     `;
@@ -124,6 +124,7 @@ function saveGrade(e) {
     const form = e.target;
     const studentId = document.getElementById('gradeStudentId').value || form.studentId?.value;
     const student = data.students.find(s => s.id === studentId);
+    if (!studentId || !student) { showToast('请从下拉列表选择学员'); return; }
     const gradeData = {
         id: currentEditId || generateId(), studentId: studentId, studentName: student?.name || '',
         classId: student?.classId || '', testName: form.testName.value, testDate: form.testDate.value,

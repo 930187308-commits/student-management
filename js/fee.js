@@ -51,7 +51,7 @@ function openFeeModal(id = null) {
             <div class="form-row">
                 <div class="form-group" style="flex:2;">
                     <label>学员 *</label>
-                    <input type="text" id="feeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterFeeStudentList()" style="width: 100%;" value="${existingStudent ? existingStudent.name : ''}">
+                    <input type="text" id="feeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterFeeStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
                     <select id="feeStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectFeeStudent(this)"></select>
                     <input type="hidden" name="studentId" id="feeStudentId" value="${fee?.studentId || ''}">
                 </div>
@@ -64,10 +64,10 @@ function openFeeModal(id = null) {
                 <div class="form-group"><label>状态</label><select name="status"><option value="paid" ${(!fee || fee?.status === 'paid') ? 'selected' : ''}>已缴</option><option value="pending" ${fee?.status === 'pending' ? 'selected' : ''}>欠费</option></select></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>套餐名称</label><input type="text" name="package" value="${fee?.package || ''}" placeholder="如：秋季班40课时"></div>
+                <div class="form-group"><label>套餐名称</label><input type="text" name="package" value="${escapeHtml(fee?.package || '')}" placeholder="如：秋季班40课时"></div>
                 <div class="form-group"><label>付款方式</label><select name="paymentMethod"><option value="微信转账" ${(!fee || fee?.paymentMethod === '微信转账') ? 'selected' : ''}>微信转账</option><option value="支付宝" ${fee?.paymentMethod === '支付宝' ? 'selected' : ''}>支付宝</option><option value="银行转账" ${fee?.paymentMethod === '银行转账' ? 'selected' : ''}>银行转账</option><option value="现金" ${fee?.paymentMethod === '现金' ? 'selected' : ''}>现金</option></select></div>
             </div>
-            <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${fee?.remark || ''}</textarea></div>
+            <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${escapeHtml(fee?.remark || '')}</textarea></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
         </form>
     `;
@@ -112,6 +112,7 @@ function saveFee(e) {
     const form = e.target;
     const studentId = document.getElementById('feeStudentId').value || form.studentId?.value;
     const student = data.students.find(s => s.id === studentId);
+    if (!studentId || !student) { showToast('请从下拉列表选择学员'); return; }
     const feeData = {
         id: currentEditId || generateId(), studentId: studentId, studentName: student?.name || '',
         amount: parseInt(form.amount.value), pricePerHour: parseInt(form.pricePerHour.value),

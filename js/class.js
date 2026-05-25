@@ -114,10 +114,10 @@ function switchToStudentTab() {
 
 function openClassTypeManager() {
     document.getElementById('modalTitle').textContent = '班型管理';
-    const typeList = (data.classTypes || []).map(t => `
+    const typeList = (data.classTypes || []).map((t, idx) => `
         <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hover-bg); border-radius: 6px; margin-bottom: 8px;">
             <span style="flex:1;">${escapeHtml(t)}</span>
-            <button class="btn btn-danger btn-xs" onclick="deleteClassType('${escapeHtml(t)}')">删除</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteClassTypeByIdx(${idx})">删除</button>
         </div>
     `).join('');
 
@@ -143,9 +143,9 @@ function addClassType() {
     showToast('班型已添加');
 }
 
-function deleteClassType(name) {
-    if (!confirm(`删除班型"${name}"？`)) return;
-    data.classTypes = (data.classTypes || []).filter(t => t !== name);
+function deleteClassTypeByIdx(idx) {
+    if (!confirm('删除该班型？')) return;
+    data.classTypes.splice(idx, 1);
     saveData();
     openClassTypeManager();
     showToast('班型已删除');
