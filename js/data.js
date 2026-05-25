@@ -33,6 +33,7 @@ let autoSaveTimer = null;
 let lastSaveTime = null;
 let lastCloudSaveTime = null; // 记录上次云端保存时间，用于节流
 let dataModified = false; // 追踪数据是否有改动
+let serverDataUpdatedAt = null; // 服务器端数据版本号，防止旧设备整包覆盖新数据
 
 // 存储键名
 const STORAGE_KEY = 'studentManagementSystem_v3';
@@ -83,6 +84,7 @@ async function loadFromServer() {
         }
 
         const serverData = await response.json();
+        serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || null;
         if (serverData && Object.keys(serverData).length > 0) {
             return serverData;
         }
@@ -96,21 +98,37 @@ async function loadFromServer() {
 // 保存数据到本地服务器
 async function saveToServer(data) {
     try {
+        if (!serverDataUpdatedAt) {
+            console.warn('缺少服务器数据版本号，跳过保存以避免覆盖服务器数据');
+            showToast('请先刷新页面加载服务器数据');
+            return false;
+        }
+
         const response = await fetch(DATA_ENDPOINT, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-Base-Data-Updated-At': serverDataUpdatedAt
             },
             body: JSON.stringify(data)
         });
 
         if (!response.ok) {
-            throw new Error(`保存失败: ${response.status}`);
+            const errorPayload = await response.json().catch(() => ({}));
+            if (response.status === 409 || response.status === 428) {
+                const latestVersion = response.headers.get('X-Data-Updated-At');
+                if (latestVersion) serverDataUpdatedAt = latestVersion;
+                showToast(errorPayload.hint || '服务器数据已更新，请刷新页面');
+                return false;
+            }
+            throw new Error(errorPayload.error || `保存失败: ${response.status}`);
         }
+        serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || serverDataUpdatedAt;
         return true;
     } catch (error) {
         console.error('保存到本地服务器失败:', error);
+        showToast('保存到服务器失败，请检查网络');
         return false;
     }
 }
@@ -277,7 +295,6 @@ async function init() {
     initDarkMode();
     initTabs();
     render();
-    startAutoSave();
 }
 
 // 加载数据（优先从本地服务器）
@@ -286,28 +303,9 @@ async function loadData() {
     try {
         const serverData = await loadFromServer();
         if (serverData) {
-            const localData = localStorage.getItem(STORAGE_KEY);
-            if (localData) {
-                const localObj = JSON.parse(localData);
-                // 比较时间戳，使用最新的
-                const serverTime = new Date(serverData.lastModified || 0).getTime();
-                const localTime = new Date(localObj.lastModified || 0).getTime();
-                if (localTime > serverTime) {
-                    data = localObj;
-                    showToast('使用本地最新数据');
-                    // 尝试同步到服务器
-                    const ok = await saveToServer(data);
-                    if (ok) showToast('已同步到服务器');
-                } else {
-                    data = serverData;
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                    showToast('已加载服务器数据');
-                }
-            } else {
-                data = serverData;
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                showToast('已加载服务器数据');
-            }
+            data = serverData;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            showToast('已加载服务器数据');
             return;
         }
     } catch (e) {
@@ -350,10 +348,6 @@ async function saveData() {
 
 // 自动保存
 function startAutoSave() {
-    autoSaveTimer = setInterval(() => {
-        saveData();
-    }, 30000);
-
     window.addEventListener('beforeunload', () => {
         if (dataModified) {
             navigator.sendBeacon?.('data:;base64,');

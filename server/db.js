@@ -242,6 +242,11 @@ function getData() {
     return JSON.parse(row.value);
 }
 
+function getDataUpdatedAt() {
+    const row = getDb().prepare('SELECT updated_at FROM app_state WHERE key = ?').get('data');
+    return row?.updated_at || null;
+}
+
 function setData(nextData, reason = 'save') {
     const stamp = nowIso();
     const dataWithTimestamp = {
@@ -310,6 +315,7 @@ module.exports = {
     openDatabase,
     getDb,
     getData,
+    getDataUpdatedAt,
     setData,
     createBackup,
     getMeta

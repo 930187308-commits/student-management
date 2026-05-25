@@ -3,7 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { URL } = require('node:url');
 const config = require('./config');
-const { openDatabase, getData, setData, createBackup, getMeta } = require('./db');
+const { openDatabase, getData, getDataUpdatedAt, setData, createBackup, getMeta } = require('./db');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -22,14 +22,16 @@ const SAMPLE_STUDENT_NAMES = new Set(['张三', '李四', '王五', '赵六', '�
 
 openDatabase();
 
-function sendJson(res, status, payload) {
+function sendJson(res, status, payload, extraHeaders = {}) {
     const body = JSON.stringify(payload);
     res.writeHead(status, {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Length': Buffer.byteLength(body),
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET,PUT,POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type,Accept'
+        'Access-Control-Allow-Headers': 'Content-Type,Accept,X-Base-Data-Updated-At',
+        'Access-Control-Expose-Headers': 'X-Data-Updated-At',
+        ...extraHeaders
     });
     res.end(body);
 }
@@ -144,11 +146,35 @@ async function handleApi(req, res, pathname) {
 
     if (pathname === '/data' || pathname === '/api/data') {
         if (req.method === 'GET') {
-            sendJson(res, 200, getData());
+            sendJson(res, 200, getData(), {
+                'X-Data-Updated-At': getDataUpdatedAt() || ''
+            });
             return true;
         }
 
         if (req.method === 'PUT') {
+            const currentUpdatedAt = getDataUpdatedAt();
+            const baseUpdatedAt = req.headers['x-base-data-updated-at'];
+            if (currentUpdatedAt && !baseUpdatedAt) {
+                sendJson(res, 428, {
+                    error: '缺少数据版本号，已拒绝覆盖服务器数据',
+                    hint: '请刷新页面后重试。'
+                }, {
+                    'X-Data-Updated-At': currentUpdatedAt
+                });
+                return true;
+            }
+            if (currentUpdatedAt && baseUpdatedAt !== currentUpdatedAt) {
+                sendJson(res, 409, {
+                    error: '服务器数据已被其他设备更新，已拒绝覆盖',
+                    hint: '请刷新页面加载最新数据后，再重新修改。',
+                    serverUpdatedAt: currentUpdatedAt,
+                    clientBaseUpdatedAt: baseUpdatedAt
+                }, {
+                    'X-Data-Updated-At': currentUpdatedAt
+                });
+                return true;
+            }
             const rawBody = await readRequestBody(req);
             const parsed = JSON.parse(rawBody || '{}');
             if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -163,7 +189,9 @@ async function handleApi(req, res, pathname) {
                 return true;
             }
             const saved = setData(parsed, 'api_put');
-            sendJson(res, 200, saved);
+            sendJson(res, 200, saved, {
+                'X-Data-Updated-At': getDataUpdatedAt() || ''
+            });
             return true;
         }
     }
