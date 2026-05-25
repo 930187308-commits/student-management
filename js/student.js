@@ -76,6 +76,12 @@ function renderStudentList() {
         if (classId && classId !== '__unassigned__' && s.classId !== classId) return false;
         if (search && !s.name.toLowerCase().includes(search)) return false;
         return true;
+    }).sort((a, b) => {
+        const aTime = a.createdAt || a.enrollDate || '';
+        const bTime = b.createdAt || b.enrollDate || '';
+        if (bTime > aTime) return 1;
+        if (bTime < aTime) return -1;
+        return (a.name || '').localeCompare(b.name || '');
     });
 
     const list = document.getElementById('studentList');
@@ -317,7 +323,8 @@ function saveStudent(e) {
         name: form.name.value, gender: form.gender.value, grade: form.grade.value,
         classId: form.classId.value, teacher: form.teacher.value, enrollDate: form.enrollDate.value,
         phone: form.phone.value, emergencyContact: form.emergencyContact.value,
-        status: form.status.value, followUpStatus: form.followUpStatus?.value || '', remark: form.remark.value, school: form.school.value
+        status: form.status.value, followUpStatus: form.followUpStatus?.value || '', remark: form.remark.value, school: form.school.value,
+        createdAt: currentEditId ? data.students.find(s => s.id === currentEditId)?.createdAt : new Date().toISOString()
     };
     if (currentEditId) {
         const index = data.students.findIndex(s => s.id === currentEditId);
