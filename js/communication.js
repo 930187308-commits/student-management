@@ -37,7 +37,7 @@ function renderCommTable() {
         if (search && !c.studentName.toLowerCase().includes(search)) return false;
         if (statusFilter && c.status !== statusFilter) return false;
         return true;
-    });
+    }).sort((a, b) => (b.contactDate || '').localeCompare(a.contactDate || ''));
     document.getElementById('commTableBody').innerHTML = filtered.map(c => {
         const topic = (data.communicationTopics || []).find(t => t.id === c.topicId);
         const statusBadge = c.status === 'pending' ? 'badge-pending' : 'badge-active';
@@ -49,7 +49,7 @@ function renderCommTable() {
             <td>${escapeHtml(c.contactType)}</td>
             <td><span class="badge ${statusBadge}">${statusText}</span></td>
             <td>${escapeHtml(c.contactPerson)}</td>
-            <td><button class="btn btn-secondary btn-xs" onclick="openCommDetail('${c.id}')">查看</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
+            <td><button class="btn btn-secondary btn-xs" onclick="openCommModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
         </tr>`;
     }).join('');
 }
@@ -107,32 +107,35 @@ function deleteTopic(id) {
     showToast('主题已删除');
 }
 
-function openCommModal() {
+function openCommModal(id = null) {
+    currentEditId = id;
+    const comm = id ? data.communications.find(c => c.id === id) : null;
     const topicOptions = (data.communicationTopics || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    const existingStudent = comm ? data.students.find(s => s.id === comm.studentId) : null;
 
-    document.getElementById('modalTitle').textContent = '新增沟通';
+    document.getElementById('modalTitle').textContent = id ? '编辑沟通' : '新增沟通';
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveComm(event)">
             <div class="form-row">
                 <div class="form-group" style="flex:2;">
                     <label>学员 *</label>
-                    <input type="text" id="commStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterCommStudentList()" style="width: 100%;">
-                    <select id="commStudentSelect" name="studentId" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectCommStudent(this)"></select>
-                    <input type="hidden" name="studentId" id="commStudentId">
+                    <input type="text" id="commStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterCommStudentList()" style="width: 100%;" value="${existingStudent ? existingStudent.name : ''}">
+                    <select id="commStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectCommStudent(this)"></select>
+                    <input type="hidden" name="studentId" id="commStudentId" value="${comm?.studentId || ''}">
                 </div>
                 <div class="form-group"><label>沟通主题</label><select name="topicId"><option value="">无</option>${topicOptions}</select></div>
-                <div class="form-group"><label>沟通日期</label><input type="date" name="contactDate" value="${new Date().toISOString().split('T')[0]}"></div>
+                <div class="form-group"><label>沟通日期</label><input type="date" name="contactDate" value="${comm?.contactDate || new Date().toISOString().split('T')[0]}"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>沟通方式</label><select name="contactType"><option value="电话">电话</option><option value="微信">微信</option><option value="面谈">面谈</option><option value="家长会">家长会</option></select></div>
-                <div class="form-group"><label>沟通对象</label><input type="text" name="contactPerson" placeholder="如：张三妈妈"></div>
-                <div class="form-group"><label>状态</label><select name="status"><option value="pending">待沟通</option><option value="done">已完成</option></select></div>
+                <div class="form-group"><label>沟通方式</label><select name="contactType"><option value="电话" ${comm?.contactType === '电话' ? 'selected' : ''}>电话</option><option value="微信" ${comm?.contactType === '微信' ? 'selected' : ''}>微信</option><option value="面谈" ${comm?.contactType === '面谈' ? 'selected' : ''}>面谈</option><option value="家长会" ${comm?.contactType === '家长会' ? 'selected' : ''}>家长会</option></select></div>
+                <div class="form-group"><label>沟通对象</label><input type="text" name="contactPerson" value="${comm?.contactPerson || ''}" placeholder="如：张三妈妈"></div>
+                <div class="form-group"><label>状态</label><select name="status"><option value="pending" ${(!comm || comm?.status === 'pending') ? 'selected' : ''}>待沟通</option><option value="done" ${comm?.status === 'done' ? 'selected' : ''}>已完成</option></select></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="白老师"></div>
+                <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="${comm?.teacher || '白老师'}"></div>
             </div>
-            <div class="form-group"><label>沟通内容</label><textarea name="content" rows="4"></textarea></div>
-            <div class="form-group"><label>后续跟进</label><textarea name="followUp" rows="2"></textarea></div>
+            <div class="form-group"><label>沟通内容</label><textarea name="content" rows="4">${comm?.content || ''}</textarea></div>
+            <div class="form-group"><label>后续跟进</label><textarea name="followUp" rows="2">${comm?.followUp || ''}</textarea></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
         </form>
     `;
@@ -152,7 +155,7 @@ function filterCommStudentList() {
     }
 
     const filtered = data.students.filter(s => s.name.toLowerCase().includes(search));
-    select.innerHTML = filtered.map(s => `<option value="${s.id}">${s.name} · ${s.grade}</option>`).join('');
+    select.innerHTML = filtered.map(s => `<option value="${s.id}">${escapeHtml(s.name)} · ${escapeHtml(s.grade)}</option>`).join('');
 
     if (filtered.length > 0) {
         select.style.display = 'block';
@@ -178,13 +181,18 @@ function saveComm(e) {
     const studentId = document.getElementById('commStudentId').value || form.studentId?.value;
     const student = data.students.find(s => s.id === studentId);
     const commData = {
-        id: generateId(), studentId: studentId, studentName: student?.name || '',
+        id: currentEditId || generateId(), studentId: studentId, studentName: student?.name || '',
         topicId: form.topicId.value, contactDate: form.contactDate.value, contactType: form.contactType.value,
         contactPerson: form.contactPerson.value, teacher: form.teacher.value,
         status: form.status.value,
         content: form.content.value, followUp: form.followUp.value
     };
-    data.communications.push(commData);
+    if (currentEditId) {
+        const index = data.communications.findIndex(c => c.id === currentEditId);
+        data.communications[index] = commData;
+    } else {
+        data.communications.push(commData);
+    }
     saveData();
     closeModal();
     showToast('保存成功');

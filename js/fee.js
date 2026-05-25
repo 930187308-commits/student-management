@@ -35,7 +35,7 @@ function renderFees() {
 function renderFeeTable() {
     const search = document.getElementById('feeSearch')?.value?.toLowerCase() || '';
     const status = document.getElementById('feeStatusFilter')?.value || '';
-    const filtered = data.fees.filter(f => (!search || f.studentName.toLowerCase().includes(search)) && (!status || f.status === status));
+    const filtered = data.fees.filter(f => (!search || f.studentName.toLowerCase().includes(search)) && (!status || f.status === status)).sort((a, b) => (b.paymentDate || '').localeCompare(a.paymentDate || ''));
     const tbody = document.getElementById('feeTableBody');
     tbody.innerHTML = filtered.map(f => `<tr><td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
 }
@@ -43,13 +43,18 @@ function renderFeeTable() {
 function openFeeModal(id = null) {
     currentEditId = id;
     const fee = id ? data.fees.find(f => f.id === id) : null;
-    const studentOptions = data.students.filter(s => s.status === 'active').map(s => `<option value="${s.id}" ${fee?.studentId === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+    const existingStudent = fee ? data.students.find(s => s.id === fee.studentId) : null;
 
     document.getElementById('modalTitle').textContent = id ? '编辑缴费记录' : '新增缴费';
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveFee(event)">
             <div class="form-row">
-                <div class="form-group"><label>学员 *</label><select name="studentId" required><option value="">请选择学员</option>${studentOptions}</select></div>
+                <div class="form-group" style="flex:2;">
+                    <label>学员 *</label>
+                    <input type="text" id="feeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterFeeStudentList()" style="width: 100%;" value="${existingStudent ? existingStudent.name : ''}">
+                    <select id="feeStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectFeeStudent(this)"></select>
+                    <input type="hidden" name="studentId" id="feeStudentId" value="${fee?.studentId || ''}">
+                </div>
                 <div class="form-group"><label>缴费金额 *</label><input type="number" name="amount" value="${fee?.amount || ''}" required min="0"></div>
                 <div class="form-group"><label>课时单价</label><input type="number" name="pricePerHour" value="${fee?.pricePerHour || 200}" min="0"></div>
             </div>
@@ -69,12 +74,46 @@ function openFeeModal(id = null) {
     document.getElementById('modal').classList.add('show');
 }
 
+function filterFeeStudentList() {
+    const input = document.getElementById('feeStudentSearch');
+    const select = document.getElementById('feeStudentSelect');
+    const search = input.value.toLowerCase().trim();
+    const hiddenInput = document.getElementById('feeStudentId');
+
+    if (search.length === 0) {
+        select.style.display = 'none';
+        hiddenInput.value = '';
+        return;
+    }
+
+    const filtered = data.students.filter(s => s.name.toLowerCase().includes(search));
+    select.innerHTML = filtered.map(s => `<option value="${s.id}">${escapeHtml(s.name)} · ${escapeHtml(s.grade)}</option>`).join('');
+
+    if (filtered.length > 0) {
+        select.style.display = 'block';
+        select.size = Math.min(filtered.length, 5);
+    } else {
+        select.style.display = 'none';
+    }
+    hiddenInput.value = '';
+}
+
+function selectFeeStudent(select) {
+    const hiddenInput = document.getElementById('feeStudentId');
+    const searchInput = document.getElementById('feeStudentSearch');
+    const selectedOption = select.options[select.selectedIndex];
+    hiddenInput.value = select.value;
+    searchInput.value = selectedOption.text;
+    select.style.display = 'none';
+}
+
 function saveFee(e) {
     e.preventDefault();
     const form = e.target;
-    const student = data.students.find(s => s.id === form.studentId.value);
+    const studentId = document.getElementById('feeStudentId').value || form.studentId?.value;
+    const student = data.students.find(s => s.id === studentId);
     const feeData = {
-        id: currentEditId || generateId(), studentId: form.studentId.value, studentName: student?.name || '',
+        id: currentEditId || generateId(), studentId: studentId, studentName: student?.name || '',
         amount: parseInt(form.amount.value), pricePerHour: parseInt(form.pricePerHour.value),
         hours: parseInt(form.hours.value), paymentDate: form.paymentDate.value, package: form.package.value,
         paymentMethod: form.paymentMethod.value, status: form.status.value, remark: form.remark.value

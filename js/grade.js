@@ -40,7 +40,7 @@ function renderGrades() {
 function renderGradeTable() {
     const search = document.getElementById('gradeSearch')?.value?.toLowerCase() || '';
     const classId = document.getElementById('gradeClassFilter')?.value || '';
-    const filtered = data.grades.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId));
+    const filtered = data.grades.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId)).sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
 
     const tbody = document.getElementById('gradeTableBody');
     tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>第${g.ranking}名</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
@@ -49,13 +49,18 @@ function renderGradeTable() {
 function openGradeModal(id = null) {
     currentEditId = id;
     const grade = id ? data.grades.find(g => g.id === id) : null;
-    const studentOptions = data.students.filter(s => s.status === 'active').map(s => `<option value="${s.id}" ${grade?.studentId === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+    const existingStudent = grade ? data.students.find(s => s.id === grade.studentId) : null;
 
     document.getElementById('modalTitle').textContent = id ? '编辑成绩' : '新增成绩';
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveGrade(event)">
             <div class="form-row">
-                <div class="form-group"><label>学员 *</label><select name="studentId" required><option value="">请选择学员</option>${studentOptions}</select></div>
+                <div class="form-group" style="flex:2;">
+                    <label>学员 *</label>
+                    <input type="text" id="gradeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterGradeStudentList()" style="width: 100%;" value="${existingStudent ? existingStudent.name : ''}">
+                    <select id="gradeStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectGradeStudent(this)"></select>
+                    <input type="hidden" name="studentId" id="gradeStudentId" value="${grade?.studentId || ''}">
+                </div>
                 <div class="form-group"><label>测试名称 *</label><input type="text" name="testName" value="${grade?.testName || ''}" required></div>
                 <div class="form-group"><label>测试日期</label><input type="date" name="testDate" value="${grade?.testDate || new Date().toISOString().split('T')[0]}"></div>
             </div>
@@ -81,12 +86,46 @@ function openGradeModal(id = null) {
     document.getElementById('modal').classList.add('show');
 }
 
+function filterGradeStudentList() {
+    const input = document.getElementById('gradeStudentSearch');
+    const select = document.getElementById('gradeStudentSelect');
+    const search = input.value.toLowerCase().trim();
+    const hiddenInput = document.getElementById('gradeStudentId');
+
+    if (search.length === 0) {
+        select.style.display = 'none';
+        hiddenInput.value = '';
+        return;
+    }
+
+    const filtered = data.students.filter(s => s.name.toLowerCase().includes(search));
+    select.innerHTML = filtered.map(s => `<option value="${s.id}">${escapeHtml(s.name)} · ${escapeHtml(s.grade)}</option>`).join('');
+
+    if (filtered.length > 0) {
+        select.style.display = 'block';
+        select.size = Math.min(filtered.length, 5);
+    } else {
+        select.style.display = 'none';
+    }
+    hiddenInput.value = '';
+}
+
+function selectGradeStudent(select) {
+    const hiddenInput = document.getElementById('gradeStudentId');
+    const searchInput = document.getElementById('gradeStudentSearch');
+    const selectedOption = select.options[select.selectedIndex];
+    hiddenInput.value = select.value;
+    searchInput.value = selectedOption.text;
+    select.style.display = 'none';
+}
+
 function saveGrade(e) {
     e.preventDefault();
     const form = e.target;
-    const student = data.students.find(s => s.id === form.studentId.value);
+    const studentId = document.getElementById('gradeStudentId').value || form.studentId?.value;
+    const student = data.students.find(s => s.id === studentId);
     const gradeData = {
-        id: currentEditId || generateId(), studentId: form.studentId.value, studentName: student?.name || '',
+        id: currentEditId || generateId(), studentId: studentId, studentName: student?.name || '',
         classId: student?.classId || '', testName: form.testName.value, testDate: form.testDate.value,
         score: parseInt(form.score.value), fullScore: parseInt(form.fullScore.value),
         ranking: parseInt(form.ranking.value), examType: form.examType.value,
@@ -114,8 +153,11 @@ function deleteGrade(id) {
 
 // 下载成绩导入模板
 function downloadGradeTemplate() {
-    const headers = [['学员姓名', '测试名称', '测试日期', '得分', '满分', '班级排名', '成绩类型', '薄弱点', '备注']];
-    const sampleRows = [['张三', '期中测试', '2025-10-15', '85', '100', '5', '校外成绩', '计算准确性', '']];
+    const headers = [['学员姓名 *', '测试名称 *', '测试日期', '得分 *', '满分', '班级排名', '成绩类型', '薄弱点', '备注']];
+    const sampleRows = [
+        ['张三', '期中数学测试', '2025-10-15', '85', '100', '5', '校内', '计算准确性', ''],
+        ['李四', '奥数杯赛模拟', '2025-11-20', '78', '100', '8', '校外', '数论', '获得二等奖']
+    ];
     const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '成绩导入模板');
@@ -135,15 +177,22 @@ function importGrades(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            // 跳过表头，从第二行开始
-            let imported = 0;
+            let imported = 0, skipped = 0, failed = 0;
+            const errors = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row[0] || !row[1] || !row[3]) continue; // 学员名、测试名、得分必填
+                if (!row[0] || !row[1] || row[3] === undefined) {
+                    skipped++;
+                    continue;
+                }
 
                 const studentName = String(row[0]).trim();
                 const student = data.students.find(s => s.name === studentName);
-                if (!student) continue;
+                if (!student) {
+                    errors.push(`第${i+1}行: 学员"${studentName}"不存在`);
+                    failed++;
+                    continue;
+                }
 
                 const gradeData = {
                     id: generateId(),
@@ -155,7 +204,7 @@ function importGrades(event) {
                     score: parseInt(row[3]) || 0,
                     fullScore: parseInt(row[4]) || 100,
                     ranking: parseInt(row[5]) || 0,
-                    examType: String(row[6] || 'external').trim() === '校内' ? 'school' : 'external',
+                    examType: String(row[6] || '校外成绩').trim() === '校内' ? 'school' : 'external',
                     weakPoints: String(row[7] || '').trim(),
                     remark: String(row[8] || '').trim()
                 };
@@ -165,7 +214,9 @@ function importGrades(event) {
 
             saveData();
             render();
-            showToast(`成功导入 ${imported} 条成绩记录`);
+            const msg = `导入完成：成功 ${imported} 条${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            showToast(msg);
+            if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {
             showToast('导入失败：' + err.message);
         }

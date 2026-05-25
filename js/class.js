@@ -16,6 +16,7 @@ function renderClasses() {
                     </select>
                 </div>
                 <div class="toolbar">
+                    <button class="btn btn-secondary btn-sm" onclick="openClassTypeManager()">管理班型</button>
                     <button class="btn btn-primary" onclick="openClassModal()">+ 新增班级</button>
                     <div class="divider"></div>
                     <button class="btn btn-secondary" onclick="downloadClassTemplate()">下载导入模板</button>
@@ -109,6 +110,45 @@ function exportClassStudents(classId) {
 
 function switchToStudentTab() {
     document.querySelector('[data-tab="students"]').click();
+}
+
+function openClassTypeManager() {
+    document.getElementById('modalTitle').textContent = '班型管理';
+    const typeList = (data.classTypes || []).map(t => `
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hover-bg); border-radius: 6px; margin-bottom: 8px;">
+            <span style="flex:1;">${escapeHtml(t)}</span>
+            <button class="btn btn-danger btn-xs" onclick="deleteClassType('${escapeHtml(t)}')">删除</button>
+        </div>
+    `).join('');
+
+    document.getElementById('modalBody').innerHTML = `
+        <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+            <input type="text" id="newClassTypeName" placeholder="新班型名称" style="flex:1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px;">
+            <button class="btn btn-success btn-sm" onclick="addClassType()">添加</button>
+        </div>
+        <div>${typeList || '<div class="empty-state">暂无班型</div>'}</div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+    `;
+    document.getElementById('modal').classList.add('show');
+}
+
+function addClassType() {
+    const name = document.getElementById('newClassTypeName').value.trim();
+    if (!name) { showToast('请输入班型名称'); return; }
+    if (!data.classTypes) data.classTypes = [];
+    if (data.classTypes.includes(name)) { showToast('该班型已存在'); return; }
+    data.classTypes.push(name);
+    saveData();
+    openClassTypeManager();
+    showToast('班型已添加');
+}
+
+function deleteClassType(name) {
+    if (!confirm(`删除班型"${name}"？`)) return;
+    data.classTypes = (data.classTypes || []).filter(t => t !== name);
+    saveData();
+    openClassTypeManager();
+    showToast('班型已删除');
 }
 
 function openClassModal(id = null) {

@@ -56,7 +56,7 @@ function onGradeFilterChange() {
     const grade = document.getElementById('studentGradeFilter').value;
     const classSelect = document.getElementById('studentClassFilter');
     const classes = grade ? data.classes.filter(c => c.grade === grade && c.status === 'active') : data.classes.filter(c => c.status === 'active');
-    classSelect.innerHTML = `<option value="">全部班级</option>${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}`;
+    classSelect.innerHTML = `<option value="">全部班级</option><option value="__unassigned__">未分班</option>${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}`;
     renderStudentList();
 }
 
@@ -72,7 +72,8 @@ function renderStudentList() {
         if (currentStudentTab === 'inactive' && (s.status === 'active' || s.status === 'renewalPending' || !s.status)) return false;
 
         if (grade && s.grade !== grade) return false;
-        if (classId && s.classId !== classId) return false;
+        if (classId === '__unassigned__' && s.classId) return false;
+        if (classId && classId !== '__unassigned__' && s.classId !== classId) return false;
         if (search && !s.name.toLowerCase().includes(search)) return false;
         return true;
     });
@@ -370,10 +371,10 @@ function importStudents(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            let imported = 0;
+            let imported = 0, skipped = 0;
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row[0]) continue; // 姓名必填
+                if (!row[0]) { skipped++; continue; } // 姓名必填
 
                 // 通过班级名称查找班级ID
                 const className = String(row[3] || '').trim();
@@ -399,7 +400,7 @@ function importStudents(event) {
 
             saveData();
             render();
-            showToast(`成功导入 ${imported} 名学员`);
+            showToast(`导入完成：成功 ${imported} 名${skipped > 0 ? `，跳过 ${skipped} 行` : ''}`);
         } catch (err) {
             showToast('导入失败：' + err.message);
         }

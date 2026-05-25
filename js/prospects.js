@@ -45,7 +45,7 @@ function renderProspectList() {
         if (search && !p.name.toLowerCase().includes(search) && !(p.phone || '').includes(search)) return false;
         if (statusFilter && p.trialStatus !== statusFilter) return false;
         return true;
-    });
+    }).sort((a, b) => (b.createDate || '').localeCompare(a.createDate || ''));
 
     const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', deal: '已成交', lost: '已流失' };
     const sourceMap = {};
@@ -212,10 +212,10 @@ function importProspects(event) {
         try {
             const workbook = XLSX.read(e.target.result, { type: 'binary' });
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
-            let imported = 0;
+            let imported = 0, skipped = 0;
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row[0]) continue;
+                if (!row[0]) { skipped++; continue; }
                 const statusMap = { '待跟进': 'pending', '已联系': 'contacted', '试课中': 'trial', '已成交': 'deal', '已流失': 'lost' };
                 if (!data.prospects) data.prospects = [];
                 data.prospects.push({
@@ -234,7 +234,7 @@ function importProspects(event) {
             }
             saveData();
             render();
-            showToast(`成功导入 ${imported} 条意向学员`);
+            showToast(`导入完成：成功 ${imported} 条${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`);
         } catch (err) {
             showToast('导入失败：' + err.message);
         }
