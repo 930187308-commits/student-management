@@ -43,7 +43,7 @@ function renderGradeTable() {
     const filtered = data.grades.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId)).sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
 
     const tbody = document.getElementById('gradeTableBody');
-    tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>第${g.ranking}名</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
 }
 
 function openGradeModal(id = null) {
@@ -58,7 +58,7 @@ function openGradeModal(id = null) {
                 <div class="form-group" style="flex:2;">
                     <label>学员 *</label>
                     <input type="text" id="gradeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterGradeStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
-                    <select id="gradeStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectGradeStudent(this)"></select>
+                    <select id="gradeStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectGradeStudent(this)"></select>
                     <input type="hidden" name="studentId" id="gradeStudentId" value="${grade?.studentId || ''}">
                 </div>
                 <div class="form-group"><label>测试名称 *</label><input type="text" name="testName" value="${escapeHtml(grade?.testName || '')}" required></div>
@@ -125,11 +125,13 @@ function saveGrade(e) {
     const studentId = document.getElementById('gradeStudentId').value || form.studentId?.value;
     const student = data.students.find(s => s.id === studentId);
     if (!studentId || !student) { showToast('请从下拉列表选择学员'); return; }
+    const rankingVal = form.ranking.value.trim();
+    const ranking = rankingVal === '' ? null : parseInt(rankingVal, 10);
     const gradeData = {
         id: currentEditId || generateId(), studentId: studentId, studentName: student?.name || '',
         classId: student?.classId || '', testName: form.testName.value, testDate: form.testDate.value,
         score: parseInt(form.score.value), fullScore: parseInt(form.fullScore.value),
-        ranking: parseInt(form.ranking.value), examType: form.examType.value,
+        ranking: ranking, examType: form.examType.value,
         weakPoints: form.weakPoints.value, remark: form.remark.value
     };
     if (currentEditId) {
@@ -195,6 +197,8 @@ function importGrades(event) {
                     continue;
                 }
 
+                const rankingRaw = row[5];
+                const ranking = rankingRaw === undefined || rankingRaw === '' || rankingRaw === null ? null : parseInt(rankingRaw, 10);
                 const gradeData = {
                     id: generateId(),
                     studentId: student.id,
@@ -204,7 +208,7 @@ function importGrades(event) {
                     testDate: String(row[2] || new Date().toISOString().split('T')[0]),
                     score: parseInt(row[3]) || 0,
                     fullScore: parseInt(row[4]) || 100,
-                    ranking: parseInt(row[5]) || 0,
+                    ranking: ranking,
                     examType: String(row[6] || '校外成绩').trim() === '校内' ? 'school' : 'external',
                     weakPoints: String(row[7] || '').trim(),
                     remark: String(row[8] || '').trim()
@@ -228,7 +232,7 @@ function importGrades(event) {
 
 function exportGrades() {
     const headers = ['学员', '测试名称', '测试日期', '得分', '满分', '班级排名', '薄弱点', '备注'];
-    const rows = data.grades.map(g => [g.studentName, g.testName, g.testDate, g.score, g.fullScore, `第${g.ranking}名`, g.weakPoints || '', g.remark || '']);
+    const rows = data.grades.map(g => [g.studentName, g.testName, g.testDate, g.score, g.fullScore, g.ranking != null && g.ranking !== '' ? `第${g.ranking}名` : '未知', g.weakPoints || '', g.remark || '']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '成绩记录');

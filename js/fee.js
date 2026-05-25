@@ -52,7 +52,7 @@ function openFeeModal(id = null) {
                 <div class="form-group" style="flex:2;">
                     <label>学员 *</label>
                     <input type="text" id="feeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterFeeStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
-                    <select id="feeStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectFeeStudent(this)"></select>
+                    <select id="feeStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectFeeStudent(this)"></select>
                     <input type="hidden" name="studentId" id="feeStudentId" value="${fee?.studentId || ''}">
                 </div>
                 <div class="form-group"><label>缴费金额 *</label><input type="number" name="amount" value="${fee?.amount || ''}" required min="0"></div>

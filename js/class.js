@@ -17,6 +17,7 @@ function renderClasses() {
                 </div>
                 <div class="toolbar">
                     <button class="btn btn-secondary btn-sm" onclick="openClassTypeManager()">管理班型</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openGradeManager()">管理年级</button>
                     <button class="btn btn-primary" onclick="openClassModal()">+ 新增班级</button>
                     <div class="divider"></div>
                     <button class="btn btn-secondary" onclick="downloadClassTemplate()">下载导入模板</button>
@@ -151,6 +152,50 @@ function deleteClassTypeByIdx(idx) {
     showToast('班型已删除');
 }
 
+function openGradeManager() {
+    document.getElementById('modalTitle').textContent = '年级管理';
+    const grades = (data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']);
+    const gradeList = grades.map((g, idx) => `
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hover-bg); border-radius: 6px; margin-bottom: 8px;">
+            <span style="flex:1;">${escapeHtml(g)}</span>
+            <button class="btn btn-danger btn-xs" onclick="deleteGradeByIdx(${idx})">删除</button>
+        </div>
+    `).join('');
+
+    document.getElementById('modalBody').innerHTML = `
+        <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+            <input type="text" id="newGradeName" placeholder="新年级名称" style="flex:1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px;">
+            <button class="btn btn-success btn-sm" onclick="addGrade()">添加</button>
+        </div>
+        <div>${gradeList || '<div class="empty-state">暂无年级</div>'}</div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+    `;
+    document.getElementById('modal').classList.add('show');
+}
+
+function addGrade() {
+    const name = document.getElementById('newGradeName').value.trim();
+    if (!name) { showToast('请输入年级名称'); return; }
+    if (!data.gradeOptions) data.gradeOptions = ['五年级', '六年级', '初一', '初二', '初三', '新初一'];
+    if (data.gradeOptions.includes(name)) { showToast('该年级已存在'); return; }
+    data.gradeOptions.push(name);
+    saveData();
+    openGradeManager();
+    showToast('年级已添加');
+}
+
+function deleteGradeByIdx(idx) {
+    if (!confirm('删除该年级？')) return;
+    data.gradeOptions.splice(idx, 1);
+    saveData();
+    openGradeManager();
+    showToast('年级已删除');
+}
+
+function getGradeOptions() {
+    return data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一'];
+}
+
 function openClassModal(id = null) {
     currentEditId = id;
     const cls = id ? data.classes.find(c => c.id === id) : null;
@@ -163,11 +208,7 @@ function openClassModal(id = null) {
                 <div class="form-group">
                     <label>年级</label>
                     <select name="grade">
-                        <option value="五年级" ${cls?.grade === '五年级' ? 'selected' : ''}>五年级</option>
-                        <option value="六年级" ${cls?.grade === '六年级' ? 'selected' : ''}>六年级</option>
-                        <option value="初一" ${(!cls || cls?.grade === '初一') ? 'selected' : ''}>初一</option>
-                        <option value="初二" ${cls?.grade === '初二' ? 'selected' : ''}>初二</option>
-                        <option value="初三" ${cls?.grade === '初三' ? 'selected' : ''}>初三</option>
+                        ${getGradeOptions().map(g => `<option value="${g}" ${cls?.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">

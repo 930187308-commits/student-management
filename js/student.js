@@ -203,7 +203,7 @@ function renderStudentDetail() {
                     <table>
                         <thead><tr><th>测试</th><th>日期</th><th>类型</th><th>得分</th><th>排名</th></tr></thead>
                         <tbody>
-                            ${displayGrades.map(g => `<tr><td>${g.testName}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>第${g.ranking}名</td></tr>`).join('')}
+                            ${displayGrades.map(g => `<tr><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td></tr>`).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -263,11 +263,7 @@ function openStudentModal(id = null) {
                 <div class="form-group">
                     <label>年级</label>
                     <select name="grade">
-                        <option value="五年级" ${student?.grade === '五年级' ? 'selected' : ''}>五年级</option>
-                        <option value="六年级" ${student?.grade === '六年级' ? 'selected' : ''}>六年级</option>
-                        <option value="初一" ${(!student || student?.grade === '初一') ? 'selected' : ''}>初一</option>
-                        <option value="初二" ${student?.grade === '初二' ? 'selected' : ''}>初二</option>
-                        <option value="初三" ${student?.grade === '初三' ? 'selected' : ''}>初三</option>
+                        ${(data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']).map(g => `<option value="${g}" ${student?.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
                     </select>
                 </div>
             </div>

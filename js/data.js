@@ -21,7 +21,8 @@ let data = {
     ],
     prospects: [], // 意向学员: { id, name, phone, source, intent, trialDate, trialStatus, dealStatus, remark, createDate }
     prospectSources: ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'], // 意向来源渠道
-    classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'] // 班型可选项
+    classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'], // 班型可选项
+    gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '新初一'] // 年级可选项
 };
 
 // 全局状态
@@ -491,7 +492,8 @@ function getSampleData() {
             { id: 'p6', name: '马十八', phone: '13900139018', source: '百度', intent: '提升成绩', trialDate: '', trialStatus: 'lost', dealStatus: 'lost', remark: '考虑其他机构', createDate: '2025-10-15' }
         ],
         prospectSources: ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'],
-        classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班']
+        classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'],
+        gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '新初一']
     };
 }
 

@@ -120,7 +120,7 @@ function openCommModal(id = null) {
                 <div class="form-group" style="flex:2;">
                     <label>学员 *</label>
                     <input type="text" id="commStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterCommStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
-                    <select id="commStudentSelect" size="5" required style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectCommStudent(this)"></select>
+                    <select id="commStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectCommStudent(this)"></select>
                     <input type="hidden" name="studentId" id="commStudentId" value="${comm?.studentId || ''}">
                 </div>
                 <div class="form-group"><label>沟通主题</label><select name="topicId"><option value="">无</option>${topicOptions}</select></div>
