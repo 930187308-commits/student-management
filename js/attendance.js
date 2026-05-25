@@ -141,9 +141,7 @@ function saveAttendanceSession(e) {
         return;
     }
 
-    const students = data.students.filter(s => s.classId === currentAttendanceClassId && s.status === 'active');
-    const records = {};
-    students.forEach(s => { records[s.id] = 1; });
+    const records = {}; // 空记录，用户手动填写
 
     data.attendance.push({
         id: generateId(),

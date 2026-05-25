@@ -86,10 +86,10 @@ function renderStudentList() {
         const badgeColor = s.status === 'renewalPending' ? 'background:#f39c12;color:white;' : s.status === 'active' ? 'background:#d4edda;color:#155724;' : 'background:#e8f4fd;color:#666;';
         return `<div class="student-item ${currentStudentId === s.id ? 'active' : ''}" onclick="selectStudent('${s.id}')" ${statusClass}>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="name" style="font-weight: 600; font-size: 14px;">${s.name}</div>
+                <div class="name" style="font-weight: 600; font-size: 14px;">${escapeHtml(s.name)}</div>
                 <span class="badge" style="${badgeColor} font-size: 10px;">${statusText}</span>
             </div>
-            <div style="font-size: 11px; color: #888; margin-top: 2px;">${s.grade} · ${cls?.name || '未分班'}</div>
+            <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(s.grade)} · ${escapeHtml(cls?.name) || '未分班'}</div>
         </div>`;
     }).join('');
 }
@@ -151,8 +151,8 @@ function renderStudentDetail() {
     detail.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
             <div>
-                <h3 style="font-size: 20px; color: #2c3e50;">${student.name}</h3>
-                <p style="color: #888; font-size: 13px; margin-top: 4px;">${student.grade} · ${cls?.name || '未分班'}</p>
+                <h3 style="font-size: 20px; color: #2c3e50;">${escapeHtml(student.name)}</h3>
+                <p style="color: #888; font-size: 13px; margin-top: 4px;">${escapeHtml(student.grade)} · ${escapeHtml(cls?.name) || '未分班'}</p>
             </div>
             <div style="display: flex; gap: 8px;">
                 <button class="btn btn-secondary btn-sm" onclick="openStudentModal('${student.id}')">编辑</button>
@@ -178,14 +178,14 @@ function renderStudentDetail() {
 
         <div class="detail-grid">
             <div class="detail-item"><div class="label">已缴课时</div><div class="value">${totalPaidHours} 课时 <span style="font-size:12px;color:#888;">¥${totalPaidAmount.toLocaleString()}</span></div></div>
-            <div class="detail-item"><div class="label">性别</div><div class="value">${student.gender}</div></div>
-            <div class="detail-item"><div class="label">授课老师</div><div class="value">${student.teacher}</div></div>
-            <div class="detail-item"><div class="label">就读学校</div><div class="value">${student.school || '-'}</div></div>
+            <div class="detail-item"><div class="label">性别</div><div class="value">${escapeHtml(student.gender)}</div></div>
+            <div class="detail-item"><div class="label">授课老师</div><div class="value">${escapeHtml(student.teacher)}</div></div>
+            <div class="detail-item"><div class="label">就读学校</div><div class="value">${escapeHtml(student.school) || '-'}</div></div>
             <div class="detail-item"><div class="label">入班时间</div><div class="value">${student.enrollDate}</div></div>
-            <div class="detail-item"><div class="label">联系电话</div><div class="value">${student.phone || '-'}</div></div>
+            <div class="detail-item"><div class="label">联系电话</div><div class="value">${escapeHtml(student.phone) || '-'}</div></div>
         </div>
 
-        ${student.remark ? `<div style="margin-top: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px;"><div class="label">备注</div><div class="value">${student.remark}</div></div>` : ''}
+        ${student.remark ? `<div style="margin-top: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px;"><div class="label">备注</div><div class="value">${escapeHtml(student.remark)}</div></div>` : ''}
 
         <!-- 成绩记录 -->
         <div style="margin-top: 24px;">
@@ -335,11 +335,15 @@ function saveStudent(e) {
 }
 
 function deleteStudent(id) {
-    if (!confirm('确定删除该学员？')) return;
-    data.students = data.students.filter(s => s.id !== id);
+    if (!confirm('确定将该学员改为停课状态？删除操作不可恢复。')) return;
+    const student = data.students.find(s => s.id === id);
+    if (student) {
+        student.status = 'inactive';
+        student._archivedAt = new Date().toISOString();
+    }
     if (currentStudentId === id) currentStudentId = null;
     saveData();
-    showToast('删除成功');
+    showToast('已改为停课状态');
     render();
 }
 

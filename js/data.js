@@ -42,6 +42,15 @@ const JSONBIN_COLLECTION_KEY = 'jsonbinCollectionId';
 const JSONBIN_MASTER_KEY = 'jsonbinMasterKey';
 const JSONBIN_API_BASE = 'https://api.jsonbin.io/v3';
 
+// ========== HTML 转义 ==========
+
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 // ========== 本地服务器同步 ==========
 
 // 检查是否配置了本地服务器（默认使用）
