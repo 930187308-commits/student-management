@@ -14,7 +14,7 @@ Do not commit database files, backups, logs, or real student data.
 ## Start
 
 ```bash
-node server/server.js
+scripts/start-server.sh
 ```
 
 The server listens on:
@@ -26,8 +26,50 @@ http://localhost:3000
 On the local network, other devices should use the Mac mini address, for example:
 
 ```text
-http://mac-mini.local:3000
+http://bzxdeMac-mini.local:3000
+http://192.168.1.97:3000
 ```
+
+Prefer the `.local` address first. If a Windows device cannot resolve it, use the IP address.
+
+Useful service commands:
+
+```bash
+scripts/status-server.sh
+scripts/stop-server.sh
+scripts/start-server.sh
+```
+
+The managed start script writes logs to:
+
+```text
+/Users/bzx/Logs/student-ai-console/server.out.log
+/Users/bzx/Logs/student-ai-console/server.err.log
+```
+
+If you run the server manually with `node server/server.js`, stop that manual process before using the managed start script.
+
+## LaunchAgent
+
+For a Mac mini server, prefer launchd once the server is ready to stay online:
+
+```bash
+scripts/install-launchd.sh
+```
+
+This installs a user LaunchAgent:
+
+```text
+~/Library/LaunchAgents/com.bzx.student-ai-console.plist
+```
+
+Uninstall it with:
+
+```bash
+scripts/uninstall-launchd.sh
+```
+
+The LaunchAgent uses `scripts/run-server.sh`, keeps the service alive, and starts it again after user login.
 
 ## Current API
 
@@ -40,6 +82,16 @@ This first server version keeps compatibility with the current frontend:
 - `POST /api/backups` creates SQLite and JSON backups.
 
 The SQLite schema already reserves normalized tables for later migration, but the frontend still uses the app-state snapshot in this stage.
+
+## Manual Backup
+
+Create a backup from the command line:
+
+```bash
+node server/create-backup.js manual
+```
+
+Each backup creates both a SQLite copy and a JSON snapshot under `/Users/bzx/Data/student-ai-console/backups`.
 
 ## Import Existing JSON
 

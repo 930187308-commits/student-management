@@ -1,0 +1,48 @@
+#!/bin/zsh
+set -euo pipefail
+
+LOG_ROOT="${STUDENT_LOG_DIR:-/Users/bzx/Logs/student-ai-console}"
+PORT="${STUDENT_SERVER_PORT:-3000}"
+PID_FILE="$LOG_ROOT/student-ai-console.pid"
+LABEL="com.bzx.student-ai-console"
+
+echo "Student AI Console status"
+echo "Port: $PORT"
+
+if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then
+    launchd_pid="$(launchctl print "gui/$(id -u)/$LABEL" 2>/dev/null | awk '/pid =/ {print $3; exit}')"
+    if [[ -n "$launchd_pid" ]]; then
+        echo "LaunchAgent: running, PID $launchd_pid"
+    else
+        echo "LaunchAgent: installed"
+    fi
+else
+    echo "LaunchAgent: not installed"
+fi
+
+if [[ -f "$PID_FILE" ]]; then
+    server_pid="$(cat "$PID_FILE")"
+    if kill -0 "$server_pid" 2>/dev/null; then
+        echo "Managed PID: $server_pid"
+    else
+        echo "Managed PID file exists but process is not running: $server_pid"
+        rm -f "$PID_FILE"
+        echo "Removed stale PID file."
+    fi
+else
+    echo "Managed PID: none"
+fi
+
+if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN; then
+    echo "Port $PORT is listening."
+else
+    echo "Port $PORT is not listening."
+fi
+
+local_name="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
+lan_ip="$(ipconfig getifaddr en1 2>/dev/null || ipconfig getifaddr en0 2>/dev/null || true)"
+echo "Local: http://localhost:$PORT"
+echo "LAN: http://$local_name.local:$PORT"
+if [[ -n "$lan_ip" ]]; then
+    echo "LAN IP: http://$lan_ip:$PORT"
+fi

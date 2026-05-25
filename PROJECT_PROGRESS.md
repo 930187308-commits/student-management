@@ -10,6 +10,10 @@
 - Mac mini 数据目录：`/Users/bzx/Data/student-ai-console`
 - MacBook 开发目录：`~/Projects/student-ai-console/学生管理系统`
 - 当前运行服务：Mac mini Node 服务，端口 `3000`
+- 当前访问地址：
+  - `http://localhost:3000`
+  - `http://bzxdeMac-mini.local:3000`
+  - `http://192.168.1.97:3000`
 - 已停止旧服务：Python `8080` 同步服务
 
 ## 总路线
@@ -119,11 +123,22 @@
   - `node server/import-json.js /path/to/backup-or-data.json`
   - 支持 raw data JSON 和 `{ data: ... }` 备份格式
   - 导入前会自动生成备份
+- 已新增服务管理脚本：
+  - `scripts/start-server.sh`
+  - `scripts/stop-server.sh`
+  - `scripts/status-server.sh`
+- 已新增 launchd 托管脚本：
+  - `scripts/run-server.sh`
+  - `scripts/install-launchd.sh`
+  - `scripts/uninstall-launchd.sh`
+- 已新增命令行备份脚本：
+  - `node server/create-backup.js manual`
 
 下一步：
 
-- 增加启动/停止脚本或 launchd 服务。
-- 明确 MacBook、Windows、iPad 的访问地址。
+- 在 MacBook、Windows、iPad 浏览器验证：
+  - `http://bzxdeMac-mini.local:3000`
+  - `http://192.168.1.97:3000`
 - 规划从整包 `/data` 逐步拆分到模块 API。
 
 ## 阶段 3：前端逐步接 API

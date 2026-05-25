@@ -7,8 +7,12 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "STUDENT_CONSOLE_ENV=development node server/server.js",
+    "server:start": "scripts/start-server.sh",
+    "server:stop": "scripts/stop-server.sh",
+    "server:status": "scripts/status-server.sh",
+    "backup": "node server/create-backup.js",
     "import:json": "node server/import-json.js",
-    "check": "node --check server/server.js && node --check server/db.js && node --check server/config.js"
+    "check": "node --check server/server.js && node --check server/db.js && node --check server/config.js && node --check server/create-backup.js && node --check server/import-json.js"
   },
   "engines": {
     "node": ">=24.0.0"
