@@ -121,10 +121,14 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
 
     const tempStudents = Object.values(tempMap);
     if (tempStudents.length === 0) {
+        const sessionOptions = sessions.map((sess, i) => `<option value="${sess.date}">${escapeHtml(sess.sessionName || '第'+(i+1)+'次')} - ${sess.date}</option>`).join('');
         return `<div style="margin-top: 20px; padding: 12px; background: var(--hover-bg); border-radius: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <strong style="color: #2c3e50;">临时调课学员</strong>
-                <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal('${allDates[0]}')">+ 添加临时学员</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <select id="tempSessionSelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">${sessionOptions}</select>
+                    <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal(document.getElementById('tempSessionSelect').value)">+ 添加临时学员</button>
+                </div>
             </div>
             <div class="empty-state" style="padding: 20px;">暂无临时调课记录</div>
         </div>`;
@@ -133,7 +137,10 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
     return `<div style="margin-top: 20px; padding: 12px; background: var(--hover-bg); border-radius: 8px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <strong style="color: #2c3e50;">临时调课学员 <span style="font-size: 12px; color: #888;">（临时到本班上课）</span></strong>
-            <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal('${allDates[0]}')">+ 添加临时学员</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="tempSessionSelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">${sessions.map((sess, i) => `<option value="${sess.date}">${escapeHtml(sess.sessionName || '第'+(i+1)+'次')} - ${sess.date}</option>`).join('')}</select>
+                <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal(document.getElementById('tempSessionSelect').value)">+ 添加临时学员</button>
+            </div>
         </div>
         <table class="attendance-table">
             <thead>
@@ -172,7 +179,7 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
                             }).join('')}
                             <td><strong style="color:#27ae60;">${present}</strong></td>
                             <td><strong style="color:#e74c3c;">${absent}</strong></td>
-                            <td><button class="btn btn-danger btn-xs" onclick="removeTemporaryStudent('${ts.studentId}')">移除</button></td>
+                            <td><button class="btn btn-danger btn-xs" onclick="removeTemporaryStudent('${ts.studentId}', '${date}')">移除</button></td>
                         </tr>
                     `;
                 }).join('')}
@@ -183,8 +190,12 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
 
 function openAddTempStudentModal(date) {
     if (!currentAttendanceClassId) { showToast('请先选择班级'); return; }
+    if (!date) { showToast('请选择课次'); return; }
 
-    document.getElementById('modalTitle').textContent = '添加临时学员';
+    const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
+    const sessionInfo = session ? `${session.sessionName || date} (${date})` : date;
+
+    document.getElementById('modalTitle').textContent = '添加临时学员 - ' + sessionInfo;
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveTempStudent(event)">
             <input type="hidden" name="date" value="${date}">
@@ -303,19 +314,16 @@ function saveTempStudent(e) {
     showToast('已添加临时学员');
 }
 
-function removeTemporaryStudent(studentId) {
+function removeTemporaryStudent(studentId, date) {
     if (!confirm('确定从本次课移除该临时学员？')) return;
 
-    const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === document.querySelector('[data-date]')?.dataset.date || '');
-    // 找到包含该临时学员的所有session
-    data.attendance.forEach(sess => {
-        if (sess.classId === currentAttendanceClassId) {
-            if (sess.temporaryStudents) {
-                sess.temporaryStudents = sess.temporaryStudents.filter(ts => ts.studentId !== studentId);
-            }
-            delete sess.records?.[studentId];
-        }
-    });
+    const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
+    if (!session) return;
+
+    if (session.temporaryStudents) {
+        session.temporaryStudents = session.temporaryStudents.filter(ts => ts.studentId !== studentId);
+    }
+    delete session.records?.[studentId];
 
     saveData();
     loadAttendanceClass(currentAttendanceClassId);
