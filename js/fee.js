@@ -37,7 +37,7 @@ function renderFeeTable() {
     const status = document.getElementById('feeStatusFilter')?.value || '';
     const filtered = data.fees.filter(f => (!search || f.studentName.toLowerCase().includes(search)) && (!status || f.status === status));
     const tbody = document.getElementById('feeTableBody');
-    tbody.innerHTML = filtered.map(f => `<tr><td>${f.studentName}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate}</td><td>${f.package}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.map(f => `<tr><td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
 }
 
 function openFeeModal(id = null) {

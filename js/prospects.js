@@ -55,10 +55,10 @@ function renderProspectList() {
         const trialBadge = p.trialStatus === 'trial' ? 'badge-active' : p.trialStatus === 'deal' ? 'badge-success' : 'badge-normal';
         const dealBadge = p.dealStatus === 'deal' ? 'badge-active' : p.dealStatus === 'lost' ? 'badge-danger' : 'badge-normal';
         return `<tr>
-            <td><strong>${p.name}</strong></td>
-            <td>${p.phone || '-'}</td>
-            <td>${sourceMap[p.source] || p.source || '-'}</td>
-            <td>${p.intent || '-'}</td>
+            <td><strong>${escapeHtml(p.name)}</strong></td>
+            <td>${escapeHtml(p.phone || '-')}</td>
+            <td>${escapeHtml(sourceMap[p.source] || p.source || '-')}</td>
+            <td>${escapeHtml(p.intent || '-')}</td>
             <td>${p.trialDate || '-'}</td>
             <td><span class="badge ${trialBadge}">${statusMap[p.trialStatus] || '待跟进'}</span></td>
             <td><span class="badge ${dealBadge}">${p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交'}</span></td>

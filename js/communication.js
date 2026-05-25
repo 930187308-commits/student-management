@@ -43,12 +43,12 @@ function renderCommTable() {
         const statusBadge = c.status === 'pending' ? 'badge-pending' : 'badge-active';
         const statusText = c.status === 'pending' ? '待沟通' : '已完成';
         return `<tr>
-            <td>${topic ? `<span class="badge" style="background:${topic.color};color:white;">${topic.name}</span>` : '-'}</td>
-            <td>${c.studentName}</td>
+            <td>${topic ? `<span class="badge" style="background:${escapeHtml(topic.color)};color:white;">${escapeHtml(topic.name)}</span>` : '-'}</td>
+            <td>${escapeHtml(c.studentName)}</td>
             <td>${c.contactDate}</td>
-            <td>${c.contactType}</td>
+            <td>${escapeHtml(c.contactType)}</td>
             <td><span class="badge ${statusBadge}">${statusText}</span></td>
-            <td>${c.contactPerson}</td>
+            <td>${escapeHtml(c.contactPerson)}</td>
             <td><button class="btn btn-secondary btn-xs" onclick="openCommDetail('${c.id}')">查看</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
         </tr>`;
     }).join('');
@@ -197,14 +197,14 @@ function openCommDetail(id) {
     document.getElementById('modalTitle').textContent = '沟通详情';
     document.getElementById('modalBody').innerHTML = `
         <div class="detail-grid">
-            ${topic ? `<div class="detail-item"><div class="label">主题</div><div class="value"><span class="badge" style="background:${topic.color};color:white;">${topic.name}</span></div></div>` : ''}
-            <div class="detail-item"><div class="label">学员</div><div class="value">${comm.studentName}</div></div>
+            ${topic ? `<div class="detail-item"><div class="label">主题</div><div class="value"><span class="badge" style="background:${escapeHtml(topic.color)};color:white;">${escapeHtml(topic.name)}</span></div></div>` : ''}
+            <div class="detail-item"><div class="label">学员</div><div class="value">${escapeHtml(comm.studentName)}</div></div>
             <div class="detail-item"><div class="label">日期</div><div class="value">${comm.contactDate}</div></div>
-            <div class="detail-item"><div class="label">方式</div><div class="value">${comm.contactType}</div></div>
-            <div class="detail-item"><div class="label">沟通对象</div><div class="value">${comm.contactPerson}</div></div>
+            <div class="detail-item"><div class="label">方式</div><div class="value">${escapeHtml(comm.contactType)}</div></div>
+            <div class="detail-item"><div class="label">沟通对象</div><div class="value">${escapeHtml(comm.contactPerson)}</div></div>
         </div>
-        <div style="margin-top: 16px;"><div class="label">沟通内容</div><div style="padding: 12px; background: var(--hover-bg); border-radius: 8px; margin-top: 4px; white-space: pre-wrap;">${comm.content}</div></div>
-        ${comm.followUp ? `<div style="margin-top: 16px;"><div class="label">后续跟进</div><div style="padding: 12px; background: #fff3cd; border-radius: 8px; margin-top: 4px;">${comm.followUp}</div></div>` : ''}
+        <div style="margin-top: 16px;"><div class="label">沟通内容</div><div style="padding: 12px; background: var(--hover-bg); border-radius: 8px; margin-top: 4px; white-space: pre-wrap;">${escapeHtml(comm.content)}</div></div>
+        ${comm.followUp ? `<div style="margin-top: 16px;"><div class="label">后续跟进</div><div style="padding: 12px; background: #fff3cd; border-radius: 8px; margin-top: 4px; white-space: pre-wrap;">${escapeHtml(comm.followUp)}</div></div>` : ''}
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');
