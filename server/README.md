@@ -88,7 +88,7 @@ The SQLite schema already reserves normalized tables for later migration, but th
 Create a backup from the command line:
 
 ```bash
-node server/create-backup.js manual
+scripts/node.sh server/create-backup.js manual
 ```
 
 Each backup creates both a SQLite copy and a JSON snapshot under `/Users/bzx/Data/student-ai-console/backups`.
@@ -98,7 +98,7 @@ Each backup creates both a SQLite copy and a JSON snapshot under `/Users/bzx/Dat
 To import an old backup or raw data JSON into the Mac mini database:
 
 ```bash
-node server/import-json.js /path/to/backup-or-data.json
+scripts/node.sh server/import-json.js /path/to/backup-or-data.json
 ```
 
 The importer accepts both formats:
@@ -107,6 +107,28 @@ The importer accepts both formats:
 - Backup wrapper: `{ "version": "...", "data": { ... } }`
 
 Before importing, it creates a SQLite and JSON backup in the backup directory.
+
+## Test Data
+
+Generate broad fake data for multi-device testing:
+
+```bash
+scripts/node.sh server/generate-test-data.js
+```
+
+Import the generated file:
+
+```bash
+scripts/node.sh server/import-json.js /Users/bzx/Data/student-ai-console/backups/test-data-具体文件名.json
+```
+
+Reset to empty default data after testing:
+
+```bash
+scripts/node.sh server/reset-empty-data.js
+```
+
+See `TEST_PLAN.md` for the full validation checklist.
 
 ## Sample Data
 

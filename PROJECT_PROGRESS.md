@@ -139,12 +139,19 @@
   - 旧页面、旧缓存、其他设备已更新后的旧数据写入会被拒绝
   - 前端不再用本地缓存自动覆盖服务器数据
   - 已取消 30 秒自动保存，改为用户操作时立即保存
+- 已创建 GitHub 稳定基线标签：
+  - `stage-2-sync-baseline`
+- 已新增大规模测试数据与恢复工具：
+  - `scripts/node.sh server/generate-test-data.js`
+  - `scripts/node.sh server/import-json.js /path/to/test-data.json`
+  - `scripts/node.sh server/reset-empty-data.js`
+- 已新增测试清单：
+  - `TEST_PLAN.md`
 
 下一步：
 
-- 在 MacBook、Windows、iPad 浏览器验证：
-  - `http://bzxdeMac-mini.local:3000`
-  - `http://192.168.1.97:3000`
+- 使用测试数据在 MacBook、Windows、iPad、手机端验证完整流程。
+- 测试通过后清空测试数据，准备拆分模块 API。
 - 规划从整包 `/data` 逐步拆分到模块 API。
 
 ## 阶段 3：前端逐步接 API

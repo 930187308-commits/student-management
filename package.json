@@ -10,9 +10,11 @@
     "server:start": "scripts/start-server.sh",
     "server:stop": "scripts/stop-server.sh",
     "server:status": "scripts/status-server.sh",
-    "backup": "node server/create-backup.js",
-    "import:json": "node server/import-json.js",
-    "check": "node --check server/server.js && node --check server/db.js && node --check server/config.js && node --check server/create-backup.js && node --check server/import-json.js"
+    "backup": "scripts/node.sh server/create-backup.js",
+    "test-data:generate": "scripts/node.sh server/generate-test-data.js",
+    "data:reset-empty": "scripts/node.sh server/reset-empty-data.js",
+    "import:json": "scripts/node.sh server/import-json.js",
+    "check": "scripts/node.sh --check server/server.js && scripts/node.sh --check server/db.js && scripts/node.sh --check server/config.js && scripts/node.sh --check server/create-backup.js && scripts/node.sh --check server/import-json.js && scripts/node.sh --check server/generate-test-data.js && scripts/node.sh --check server/reset-empty-data.js"
   },
   "engines": {
     "node": ">=24.0.0"
