@@ -108,14 +108,15 @@ function loadAttendanceClass(classId) {
 
 function renderTemporaryStudentsSection(classId, sessions, allDates) {
     // 收集所有临时学员
-    const tempMap = {}; // tempStudentKey -> { studentId, fromClassId, note, dates }
+    const tempMap = {}; // tempStudentKey -> { studentId, fromClassId, note, dates, isTempHere }
     sessions.forEach(sess => {
         (sess.temporaryStudents || []).forEach(ts => {
             const key = ts.studentId;
             if (!tempMap[key]) {
-                tempMap[key] = { studentId: ts.studentId, fromClassId: ts.fromClassId, note: ts.note || '', dates: {} };
+                tempMap[key] = { studentId: ts.studentId, fromClassId: ts.fromClassId, note: ts.note || '', dates: {}, isTempHere: {} };
             }
             tempMap[key].dates[sess.date] = sess.records?.[ts.studentId];
+            tempMap[key].isTempHere[sess.date] = true;
         });
     });
 
@@ -175,10 +176,13 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
                                 const sess = sessions.find(s => s.date === date);
                                 const status = ts.dates[date];
                                 const cls = status === 1 ? 'present' : status === 0 ? 'absent' : '';
-                                const isTempHere = status != null;
+                                const isTempHere = ts.isTempHere[date];
+                                if (!isTempHere) {
+                                    return `<td style="color: #ccc; text-align: center;">-</td>`;
+                                }
                                 return `<td>
                                     <input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${ts.studentId}" data-temp="true" onchange="updateAttendance(this)">
-                                    ${isTempHere ? `<br><button class="btn btn-danger btn-xs" style="margin-top:4px;" onclick="removeTemporaryStudent('${ts.studentId}', '${date}')">移除</button>` : ''}
+                                    <br><button class="btn btn-danger btn-xs" style="margin-top:4px;" onclick="removeTemporaryStudent('${ts.studentId}', '${date}')">移除</button>
                                 </td>`;
                             }).join('')}
                             <td><strong style="color:#27ae60;">${present}</strong></td>
