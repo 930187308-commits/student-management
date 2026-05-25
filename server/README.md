@@ -40,3 +40,22 @@ This first server version keeps compatibility with the current frontend:
 - `POST /api/backups` creates SQLite and JSON backups.
 
 The SQLite schema already reserves normalized tables for later migration, but the frontend still uses the app-state snapshot in this stage.
+
+## Import Existing JSON
+
+To import an old backup or raw data JSON into the Mac mini database:
+
+```bash
+node server/import-json.js /path/to/backup-or-data.json
+```
+
+The importer accepts both formats:
+
+- Raw data object: `{ "classes": [], "students": [], ... }`
+- Backup wrapper: `{ "version": "...", "data": { ... } }`
+
+Before importing, it creates a SQLite and JSON backup in the backup directory.
+
+## Sample Data
+
+The production server does not auto-seed sample students or classes. Sample data can still be restored manually from the frontend data-management tools if needed for testing.

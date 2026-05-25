@@ -274,10 +274,6 @@ function showGistHelp() {
 // 初始化
 async function init() {
     await loadData();
-    if (data.classes.length === 0) {
-        data = getSampleData();
-        await saveData();
-    }
     initDarkMode();
     initTabs();
     render();

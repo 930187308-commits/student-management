@@ -114,11 +114,14 @@
   - `/data` 正常
   - `/api/backups` 正常
   - 静态首页可访问
+- 生产模式已关闭自动生成示例数据。
+- 已新增旧 JSON 导入工具：
+  - `node server/import-json.js /path/to/backup-or-data.json`
+  - 支持 raw data JSON 和 `{ data: ... }` 备份格式
+  - 导入前会自动生成备份
 
 下一步：
 
-- 修复生产模式自动生成示例数据的问题。
-- 增加从旧 JSON 导入 SQLite/app_state 的命令或接口。
 - 增加启动/停止脚本或 launchd 服务。
 - 明确 MacBook、Windows、iPad 的访问地址。
 - 规划从整包 `/data` 逐步拆分到模块 API。

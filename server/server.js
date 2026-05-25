@@ -17,6 +17,9 @@ const MIME_TYPES = {
     '.ico': 'image/x-icon'
 };
 
+const SAMPLE_STUDENT_IDS = new Set(['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10']);
+const SAMPLE_STUDENT_NAMES = new Set(['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十', '郑十一', '陈十二']);
+
 openDatabase();
 
 function sendJson(res, status, payload) {
@@ -56,6 +59,18 @@ function readRequestBody(req) {
         req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
         req.on('error', reject);
     });
+}
+
+function isLikelyBuiltInSampleData(payload) {
+    if (config.env === 'development') return false;
+    if (!payload || !Array.isArray(payload.students) || !Array.isArray(payload.classes)) return false;
+    if (payload.students.length !== SAMPLE_STUDENT_IDS.size) return false;
+    if (payload.classes.length < 6) return false;
+
+    const ids = new Set(payload.students.map((student) => student.id));
+    const names = new Set(payload.students.map((student) => student.name));
+    return [...SAMPLE_STUDENT_IDS].every((id) => ids.has(id)) &&
+        [...SAMPLE_STUDENT_NAMES].every((name) => names.has(name));
 }
 
 function resolveStaticPath(urlPath) {
@@ -138,6 +153,13 @@ async function handleApi(req, res, pathname) {
             const parsed = JSON.parse(rawBody || '{}');
             if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
                 sendJson(res, 400, { error: '数据必须是对象' });
+                return true;
+            }
+            if (isLikelyBuiltInSampleData(parsed)) {
+                sendJson(res, 409, {
+                    error: '生产服务器拒绝写入内置示例数据',
+                    hint: '请刷新页面使用最新前端，或使用 server/import-json.js 明确导入测试数据。'
+                });
                 return true;
             }
             const saved = setData(parsed, 'api_put');
