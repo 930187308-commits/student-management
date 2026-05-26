@@ -12,6 +12,7 @@ function renderStudents() {
                 <!-- Tab切换 -->
                 <div style="display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap;">
                     <button class="btn btn-sm ${currentStudentTab === 'active' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('active')">在读学员</button>
+                    <button class="btn btn-sm ${currentStudentTab === 'forming' ? 'btn-info' : 'btn-secondary'}" onclick="switchStudentTab('forming')">组班中</button>
                     <button class="btn btn-sm ${currentStudentTab === 'renewalPending' ? 'btn-warning' : 'btn-secondary'}" onclick="switchStudentTab('renewalPending')">待续费</button>
                     <button class="btn btn-sm ${currentStudentTab === 'inactive' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('inactive')">非在读</button>
                 </div>
@@ -68,8 +69,9 @@ function renderStudentList() {
     const filtered = data.students.filter(s => {
         // Tab筛选
         if (currentStudentTab === 'active' && s.status !== 'active') return false;
+        if (currentStudentTab === 'forming' && s.status !== 'forming') return false;
         if (currentStudentTab === 'renewalPending' && s.status !== 'renewalPending') return false;
-        if (currentStudentTab === 'inactive' && (s.status === 'active' || s.status === 'renewalPending' || !s.status)) return false;
+        if (currentStudentTab === 'inactive' && (s.status === 'active' || s.status === 'forming' || s.status === 'renewalPending' || !s.status)) return false;
 
         if (grade && s.grade !== grade) return false;
         if (classId === '__unassigned__' && s.classId) return false;
@@ -87,10 +89,10 @@ function renderStudentList() {
     const list = document.getElementById('studentList');
     list.innerHTML = filtered.map(s => {
         const cls = data.classes.find(c => c.id === s.classId);
-        const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业' };
+        const statusMap = { active: '在读', forming: '组班中', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业' };
         const statusText = statusMap[s.status] || s.status;
-        const statusClass = s.status !== 'active' ? 'style="opacity: 0.6;"' : '';
-        const badgeColor = s.status === 'renewalPending' ? 'background:#f39c12;color:white;' : s.status === 'active' ? 'background:#d4edda;color:#155724;' : 'background:#e8f4fd;color:#666;';
+        const statusClass = (s.status === 'inactive' || s.status === 'withdrawn' || s.status === 'graduated') ? 'style="opacity: 0.6;"' : '';
+        const badgeColor = s.status === 'renewalPending' ? 'background:#f39c12;color:white;' : s.status === 'forming' ? 'background:#9b59b6;color:white;' : s.status === 'active' ? 'background:#d4edda;color:#155724;' : 'background:#e8f4fd;color:#666;';
         return `<div class="student-item ${currentStudentId === s.id ? 'active' : ''}" onclick="selectStudent('${s.id}')" ${statusClass}>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div class="name" style="font-weight: 600; font-size: 14px;">${escapeHtml(s.name)}</div>
@@ -292,6 +294,7 @@ function openStudentModal(id = null) {
                     <label>状态</label>
                     <select name="status">
                         <option value="active" ${(!student || student?.status === 'active') ? 'selected' : ''}>在读</option>
+                        <option value="forming" ${student?.status === 'forming' ? 'selected' : ''}>组班中</option>
                         <option value="renewalPending" ${student?.status === 'renewalPending' ? 'selected' : ''}>待续费</option>
                         <option value="inactive" ${student?.status === 'inactive' ? 'selected' : ''}>已停课</option>
                         <option value="graduated" ${student?.status === 'graduated' ? 'selected' : ''}>已毕业</option>

@@ -6,7 +6,16 @@ function renderDashboard() {
 
     const classStats = data.classes.filter(c => c.status === 'active').map(c => {
         const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
-        return { ...c, currentCount: count };
+        // 总课时：该班在读学员 paid 缴费课时合计
+        const classStudents = data.students.filter(s => s.classId === c.id && s.status === 'active');
+        const totalPaidHours = classStudents.reduce((sum, s) => {
+            return sum + data.fees.filter(f => f.studentId === s.id && f.status === 'paid').reduce((a, f) => a + f.hours, 0);
+        }, 0);
+        // 已消课时：该班在读学员考勤出勤次数合计
+        const totalConsumedHours = classStudents.reduce((sum, s) => {
+            return sum + data.attendance.filter(a => a.classId === c.id && a.records?.[s.id] === 1).length;
+        }, 0);
+        return { ...c, currentCount: count, totalPaidHours, totalConsumedHours };
     });
 
     let html = `
@@ -17,7 +26,7 @@ function renderDashboard() {
             </div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>班级名称</th><th>年级</th><th>上课时间</th><th>人数/满班</th><th>操作</th></tr></thead>
+                    <thead><tr><th>班级名称</th><th>年级</th><th>上课时间</th><th>人数/满班</th><th>总课时</th><th>已消</th><th>操作</th></tr></thead>
                     <tbody>
                         ${classStats.map(c => `
                             <tr>
@@ -25,6 +34,8 @@ function renderDashboard() {
                                 <td>${escapeHtml(c.grade)}</td>
                                 <td>${escapeHtml(c.schedule)}</td>
                                 <td>${c.currentCount}/${c.maxStudents}</td>
+                                <td>${c.totalPaidHours}</td>
+                                <td><strong style="color:#27ae60;">${c.totalConsumedHours}</strong></td>
                                 <td>
                                     <button class="btn btn-secondary btn-xs" onclick="openClassModal('${escapeHtml(c.id)}')">编辑</button>
                                     <button class="btn btn-xs" onclick="switchTab('students'); selectClass('${escapeHtml(c.id)}')">查看学员</button>
