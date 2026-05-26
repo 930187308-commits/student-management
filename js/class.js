@@ -42,7 +42,9 @@ function renderClasses() {
                             const statusFilter = document.getElementById('classStatusFilter')?.value || '';
                             return (!gradeFilter || c.grade === gradeFilter) && (!statusFilter || c.status === statusFilter);
                         }).map(c => {
-                            const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
+                            const count = c.status === 'forming'
+                                ? (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length
+                                : data.students.filter(s => s.classId === c.id && s.status === 'active').length;
                             const fillRate = Math.round((count / c.maxStudents) * 100);
                             const isExpanded = expandedClassId === c.id;
                             return `
@@ -298,10 +300,10 @@ function deleteClass(id) {
     render();
 }
 
-// 下载班级导入模板
+// 班级导入模板下载（含计划课次）
 function downloadClassTemplate() {
-    const headers = [['班级名称', '年级', '班型', '上课时间', '学期', '满班人数', '状态', '暑假排课']];
-    const sampleRows = [['初一基础-周四18:00', '初一', '基础', '周四 18:00-20:00', '2025秋季', '10', 'active', '周一至周五上午']];
+    const headers = [['班级名称', '年级', '班型', '上课时间', '学期', '满班人数', '状态', '计划课次', '暑假排课']];
+    const sampleRows = [['初一基础-周四18:00', '初一', '基础', '周四 18:00-20:00', '2025秋季', '10', 'active', '16', '周一至周五上午']];
     const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '班级导入模板');
@@ -309,7 +311,7 @@ function downloadClassTemplate() {
     showToast('模板已下载');
 }
 
-// 导入班级Excel
+// 导入班级Excel（兼容旧模板：旧模板无计划课次列）
 function importClasses(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -326,6 +328,10 @@ function importClasses(event) {
                 const row = rows[i];
                 if (!row[0]) continue; // 班级名称必填
 
+                // 兼容旧模板：row[7] 是否为数字（计划课次），决定新模板还是旧模板
+                const row7 = row[7];
+                const isNewFormat = row7 !== undefined && row7 !== null && String(row7).trim() !== '' && !isNaN(Number(row7));
+
                 const classData = {
                     id: generateId(),
                     name: String(row[0]).trim(),
@@ -335,7 +341,8 @@ function importClasses(event) {
                     semester: String(row[4] || '2025秋季').trim(),
                     maxStudents: parseInt(row[5]) || 10,
                     status: String(row[6] || 'active').trim(),
-                    summerSchedule: String(row[7] || '').trim()
+                    plannedSessions: isNewFormat ? parseInt(row7) : 16,
+                    summerSchedule: isNewFormat ? String(row[8] || '').trim() : String(row7 || '').trim()
                 };
                 data.classes.push(classData);
                 imported++;
@@ -455,55 +462,3 @@ function removeProspectFromClass(prospectId, classId) {
     showToast('已移出组班');
 }
 
-function downloadClassTemplate() {
-    const headers = [['班级名称', '年级', '班型', '上课时间', '学期', '满班人数', '状态', '计划课次', '暑假排课']];
-    const sampleRows = [['初一基础-周四18:00', '初一', '基础', '周四 18:00-20:00', '2025秋季', '10', 'active', '16', '周一至周五上午']];
-    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '班级导入模板');
-    XLSX.writeFile(wb, '班级导入模板.xlsx');
-    showToast('模板已下载');
-}
-
-function importClasses(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const workbook = XLSX.read(e.target.result, { type: 'binary' });
-            const sheetName = workbook.SheetNames[0];
-            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
-
-            let imported = 0;
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row[0]) continue; // 班级名称必填
-
-                const classData = {
-                    id: generateId(),
-                    name: String(row[0]).trim(),
-                    grade: String(row[1] || '初一').trim(),
-                    classType: String(row[2] || '基础').trim(),
-                    schedule: String(row[3] || '').trim(),
-                    semester: String(row[4] || '2025秋季').trim(),
-                    maxStudents: parseInt(row[5]) || 10,
-                    status: String(row[6] || 'active').trim(),
-                    plannedSessions: row[7] ? parseInt(row[7]) : 16,
-                    summerSchedule: String(row[8] || '').trim()
-                };
-                data.classes.push(classData);
-                imported++;
-            }
-
-            saveData();
-            render();
-            showToast(`成功导入 ${imported} 个班级`);
-        } catch (err) {
-            showToast('导入失败：' + err.message);
-        }
-    };
-    reader.readAsBinaryString(file);
-    event.target.value = '';
-}

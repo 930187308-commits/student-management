@@ -3,7 +3,7 @@
 function renderProspects() {
     const container = document.getElementById('tab-prospects');
 
-    const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', deal: '已成交', lost: '已流失' };
+    const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
 
     let html = `
         <div class="card">
@@ -12,7 +12,8 @@ function renderProspects() {
                     <input type="text" id="prospectSearch" placeholder="搜索姓名/电话..." oninput="renderProspectList()">
                     <select id="prospectStatusFilter" onchange="renderProspectList()">
                         <option value="">全部状态</option>
-                        ${Object.entries(statusMap).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
+                        <option value="forming">组班中</option>
+                        ${Object.entries(statusMap).filter(([k]) => k !== 'forming').map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
                     </select>
                 </div>
                 <div class="toolbar">
@@ -27,7 +28,7 @@ function renderProspects() {
             </div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>姓名</th><th>年级</th><th>电话</th><th>来源</th><th>咨询意向</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>录入日期</th><th>操作</th></tr></thead>
+                    <thead><tr><th>姓名</th><th>年级</th><th>电话</th><th>来源</th><th>咨询意向</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>所属组班</th><th>录入日期</th><th>操作</th></tr></thead>
                     <tbody id="prospectTableBody"></tbody>
                 </table>
             </div>
@@ -64,6 +65,7 @@ function renderProspectList() {
             <td>${p.trialDate || '-'}</td>
             <td><span class="badge ${trialBadge}">${statusMap[p.trialStatus] || '待跟进'}</span></td>
             <td><span class="badge ${dealBadge}">${p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交'}</span></td>
+            <td>${cls ? escapeHtml(cls.name) : '-'}</td>
             <td>${p.createDate || '-'}</td>
             <td>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
@@ -71,7 +73,7 @@ function renderProspectList() {
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="10" style="text-align:center;color:#888;">暂无意向学员</td></tr>';
+    }).join('') || '<tr><td colspan="11" style="text-align:center;color:#888;">暂无意向学员</td></tr>';
 }
 
 function openProspectModal(id = null) {
@@ -153,6 +155,13 @@ function saveProspect(e) {
     e.preventDefault();
     const form = e.target;
     const id = form.id.value || generateId();
+
+    // 脏数据清理：classId 和 trialStatus 必须一致
+    const rawClassId = form.classId?.value || '';
+    const rawTrialStatus = form.trialStatus.value;
+    const finalTrialStatus = rawClassId ? 'forming' : (rawTrialStatus === 'forming' ? 'pending' : rawTrialStatus);
+    const finalClassId = rawTrialStatus === 'forming' ? rawClassId : '';
+
     const prospectData = {
         id,
         name: form.name.value,
@@ -162,9 +171,9 @@ function saveProspect(e) {
         source: form.source.value,
         intent: form.intent.value,
         trialDate: form.trialDate.value,
-        trialStatus: form.trialStatus.value,
+        trialStatus: finalTrialStatus,
         dealStatus: form.dealStatus.value,
-        classId: form.classId?.value || '',
+        classId: finalClassId,
         remark: form.remark.value,
         createDate: form.id.value ? (data.prospects || []).find(p => p.id === id)?.createDate : new Date().toISOString().split('T')[0]
     };
