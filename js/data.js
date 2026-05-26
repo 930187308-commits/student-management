@@ -53,6 +53,40 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+// ========== 日期解析工具 ==========
+
+// 统一将 Excel 日期、字符串日期、Date 对象转为 yyyy-mm-dd 格式
+// 兼容：yyyy-mm-dd、yyyy/m/d、Excel 数字日期（如 45323）
+function normalizeExcelDate(value) {
+    if (!value && value !== 0) return '';
+    // 已经是 yyyy-mm-dd 格式字符串
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+        return value.trim();
+    }
+    // yyyy/m/d 或其他 yyyy?mm?dd 格式
+    if (typeof value === 'string') {
+        const parts = value.trim().split(/[-\/]/);
+        if (parts.length === 3) {
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = parseInt(parts[2], 10);
+            if (!isNaN(y) && !isNaN(m) && !isNaN(d) && y > 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+                return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            }
+        }
+    }
+    // Excel 数字日期
+    if (typeof value === 'number' && value > 20000 && value < 60000) {
+        try {
+            const date = new Date(Date.UTC(1899, 11, 30) + value * 86400000);
+            if (!isNaN(date)) {
+                return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    return '';
+}
+
 // ========== 本地服务器同步 ==========
 
 // 检查是否配置了本地服务器（默认使用）

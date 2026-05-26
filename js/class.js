@@ -316,13 +316,35 @@ function deleteClass(id) {
     render();
 }
 
-// 班级导入模板下载（含计划课次）
+// 班级导入模板下载（含填写说明）
 function downloadClassTemplate() {
-    const headers = [['班级名称', '年级', '班型', '上课时间', '学期', '满班人数', '状态', '计划课次', '暑假排课']];
-    const sampleRows = [['初一基础-周四18:00', '初一', '基础', '周四 18:00-20:00', '2025秋季', '10', 'active', '16', '周一至周五上午']];
-    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
+    const ws = XLSX.utils.aoa_to_sheet([
+        ['班级名称', '年级', '班型', '上课时间', '学期', '满班人数', '状态', '计划课次', '暑假排课'],
+        ['初一基础-周四18:00', '初一', '基础', '周四 18:00-20:00', '2025秋季', '10', 'active', '16', '周一至周五上午'],
+    ]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '班级导入模板');
+    XLSX.utils.book_append_sheet(wb, ws, '班级数据');
+
+    const instrWs = XLSX.utils.aoa_to_sheet([
+        ['班级导入模板 - 填写说明'],
+        ['字段', '说明', '必填', '格式/示例'],
+        ['班级名称', '班级完整名称', '是', '如：初一基础-周四18:00'],
+        ['年级', '年级', '选填', '五年级 / 六年级 / 初一 等'],
+        ['班型', '班型分类', '选填', '基础 / 拔高 / 奥数 / 中考 等'],
+        ['上课时间', '周几几点', '选填', '如：周四 18:00-20:00'],
+        ['学期', '学期名称', '选填', '如：2025秋季，默认2025秋季'],
+        ['满班人数', '最大人数', '选填', '数字，默认 10'],
+        ['状态', '班级状态', '选填', 'active / forming / finished，默认 active'],
+        ['计划课次', '本学期计划课次', '选填', '数字，默认 16'],
+        ['暑假排课', '暑假排课安排', '选填', '如：周一至周五上午'],
+        [''],
+        ['注意事项'],
+        ['1. 日期必须为 yyyy-mm-dd 格式'],
+        ['2. 状态 active=正常，forming=组班中，finished=已结课'],
+        ['3. 计划课次用于首页显示计划课次/已进行课次'],
+        ['4. 旧模板（无计划课次列）导入时计划课次默认为 16'],
+    ]);
+    XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '班级导入模板.xlsx');
     showToast('模板已下载');
 }
@@ -412,9 +434,11 @@ function openClassMemberManager(classId) {
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
         `;
     } else {
-        // 正常班级：从正式学员中拉入/移出
+        // 正常班级：从正式学员中拉入/移出，按年级分区
         const inClass = data.students.filter(s => s.classId === classId && s.status === 'active');
         const notInClass = data.students.filter(s => s.classId !== classId && s.status === 'active');
+        const sameGrade = notInClass.filter(s => s.grade === cls.grade);
+        const otherGrade = notInClass.filter(s => s.grade !== cls.grade);
 
         document.getElementById('modalTitle').textContent = '管理班级成员';
         document.getElementById('modalBody').innerHTML = `
@@ -429,10 +453,11 @@ function openClassMemberManager(classId) {
                     `).join('')}
                 </div>
             </div>
-            <div>
-                <div style="font-weight: 600; margin-bottom: 8px;">可选在读学员 (点击加入班级)</div>
+            ${sameGrade.length > 0 ? `
+            <div style="margin-bottom: 12px;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: #27ae60;">同年级 (${sameGrade.length}人)</div>
                 <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
-                    ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入学员</div>' : notInClass.map(s => `
+                    ${sameGrade.map(s => `
                         <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">
                             ${escapeHtml(s.name)}
                             <span style="color:#27ae60; font-size: 12px;">+</span>
@@ -440,6 +465,21 @@ function openClassMemberManager(classId) {
                     `).join('')}
                 </div>
             </div>
+            ` : ''}
+            ${otherGrade.length > 0 ? `
+            <div>
+                <div style="font-weight: 600; margin-bottom: 8px; color: #888;">其他年级 (${otherGrade.length}人)</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
+                    ${otherGrade.map(s => `
+                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">
+                            ${escapeHtml(s.name)}
+                            <span style="color:#27ae60; font-size: 12px;">+</span>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+            ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入学员</div>' : ''}
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
         `;
     }

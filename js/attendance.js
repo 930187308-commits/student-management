@@ -61,7 +61,14 @@ function loadAttendanceClass(classId) {
                         <th style="min-width:80px;">学员</th>
                         ${allDates.map((d, i) => {
                             const sess = sessions.find(s => s.date === d);
-                            return `<th style="min-width:60px;">${sess?.sessionName || '第'+(i+1)+'次'}<br><small>${d}</small></th>`;
+                            return `<th style="min-width:60px;">
+                                <span title="${sess?.sessionName || '第'+(i+1)+'次'}">${sess?.sessionName || '第'+(i+1)+'次'}</span><br>
+                                <small>${d}</small>
+                                <div style="margin-top: 4px;">
+                                    <button type="button" class="btn btn-xs btn-secondary" onclick="openEditAttendanceSession('${sess.id}')" title="编辑">✎</button>
+                                    <button type="button" class="btn btn-xs btn-danger" onclick="deleteAttendanceSession('${sess.id}')" title="删除">×</button>
+                                </div>
+                            </th>`;
                         }).join('')}
                         <th style="min-width:50px;">出勤</th>
                         <th style="min-width:50px;">请假</th>
@@ -392,6 +399,68 @@ function saveAttendanceSession(e) {
     showToast(`已添加第${count}次课：${sessionName}`);
 }
 
+function openEditAttendanceSession(sessionId) {
+    const session = data.attendance.find(a => a.id === sessionId);
+    if (!session) return;
+
+    document.getElementById('modalTitle').textContent = '编辑课次';
+    document.getElementById('modalBody').innerHTML = `
+        <form onsubmit="saveEditAttendanceSession(event, '${sessionId}')">
+            <div class="form-row">
+                <div class="form-group" style="flex:2;">
+                    <label>课程名称</label>
+                    <input type="text" name="sessionName" value="${escapeHtml(session.sessionName || '')}" placeholder="如：秋季第3课-三角函数" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>上课日期 *</label>
+                    <input type="date" name="date" value="${session.date}" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    `;
+    document.getElementById('modal').classList.add('show');
+}
+
+function saveEditAttendanceSession(e, sessionId) {
+    e.preventDefault();
+    const form = e.target;
+    const newDate = form.date.value;
+    const newSessionName = form.sessionName.value;
+
+    const session = data.attendance.find(a => a.id === sessionId);
+    if (!session) return;
+
+    // 检查日期冲突（同班级已有其他课次）
+    if (newDate !== session.date) {
+        const exists = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === newDate && a.id !== sessionId);
+        if (exists) { showToast('该日期已存在'); return; }
+    }
+
+    session.date = newDate;
+    session.sessionName = newSessionName;
+    saveData();
+    closeModal();
+    loadAttendanceClass(currentAttendanceClassId);
+    showToast('已保存');
+}
+
+function deleteAttendanceSession(sessionId) {
+    if (!confirm('确定删除本次考勤记录吗？此操作不可恢复。')) return;
+    const session = data.attendance.find(a => a.id === sessionId);
+    if (!session) return;
+
+    data.attendance = data.attendance.filter(a => a.id !== sessionId);
+    saveData();
+    loadAttendanceClass(currentAttendanceClassId);
+    showToast('已删除本次考勤');
+}
+
 function updateAttendance(input) {
     const date = input.dataset.date;
     const studentId = input.dataset.student;
@@ -449,13 +518,32 @@ function exportAttendance() {
     showToast('导出成功');
 }
 
-// 下载考勤导入模板
+// 下载考勤导入模板（含填写说明）
 function downloadAttendanceTemplate() {
-    const headers = [['上课日期', '学员姓名', '考勤状态']];
-    const sampleRows = [['2025-10-15', '张三', '1'], ['2025-10-15', '李四', '1'], ['2025-10-15', '王五', '0']];
-    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
+    const ws = XLSX.utils.aoa_to_sheet([
+        ['上课日期', '学员姓名', '考勤状态'],
+        ['2025-10-15', '张三', '1'],
+        ['2025-10-15', '李四', '1'],
+        ['2025-10-15', '王五', '0'],
+    ]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '考勤导入模板');
+    XLSX.utils.book_append_sheet(wb, ws, '考勤数据');
+
+    const instrWs = XLSX.utils.aoa_to_sheet([
+        ['考勤导入模板 - 填写说明'],
+        ['字段', '说明', '必填', '格式/示例'],
+        ['上课日期', '本次课上课日期', '是', 'yyyy-mm-dd，如 2025-10-15'],
+        ['学员姓名', '学员真实姓名', '是', '如：张三'],
+        ['考勤状态', '1=正常出勤，0=请假', '是', '1 或 0，空值=未记录'],
+        [''],
+        ['注意事项'],
+        ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-15'],
+        ['2. 一个 Excel 文件可包含多个学员的同一次课考勤记录'],
+        ['3. 导入时以当前选择的班级为准，自动匹配该班级的学员姓名'],
+        ['4. 如学员姓名在当前班级不存在，该行会被跳过'],
+        ['5. 如日期对应的课次不存在，会自动新建课次'],
+    ]);
+    XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '考勤导入模板.xlsx');
     showToast('模板已下载');
 }
@@ -479,7 +567,8 @@ function importAttendance(event) {
                 const row = rows[i];
                 if (!row[0] || !row[1]) continue; // 日期和学员姓名必填
 
-                const date = String(row[0]).trim();
+                const date = normalizeExcelDate(row[0]);
+                if (!date) continue;
                 const studentName = String(row[1]).trim();
                 const status = row[2] === 1 || row[2] === '1' ? 1 : (row[2] === 0 || row[2] === '0' ? 0 : null);
 

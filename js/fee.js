@@ -12,8 +12,15 @@ function renderFees() {
                     <input type="text" id="feeSearch" placeholder="搜索学员姓名...">
                     <select id="feeStatusFilter"><option value="">全部状态</option><option value="paid">已缴</option><option value="pending">欠费</option></select>
                 </div>
-                <button class="btn btn-success" onclick="openFeeModal()">+ 新增缴费</button>
-            </div>
+                <div class="toolbar">
+                    <button class="btn btn-success" onclick="openFeeModal()">+ 新增缴费</button>
+                    <div class="divider"></div>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadFeeTemplate()">下载模板</button>
+                    <div class="file-input-wrapper">
+                        <button class="btn btn-warning btn-sm">导入</button>
+                        <input type="file" accept=".xlsx,.xls" onchange="importFees(event)">
+                    </div>
+                </div>
             <div style="display: flex; gap: 24px; margin-bottom: 16px; flex-wrap: wrap;">
                 <div><span style="color: #888;">已缴合计：</span><strong style="color: #27ae60;">¥${totalPaid.toLocaleString()}</strong></div>
                 <div><span style="color: #888;">欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
@@ -147,4 +154,100 @@ function exportFees() {
     XLSX.utils.book_append_sheet(wb, ws, '收费记录');
     XLSX.writeFile(wb, '收费记录.xlsx');
     showToast('导出成功');
+}
+
+function downloadFeeTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+        ['学员姓名 *', '缴费金额 *', '课时单价', '购买课时', '缴费日期', '套餐', '付款方式', '状态', '备注'],
+        ['张三', '8000', '200', '40', '2025-10-01', '秋季班40课时', '微信转账', '已缴', ''],
+        ['李四', '6000', '200', '30', '2025-10-01', '秋季班30课时', '支付宝', '已缴', ''],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '收费数据');
+
+    const instrWs = XLSX.utils.aoa_to_sheet([
+        ['收费记录导入模板 - 填写说明'],
+        ['字段', '说明', '必填', '格式/示例'],
+        ['学员姓名', '学员真实姓名', '是', '如：张三'],
+        ['缴费金额', '本次缴费总金额（元）', '是', '数字，如 8000'],
+        ['课时单价', '每个课时单价（元）', '选填', '数字，默认 200'],
+        ['购买课时', '本次购买课时数', '选填', '数字，如 40'],
+        ['缴费日期', '实际缴费日期', '选填', 'yyyy-mm-dd，如 2025-10-01'],
+        ['套餐', '套餐名称', '选填', '如：秋季班40课时'],
+        ['付款方式', '付款渠道', '选填', '微信转账 / 支付宝 / 银行转账 / 现金'],
+        ['状态', '是否已缴', '选填', '已缴 / 欠费，默认已缴'],
+        ['备注', '补充说明', '选填', '如：老学员续费'],
+        [''],
+        ['注意事项'],
+        ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-01'],
+        ['2. 状态写"已缴"表示已缴费，"欠费"表示未缴费'],
+        ['3. 导入时通过学员姓名匹配，找到则录入，找不到则跳过'],
+        ['4. 金额和课时须为数字，异常值会被跳过'],
+    ]);
+    XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
+    XLSX.writeFile(wb, '收费记录导入模板.xlsx');
+    showToast('模板已下载');
+}
+
+function importFees(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const workbook = XLSX.read(e.target.result, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+
+            let imported = 0, skipped = 0, failed = 0;
+            const errors = [];
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row[0]) { skipped++; continue; }
+
+                const studentName = String(row[0]).trim();
+                const student = data.students.find(s => s.name === studentName);
+                if (!student) {
+                    errors.push(`第${i+1}行: 学员"${studentName}"不存在`);
+                    failed++;
+                    continue;
+                }
+
+                const amount = parseFloat(row[1]);
+                if (isNaN(amount)) { skipped++; continue; }
+
+                const paymentDate = normalizeExcelDate(row[4]) || new Date().toISOString().split('T')[0];
+                const hours = parseInt(row[3]) || 0;
+                const pricePerHour = parseFloat(row[2]) || 200;
+                const statusRaw = String(row[7] || '已缴').trim();
+                const status = statusRaw === '欠费' ? 'pending' : 'paid';
+
+                data.fees.push({
+                    id: generateId(),
+                    studentId: student.id,
+                    studentName: student.name,
+                    amount: amount,
+                    pricePerHour: pricePerHour,
+                    hours: hours,
+                    paymentDate: paymentDate,
+                    package: String(row[5] || '').trim(),
+                    paymentMethod: String(row[6] || '').trim(),
+                    status: status,
+                    remark: String(row[8] || '').trim()
+                });
+                imported++;
+            }
+
+            saveData();
+            render();
+            const msg = `导入完成：成功 ${imported} 条${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            showToast(msg);
+            if (errors.length > 0) console.log('导入错误:', errors);
+        } catch (err) {
+            showToast('导入失败：' + err.message);
+        }
+    };
+    reader.readAsBinaryString(file);
+    event.target.value = '';
 }

@@ -24,7 +24,7 @@ function renderGrades() {
                 </div>
             </div>
             <div class="table-wrapper">
-                <table><thead><tr><th>学员</th><th>测试名称</th><th>日期</th><th>类型</th><th>得分</th><th>排名</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
+                <table><thead><tr><th>学员</th><th>测试名称</th><th style="white-space:nowrap;">日期</th><th>类型</th><th>得分</th><th>排名</th><th>薄弱点</th><th>备注</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
             </div>
             <div style="margin-top: 16px;">
                 <button class="btn btn-secondary" onclick="exportGrades()">导出Excel</button>
@@ -43,7 +43,7 @@ function renderGradeTable() {
     const filtered = data.grades.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId)).sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
 
     const tbody = document.getElementById('gradeTableBody');
-    tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td>${escapeHtml(g.remark || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
 }
 
 function openGradeModal(id = null) {
@@ -154,16 +154,35 @@ function deleteGrade(id) {
     render();
 }
 
-// 下载成绩导入模板
+// 下载成绩导入模板（含填写说明）
 function downloadGradeTemplate() {
-    const headers = [['学员姓名 *', '测试名称 *', '测试日期', '得分 *', '满分', '班级排名', '成绩类型', '薄弱点', '备注']];
-    const sampleRows = [
+    const ws = XLSX.utils.aoa_to_sheet([
+        ['学员姓名 *', '测试名称 *', '测试日期', '得分 *', '满分', '班级排名', '成绩类型', '薄弱点', '备注'],
         ['张三', '期中数学测试', '2025-10-15', '85', '100', '5', '校内', '计算准确性', ''],
-        ['李四', '奥数杯赛模拟', '2025-11-20', '78', '100', '8', '校外', '数论', '获得二等奖']
-    ];
-    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
+        ['李四', '奥数杯赛模拟', '2025-11-20', '78', '100', '8', '校外', '数论', '获得二等奖'],
+    ]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '成绩导入模板');
+    XLSX.utils.book_append_sheet(wb, ws, '成绩数据');
+
+    const instrWs = XLSX.utils.aoa_to_sheet([
+        ['成绩导入模板 - 填写说明'],
+        ['字段', '说明', '必填', '格式/示例'],
+        ['学员姓名', '学员真实姓名', '是', '如：张三'],
+        ['测试名称', '本次测试名称', '是', '如：期中数学测试'],
+        ['测试日期', '考试日期', '选填', 'yyyy-mm-dd，如 2025-10-15'],
+        ['得分', '本次得分', '是', '数字，如 85'],
+        ['满分', '满分值', '选填', '数字，默认 100'],
+        ['班级排名', '班级内排名', '选填', '数字，如 5'],
+        ['成绩类型', '校内或校外', '选填', '校内 / 校外，默认校外'],
+        ['薄弱点', '薄弱知识点', '选填', '如：计算准确性'],
+        ['备注', '补充说明', '选填', '如：获得二等奖'],
+        [''],
+        ['注意事项'],
+        ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-15'],
+        ['2. 成绩类型写"校内"表示校内成绩，"校外"或不填表示校外成绩'],
+        ['3. 导入时通过学员姓名匹配，找到则更新，找不到则跳过'],
+    ]);
+    XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '成绩导入模板.xlsx');
     showToast('模板已下载');
 }
@@ -199,13 +218,19 @@ function importGrades(event) {
 
                 const rankingRaw = row[5];
                 const ranking = rankingRaw === undefined || rankingRaw === '' || rankingRaw === null ? null : parseInt(rankingRaw, 10);
+                const testDate = normalizeExcelDate(row[2]);
+                if (!testDate) {
+                    errors.push(`第${i+1}行: 日期无法识别`);
+                    failed++;
+                    continue;
+                }
                 const gradeData = {
                     id: generateId(),
                     studentId: student.id,
                     studentName: student.name,
                     classId: student.classId,
                     testName: String(row[1]).trim(),
-                    testDate: String(row[2] || new Date().toISOString().split('T')[0]),
+                    testDate: testDate,
                     score: parseInt(row[3]) || 0,
                     fullScore: parseInt(row[4]) || 100,
                     ranking: ranking,
