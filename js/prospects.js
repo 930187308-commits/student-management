@@ -227,8 +227,8 @@ function convertProspect(id) {
 }
 
 function downloadProspectTemplate() {
-    const headers = [['姓名', '电话', '来源', '咨询意向', '试课日期', '试课状态', '成交状态', '备注']];
-    const sampleRows = [['张三', '13800138001', '家长推荐', '提升成绩', '2025-10-01', '试课中', '未成交', '数学基础一般']];
+    const headers = [['姓名', '年级', '电话', '微信号', '来源', '咨询意向', '试课日期', '试课状态', '成交状态', '备注']];
+    const sampleRows = [['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '提升成绩', '2025-10-01', '试课中', '未成交', '数学基础一般']];
     const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '意向学员导入模板');
@@ -245,21 +245,25 @@ function importProspects(event) {
             const workbook = XLSX.read(e.target.result, { type: 'binary' });
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
             let imported = 0, skipped = 0;
+            const statusMap = { '待跟进': 'pending', '已联系': 'contacted', '试课中': 'trial', '已成交': 'deal', '已流失': 'lost' };
+            if (!data.prospects) data.prospects = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row[0]) { skipped++; continue; }
-                const statusMap = { '待跟进': 'pending', '已联系': 'contacted', '试课中': 'trial', '已成交': 'deal', '已流失': 'lost' };
-                if (!data.prospects) data.prospects = [];
+                // 兼容新旧模板：新模板多 grade(1) 和 wechat(3)
+                const hasNewFormat = row.length > 8;
                 data.prospects.push({
                     id: generateId(),
                     name: String(row[0] || '').trim(),
-                    phone: String(row[1] || '').trim(),
-                    source: String(row[2] || '').trim(),
-                    intent: String(row[3] || '').trim(),
-                    trialDate: String(row[4] || '').trim(),
-                    trialStatus: statusMap[String(row[5] || '').trim()] || 'pending',
-                    dealStatus: String(row[6] || '').trim() === '已成交' ? 'deal' : '',
-                    remark: String(row[7] || '').trim(),
+                    grade: hasNewFormat ? String(row[1] || '').trim() : '',
+                    phone: String(row[hasNewFormat ? 2 : 1] || '').trim(),
+                    wechat: hasNewFormat ? String(row[3] || '').trim() : '',
+                    source: String(row[hasNewFormat ? 4 : 2] || '').trim(),
+                    intent: String(row[hasNewFormat ? 5 : 3] || '').trim(),
+                    trialDate: String(row[hasNewFormat ? 6 : 4] || '').trim(),
+                    trialStatus: statusMap[String(row[hasNewFormat ? 7 : 5] || '').trim()] || 'pending',
+                    dealStatus: String(row[hasNewFormat ? 8 : 6] || '').trim() === '已成交' ? 'deal' : '',
+                    remark: String(row[hasNewFormat ? 9 : 7] || '').trim(),
                     createDate: new Date().toISOString().split('T')[0]
                 });
                 imported++;

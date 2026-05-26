@@ -9,11 +9,13 @@ function renderReports() {
     const monthlyConsumption = {};
     data.attendance.forEach(session => {
         const month = session.date.substring(0, 7);
+        if (!monthlyConsumption[month]) monthlyConsumption[month] = { amount: 0, sessions: 0 };
         Object.entries(session.records || {}).forEach(([studentId, status]) => {
             if (status === 1) { // 出勤
+                monthlyConsumption[month].sessions++;
                 const fee = data.fees.find(f => f.studentId === studentId && f.status === 'paid');
                 if (fee && fee.pricePerHour) {
-                    monthlyConsumption[month] = (monthlyConsumption[month] || 0) + fee.pricePerHour;
+                    monthlyConsumption[month].amount += fee.pricePerHour;
                 }
             }
         });
@@ -66,7 +68,7 @@ function renderReports() {
         });
         const total = totalPresent + totalAbsent;
         const rate = total > 0 ? Math.round((totalPresent / total) * 100) : 0;
-        return { name: c.name, rate, total };
+        return { id: c.id, name: c.name, rate, total };
     });
 
     // 意向学员来源分布
@@ -78,13 +80,22 @@ function renderReports() {
     const sourceLabels = Object.keys(sourceDist);
     const sourceData = Object.values(sourceDist);
 
+    // 学员学校分布（只统计正式在读学员）
+    const schoolDist = {};
+    data.students.filter(s => s.status === 'active').forEach(s => {
+        const school = s.school?.trim() || '未填写';
+        schoolDist[school] = (schoolDist[school] || 0) + 1;
+    });
+    const schoolLabels = Object.keys(schoolDist);
+    const schoolData = Object.values(schoolDist);
+
     let html = `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="card">
                 <div class="card-header"><span class="card-title">课消统计（按月）</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
                 <div class="table-wrapper">
-                    <table><thead><tr><th>月份</th><th>金额</th></tr></thead><tbody>
-                        ${Object.keys(monthlyConsumption).sort().reverse().map(month => `<tr><td>${month}</td><td><strong style="color:#27ae60;">¥${monthlyConsumption[month].toLocaleString()}</strong></td></tr>`).join('') || '<tr><td colspan="2">暂无数据</td></tr>'}
+                    <table><thead><tr><th>月份</th><th>已消课时</th><th>估算课消金额</th></tr></thead><tbody>
+                        ${Object.keys(monthlyConsumption).sort().reverse().map(month => `<tr><td>${escapeHtml(month)}</td><td><strong style="color:#27ae60;">${monthlyConsumption[month].sessions}</strong></td><td><strong style="color:#27ae60;">¥${monthlyConsumption[month].amount.toLocaleString()}</strong></td></tr>`).join('') || '<tr><td colspan="3">暂无数据</td></tr>'}
                     </tbody></table>
                 </div>
             </div>
@@ -113,13 +124,18 @@ function renderReports() {
                 <div class="chart-container" style="height: 220px;"><canvas id="sourceChart"></canvas></div>
             </div>
 
+            <div class="card">
+                <div class="card-header"><span class="card-title">学员学校分布</span></div>
+                <div class="chart-container" style="height: 220px;"><canvas id="schoolChart"></canvas></div>
+            </div>
+
             <div class="card" style="grid-column: 1 / -1;">
                 <div class="card-header">
                     <span class="card-title">课消统计（剩余课时）</span>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <select id="reportClassFilter" onchange="switchReportClass(this.value)" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;">
                             <option value="">全部班级</option>
-                            ${data.classes.filter(c => c.status === 'active' || c.status === 'forming').map(c => `<option value="${c.id}" ${currentReportClassId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                            ${data.classes.filter(c => c.status === 'active' || c.status === 'forming').map(c => `<option value="${escapeHtml(c.id)}" ${currentReportClassId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                         </select>
                         <button class="btn btn-secondary btn-sm" onclick="exportConsumptionSummary()">导出</button>
                     </div>
@@ -130,7 +146,7 @@ function renderReports() {
                             const status = s.remainingHours <= 5 ? 'row-warning' : '';
                             const badge = s.remainingHours <= 5 ? 'badge-pending' : 'badge-active';
                             const text = s.remainingHours <= 5 ? '需续费' : '正常';
-                            return `<tr class="${status}"><td>${s.name}</td><td>${s.grade}</td><td>${s.totalHours}</td><td><strong style="color:#27ae60;">${s.usedHours}</strong></td><td><strong style="color:#f39c12;">${s.absentHours}</strong></td><td><strong>${s.remainingHours}</strong></td><td><span class="badge ${badge}">${text}</span></td></tr>`;
+                            return `<tr class="${status}"><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.grade)}</td><td>${s.totalHours}</td><td><strong style="color:#27ae60;">${s.usedHours}</strong></td><td><strong style="color:#f39c12;">${s.absentHours}</strong></td><td><strong>${s.remainingHours}</strong></td><td><span class="badge ${badge}">${text}</span></td></tr>`;
                         }).join('') || '<tr><td colspan="7">暂无数据</td></tr>'}
                     </tbody></table>
                 </div>
@@ -205,6 +221,31 @@ function renderReports() {
             ctx.parentElement.innerHTML = '<div class="empty-state">暂无意向学员数据</div>';
         }
     }, 50);
+
+    // 绘制学校分布饼图
+    setTimeout(() => {
+        const ctx = document.getElementById('schoolChart');
+        if (ctx && schoolLabels.length > 0) {
+            const colors = ['#3498db', '#27ae60', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c', '#e67e22', '#34495e'];
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: schoolLabels.map(s => escapeHtml(s)),
+                    datasets: [{
+                        data: schoolData,
+                        backgroundColor: schoolLabels.map((_, i) => colors[i % colors.length]),
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }
+                }
+            });
+        } else if (ctx) {
+            ctx.parentElement.innerHTML = '<div class="empty-state">暂无学员学校数据</div>';
+        }
+    }, 50);
 }
 
 function getCurrentQuarter() {
@@ -221,16 +262,18 @@ function exportMonthlyRevenue() {
     const monthlyConsumption = {};
     data.attendance.forEach(session => {
         const month = session.date.substring(0, 7);
+        if (!monthlyConsumption[month]) monthlyConsumption[month] = { amount: 0, sessions: 0 };
         Object.entries(session.records || {}).forEach(([studentId, status]) => {
             if (status === 1) {
+                monthlyConsumption[month].sessions++;
                 const fee = data.fees.find(f => f.studentId === studentId && f.status === 'paid');
                 if (fee && fee.pricePerHour) {
-                    monthlyConsumption[month] = (monthlyConsumption[month] || 0) + fee.pricePerHour;
+                    monthlyConsumption[month].amount += fee.pricePerHour;
                 }
             }
         });
     });
-    const ws = XLSX.utils.aoa_to_sheet([['月份', '金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, monthlyConsumption[month]])]);
+    const ws = XLSX.utils.aoa_to_sheet([['月份', '已消课时', '估算课消金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, monthlyConsumption[month].sessions, monthlyConsumption[month].amount])]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '课消统计');
     XLSX.writeFile(wb, '课消统计.xlsx');
