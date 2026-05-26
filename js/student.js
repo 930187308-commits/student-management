@@ -354,15 +354,27 @@ function updateSchoolDatalist() {
 }
 
 function deleteStudent(id) {
-    if (!confirm('确定将该学员改为停课状态？删除操作不可恢复。')) return;
     const student = data.students.find(s => s.id === id);
-    if (student) {
+    if (!student) return;
+
+    // 在读状态：改为停课
+    if (student.status === 'active' || student.status === 'renewalPending') {
+        if (!confirm('确定将该学员改为停课状态？删除操作不可恢复。')) return;
         student.status = 'inactive';
         student._archivedAt = new Date().toISOString();
+        if (currentStudentId === id) currentStudentId = null;
+        saveData();
+        showToast('已改为停课状态');
+        render();
+        return;
     }
+
+    // 非在读状态：允许物理删除
+    if (!confirm('该学员已是非在读状态，确定彻底删除该学员记录吗？此操作不可恢复。')) return;
+    data.students = data.students.filter(s => s.id !== id);
     if (currentStudentId === id) currentStudentId = null;
     saveData();
-    showToast('已改为停课状态');
+    showToast('已删除学员');
     render();
 }
 
