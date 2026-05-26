@@ -45,6 +45,10 @@ function loadAttendanceClass(classId) {
     const students = data.students.filter(s => s.classId === classId && s.status === 'active');
     const sessions = data.attendance.filter(a => a.classId === classId).sort((a, b) => a.date.localeCompare(b.date));
 
+    // 补齐旧记录缺失的 id
+    sessions.forEach(sess => { if (!sess.id) sess.id = generateId(); });
+    if (sessions.some(s => !s.id)) saveData();
+
     // 获取所有有记录的日期
     const allDates = [...new Set(sessions.map(s => s.date))].sort();
 
@@ -562,21 +566,24 @@ function importAttendance(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            let imported = 0;
+            let imported = 0, skipped = 0, failed = 0;
+            const errors = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row[0] || !row[1]) continue; // 日期和学员姓名必填
+                if (!row[0] || !row[1]) { skipped++; continue; }
 
                 const date = normalizeExcelDate(row[0]);
-                if (!date) continue;
+                if (!date) { errors.push(`第${i+1}行: 日期无法识别`); failed++; continue; }
+
                 const studentName = String(row[1]).trim();
-                const status = row[2] === 1 || row[2] === '1' ? 1 : (row[2] === 0 || row[2] === '0' ? 0 : null);
+                const statusRaw = row[2];
+                const status = statusRaw === 1 || statusRaw === '1' ? 1 : statusRaw === 0 || statusRaw === '0' ? 0 : null;
 
-                // 查找学员
+                if (status === null) { errors.push(`第${i+1}行: 考勤状态无效`); failed++; continue; }
+
                 const student = data.students.find(s => s.name === studentName && s.classId === currentAttendanceClassId);
-                if (!student || status === null) continue;
+                if (!student) { errors.push(`第${i+1}行: 学员"${studentName}"不存在于本班`); failed++; continue; }
 
-                // 查找或创建考勤记录
                 let session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
                 if (!session) {
                     session = { id: generateId(), classId: currentAttendanceClassId, date: date, records: {} };
@@ -588,7 +595,9 @@ function importAttendance(event) {
 
             saveData();
             loadAttendanceClass(currentAttendanceClassId);
-            showToast(`成功导入 ${imported} 条考勤记录`);
+            const msg = `导入完成：成功 ${imported} 条${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            showToast(msg);
+            if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {
             showToast('导入失败：' + err.message);
         }

@@ -24,7 +24,7 @@ function renderGrades() {
                 </div>
             </div>
             <div class="table-wrapper">
-                <table><thead><tr><th>学员</th><th>测试名称</th><th style="white-space:nowrap;">日期</th><th>类型</th><th>得分</th><th>排名</th><th>薄弱点</th><th>备注</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
+                <table><thead><tr><th>学员</th><th>测试名称</th><th style="white-space:nowrap;">日期</th><th>类型</th><th>得分</th><th>排名</th><th>备注</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
             </div>
             <div style="margin-top: 16px;">
                 <button class="btn btn-secondary" onclick="exportGrades()">导出Excel</button>
@@ -43,7 +43,7 @@ function renderGradeTable() {
     const filtered = data.grades.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId)).sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
 
     const tbody = document.getElementById('gradeTableBody');
-    tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td>${escapeHtml(g.remark || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.remark || '-')}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
 }
 
 function openGradeModal(id = null) {
@@ -157,7 +157,7 @@ function deleteGrade(id) {
 // 下载成绩导入模板（含填写说明）
 function downloadGradeTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([
-        ['学员姓名 *', '测试名称 *', '测试日期', '得分 *', '满分', '班级排名', '成绩类型', '薄弱点', '备注'],
+        ['学员姓名 *', '测试名称 *', '测试日期 *', '得分 *', '满分', '班级排名', '成绩类型', '薄弱点', '备注'],
         ['张三', '期中数学测试', '2025-10-15', '85', '100', '5', '校内', '计算准确性', ''],
         ['李四', '奥数杯赛模拟', '2025-11-20', '78', '100', '8', '校外', '数论', '获得二等奖'],
     ]);
@@ -169,7 +169,7 @@ function downloadGradeTemplate() {
         ['字段', '说明', '必填', '格式/示例'],
         ['学员姓名', '学员真实姓名', '是', '如：张三'],
         ['测试名称', '本次测试名称', '是', '如：期中数学测试'],
-        ['测试日期', '考试日期', '选填', 'yyyy-mm-dd，如 2025-10-15'],
+        ['测试日期', '考试日期', '是', 'yyyy-mm-dd，如 2025-10-15'],
         ['得分', '本次得分', '是', '数字，如 85'],
         ['满分', '满分值', '选填', '数字，默认 100'],
         ['班级排名', '班级内排名', '选填', '数字，如 5'],
@@ -256,8 +256,8 @@ function importGrades(event) {
 }
 
 function exportGrades() {
-    const headers = ['学员', '测试名称', '测试日期', '得分', '满分', '班级排名', '薄弱点', '备注'];
-    const rows = data.grades.map(g => [g.studentName, g.testName, g.testDate, g.score, g.fullScore, g.ranking != null && g.ranking !== '' ? `第${g.ranking}名` : '未知', g.weakPoints || '', g.remark || '']);
+    const headers = ['学员', '测试名称', '测试日期', '得分', '满分', '班级排名', '备注', '薄弱点'];
+    const rows = data.grades.map(g => [g.studentName, g.testName, g.testDate, g.score, g.fullScore, g.ranking != null && g.ranking !== '' ? `第${g.ranking}名` : '未知', g.remark || '', g.weakPoints || '']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '成绩记录');

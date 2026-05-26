@@ -217,11 +217,16 @@ function importFees(event) {
                 const amount = parseFloat(row[1]);
                 if (isNaN(amount)) { skipped++; continue; }
 
-                const paymentDate = normalizeExcelDate(row[4]) || new Date().toISOString().split('T')[0];
+                const paymentDateRaw = row[4];
+                let paymentDate = paymentDateRaw ? normalizeExcelDate(paymentDateRaw) : '';
+                if (!paymentDate) {
+                    if (paymentDateRaw) { errors.push(`第${i+1}行: 缴费日期无法识别`); failed++; continue; }
+                    paymentDate = new Date().toISOString().split('T')[0];
+                }
                 const hours = parseInt(row[3]) || 0;
                 const pricePerHour = parseFloat(row[2]) || 200;
-                const statusRaw = String(row[7] || '已缴').trim();
-                const status = statusRaw === '欠费' ? 'pending' : 'paid';
+                const statusRaw = String(row[7] || '').trim().toLowerCase();
+                const status = statusRaw === '欠费' || statusRaw === 'pending' ? 'pending' : 'paid';
 
                 data.fees.push({
                     id: generateId(),
