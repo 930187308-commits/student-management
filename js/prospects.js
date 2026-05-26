@@ -27,7 +27,7 @@ function renderProspects() {
             </div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>姓名</th><th>电话</th><th>来源</th><th>咨询意向</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>录入日期</th><th>操作</th></tr></thead>
+                    <thead><tr><th>姓名</th><th>年级</th><th>电话</th><th>来源</th><th>咨询意向</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>录入日期</th><th>操作</th></tr></thead>
                     <tbody id="prospectTableBody"></tbody>
                 </table>
             </div>
@@ -42,7 +42,7 @@ function renderProspectList() {
     const statusFilter = document.getElementById('prospectStatusFilter')?.value || '';
 
     const filtered = (data.prospects || []).filter(p => {
-        if (search && !p.name.toLowerCase().includes(search) && !(p.phone || '').includes(search)) return false;
+        if (search && !p.name.toLowerCase().includes(search) && !(p.phone || '').includes(search) && !(p.wechat || '').includes(search)) return false;
         if (statusFilter && p.trialStatus !== statusFilter) return false;
         return true;
     }).sort((a, b) => (b.createDate || '').localeCompare(a.createDate || ''));
@@ -56,6 +56,7 @@ function renderProspectList() {
         const dealBadge = p.dealStatus === 'deal' ? 'badge-active' : p.dealStatus === 'lost' ? 'badge-danger' : 'badge-normal';
         return `<tr>
             <td><strong>${escapeHtml(p.name)}</strong></td>
+            <td>${escapeHtml(p.grade || '-')}</td>
             <td>${escapeHtml(p.phone || '-')}</td>
             <td>${escapeHtml(sourceMap[p.source] || p.source || '-')}</td>
             <td>${escapeHtml(p.intent || '-')}</td>
@@ -69,7 +70,7 @@ function renderProspectList() {
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="9" style="text-align:center;color:#888;">暂无意向学员</td></tr>';
+    }).join('') || '<tr><td colspan="10" style="text-align:center;color:#888;">暂无意向学员</td></tr>';
 }
 
 function openProspectModal(id = null) {
@@ -85,7 +86,17 @@ function openProspectModal(id = null) {
         <form onsubmit="saveProspect(event)">
             <div class="form-row">
                 <div class="form-group"><label>姓名 *</label><input type="text" name="name" value="${prospect?.name || ''}" required></div>
+                <div class="form-group">
+                    <label>年级</label>
+                    <select name="grade">
+                        <option value="">请选择</option>
+                        ${(data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']).map(g => `<option value="${g}" ${prospect?.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
+                    </select>
+                </div>
                 <div class="form-group"><label>电话</label><input type="tel" name="phone" value="${prospect?.phone || ''}"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>微信号</label><input type="text" name="wechat" value="${prospect?.wechat || ''}" placeholder="如：ZhaoSan_2025"></div>
                 <div class="form-group">
                     <label>来源渠道</label>
                     <select name="source">
@@ -93,8 +104,6 @@ function openProspectModal(id = null) {
                         ${sources.map((s, i) => `<option value="${s}" ${prospect?.source === s ? 'selected' : ''}>${s}</option>`).join('')}
                     </select>
                 </div>
-            </div>
-            <div class="form-row">
                 <div class="form-group">
                     <label>咨询意向</label>
                     <select name="intent">
@@ -102,6 +111,8 @@ function openProspectModal(id = null) {
                         ${intentOptions.map(o => `<option value="${o}" ${prospect?.intent === o ? 'selected' : ''}>${o}</option>`).join('')}
                     </select>
                 </div>
+            </div>
+            <div class="form-row">
                 <div class="form-group"><label>试课日期</label><input type="date" name="trialDate" value="${prospect?.trialDate || ''}"></div>
                 <div class="form-group">
                     <label>试课状态</label>
@@ -109,8 +120,6 @@ function openProspectModal(id = null) {
                         ${statusValues.map((v, i) => `<option value="${v}" ${(prospect?.trialStatus || 'pending') === v ? 'selected' : ''}>${statusOptions[i]}</option>`).join('')}
                     </select>
                 </div>
-            </div>
-            <div class="form-row">
                 <div class="form-group">
                     <label>成交状态</label>
                     <select name="dealStatus">
@@ -119,6 +128,8 @@ function openProspectModal(id = null) {
                         <option value="lost" ${prospect?.dealStatus === 'lost' ? 'selected' : ''}>已流失</option>
                     </select>
                 </div>
+            </div>
+            <div class="form-row">
                 <div class="form-group" style="flex:2;"><label>备注</label><input type="text" name="remark" value="${prospect?.remark || ''}"></div>
             </div>
             <input type="hidden" name="id" value="${id || ''}">
@@ -135,7 +146,9 @@ function saveProspect(e) {
     const prospectData = {
         id,
         name: form.name.value,
+        grade: form.grade.value,
         phone: form.phone.value,
+        wechat: form.wechat.value,
         source: form.source.value,
         intent: form.intent.value,
         trialDate: form.trialDate.value,
@@ -159,7 +172,12 @@ function saveProspect(e) {
 }
 
 function deleteProspect(id) {
-    if (!confirm('确定删除该意向学员？')) return;
+    const prospect = (data.prospects || []).find(p => p.id === id);
+    const isDealt = prospect?.dealStatus === 'deal';
+    const msg = isDealt
+        ? `"${prospect?.name}"已转正式学员，删除意向记录不会影响正式学员。\n\n确定删除该意向记录？`
+        : '确定删除该意向学员？';
+    if (!confirm(msg)) return;
     data.prospects = (data.prospects || []).filter(p => p.id !== id);
     saveData();
     showToast('删除成功');
@@ -171,19 +189,25 @@ function convertProspect(id) {
     if (!prospect) return;
     if (!confirm(`确定将"${prospect.name}"转为正式学员？`)) return;
 
+    // 构建备注：微信+来源+意向
+    const wechatNote = prospect.wechat ? `微信：${prospect.wechat}；` : '';
+    const sourceNote = prospect.source ? `来源：${prospect.source}；` : '';
+    const intentNote = prospect.intent ? `意向：${prospect.intent}` : '';
+    const remark = wechatNote + sourceNote + intentNote;
+
     // 创建正式学员
     const studentData = {
         id: generateId(),
         name: prospect.name,
         gender: '',
-        grade: prospect.intent?.includes('小升初') ? '六年级' : prospect.intent?.includes('中考') ? '初三' : '初一',
+        grade: prospect.grade || prospect.intent?.includes('小升初') ? '六年级' : prospect.intent?.includes('中考') ? '初三' : '',
         classId: '',
         teacher: '白老师',
         enrollDate: new Date().toISOString().split('T')[0],
         phone: prospect.phone || '',
         emergencyContact: '',
         status: 'active',
-        remark: `来源：${prospect.source || ''}，意向：${prospect.intent || ''}`
+        remark: remark
     };
     data.students.push(studentData);
 

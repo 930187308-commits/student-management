@@ -189,6 +189,7 @@ function renderStudentDetail() {
             <div class="detail-item"><div class="label">授课老师</div><div class="value">${escapeHtml(student.teacher)}</div></div>
             <div class="detail-item"><div class="label">就读学校</div><div class="value">${escapeHtml(student.school) || '-'}</div></div>
             <div class="detail-item"><div class="label">入班时间</div><div class="value">${student.enrollDate}</div></div>
+            <div class="detail-item"><div class="label">首次入学</div><div class="value">${student.firstEnrollDate || '-'}</div></div>
             <div class="detail-item"><div class="label">联系电话</div><div class="value">${escapeHtml(student.phone) || '-'}</div></div>
         </div>
 
@@ -281,7 +282,10 @@ function openStudentModal(id = null) {
             <div class="form-row">
                 <div class="form-group"><label>联系电话</label><input type="tel" name="phone" value="${student?.phone || ''}"></div>
                 <div class="form-group"><label>紧急联系人</label><input type="tel" name="emergencyContact" value="${student?.emergencyContact || ''}"></div>
-                <div class="form-group"><label>就读学校</label><input type="text" name="school" value="${student?.school || ''}" placeholder="如：XX小学"></div>
+                <div class="form-group"><label>首次入学时间</label><input type="date" name="firstEnrollDate" value="${student?.firstEnrollDate || student?.enrollDate || new Date().toISOString().split('T')[0]}"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>就读学校</label><input type="text" name="school" value="${student?.school || ''}" placeholder="如：XX小学" list="schoolDatalist" autocomplete="off"></div>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -310,21 +314,25 @@ function openStudentModal(id = null) {
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
                 <button type="submit" class="btn btn-primary">保存</button>
             </div>
+            <datalist id="schoolDatalist"></datalist>
         </form>
     `;
+    updateSchoolDatalist();
     document.getElementById('modal').classList.add('show');
 }
 
 function saveStudent(e) {
     e.preventDefault();
     const form = e.target;
+    const existingStudent = currentEditId ? data.students.find(s => s.id === currentEditId) : null;
     const studentData = {
         id: currentEditId || generateId(),
         name: form.name.value, gender: form.gender.value, grade: form.grade.value,
         classId: form.classId.value, teacher: form.teacher.value, enrollDate: form.enrollDate.value,
+        firstEnrollDate: form.firstEnrollDate.value || existingStudent?.firstEnrollDate || form.enrollDate.value,
         phone: form.phone.value, emergencyContact: form.emergencyContact.value,
         status: form.status.value, followUpStatus: form.followUpStatus?.value || '', remark: form.remark.value, school: form.school.value,
-        createdAt: currentEditId ? data.students.find(s => s.id === currentEditId)?.createdAt : new Date().toISOString()
+        createdAt: currentEditId ? existingStudent?.createdAt : new Date().toISOString()
     };
     if (currentEditId) {
         const index = data.students.findIndex(s => s.id === currentEditId);
@@ -336,6 +344,13 @@ function saveStudent(e) {
     closeModal();
     showToast('保存成功');
     render();
+}
+
+function updateSchoolDatalist() {
+    const datalist = document.getElementById('schoolDatalist');
+    if (!datalist) return;
+    const schools = [...new Set((data.students || []).map(s => s.school).filter(Boolean))];
+    datalist.innerHTML = schools.map(s => `<option value="${escapeHtml(s)}">`).join('');
 }
 
 function deleteStudent(id) {
