@@ -246,6 +246,7 @@ function importProspects(event) {
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
             let imported = 0, skipped = 0;
             const statusMap = { '待跟进': 'pending', '已联系': 'contacted', '试课中': 'trial', '已成交': 'deal', '已流失': 'lost' };
+            if (!data.prospects) data.prospects = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row[0]) { skipped++; continue; }

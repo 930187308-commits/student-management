@@ -80,9 +80,9 @@ function renderReports() {
     const sourceLabels = Object.keys(sourceDist);
     const sourceData = Object.values(sourceDist);
 
-    // 学员学校分布
+    // 学员学校分布（只统计正式在读学员）
     const schoolDist = {};
-    data.students.filter(s => s.status === 'active' || s.status === 'forming').forEach(s => {
+    data.students.filter(s => s.status === 'active').forEach(s => {
         const school = s.school?.trim() || '未填写';
         schoolDist[school] = (schoolDist[school] || 0) + 1;
     });
@@ -135,7 +135,7 @@ function renderReports() {
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <select id="reportClassFilter" onchange="switchReportClass(this.value)" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;">
                             <option value="">全部班级</option>
-                            ${data.classes.filter(c => c.status === 'active' || c.status === 'forming').map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('')}
+                            ${data.classes.filter(c => c.status === 'active' || c.status === 'forming').map(c => `<option value="${escapeHtml(c.id)}" ${currentReportClassId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                         </select>
                         <button class="btn btn-secondary btn-sm" onclick="exportConsumptionSummary()">导出</button>
                     </div>
