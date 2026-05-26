@@ -46,8 +46,14 @@ function loadAttendanceClass(classId) {
     const sessions = data.attendance.filter(a => a.classId === classId).sort((a, b) => a.date.localeCompare(b.date));
 
     // 补齐旧记录缺失的 id
-    sessions.forEach(sess => { if (!sess.id) sess.id = generateId(); });
-    if (sessions.some(s => !s.id)) saveData();
+    let patchedSessionIds = false;
+    sessions.forEach(sess => {
+        if (!sess.id) {
+            sess.id = generateId();
+            patchedSessionIds = true;
+        }
+    });
+    if (patchedSessionIds) saveData();
 
     // 获取所有有记录的日期
     const allDates = [...new Set(sessions.map(s => s.date))].sort();

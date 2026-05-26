@@ -21,6 +21,7 @@ function renderFees() {
                         <input type="file" accept=".xlsx,.xls" onchange="importFees(event)">
                     </div>
                 </div>
+            </div>
             <div style="display: flex; gap: 24px; margin-bottom: 16px; flex-wrap: wrap;">
                 <div><span style="color: #888;">已缴合计：</span><strong style="color: #27ae60;">¥${totalPaid.toLocaleString()}</strong></div>
                 <div><span style="color: #888;">欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
