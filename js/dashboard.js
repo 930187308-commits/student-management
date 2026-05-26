@@ -21,14 +21,14 @@ function renderDashboard() {
                     <tbody>
                         ${classStats.map(c => `
                             <tr>
-                                <td><strong>${c.name}</strong></td>
-                                <td>${c.grade}</td>
-                                <td>${c.schedule}</td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td>
+                                <td>${escapeHtml(c.grade)}</td>
+                                <td>${escapeHtml(c.schedule)}</td>
                                 <td>${c.currentCount}/${c.maxStudents}</td>
                                 <td>
-                                    <button class="btn btn-secondary btn-xs" onclick="openClassModal('${c.id}')">编辑</button>
-                                    <button class="btn btn-xs" onclick="switchTab('students'); selectClass('${c.id}')">查看学员</button>
-                                    <button class="btn btn-xs" onclick="switchTab('attendance'); loadAttendanceClass('${c.id}')">考勤</button>
+                                    <button class="btn btn-secondary btn-xs" onclick="openClassModal('${escapeHtml(c.id)}')">编辑</button>
+                                    <button class="btn btn-xs" onclick="switchTab('students'); selectClass('${escapeHtml(c.id)}')">查看学员</button>
+                                    <button class="btn btn-xs" onclick="switchTab('attendance'); loadAttendanceClass('${escapeHtml(c.id)}')">考勤</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -44,7 +44,7 @@ function renderDashboard() {
                     <table>
                         <thead><tr><th>学员</th><th>欠费金额</th><th>操作</th></tr></thead>
                         <tbody>
-                            ${pendingFees.map(f => `<tr class="row-warning"><td>${f.studentName}</td><td><strong style="color:#e74c3c">¥${f.amount.toLocaleString()}</strong></td><td><button class="btn btn-success btn-xs" onclick="openFeeModal('${f.id}')">去缴费</button></td></tr>`).join('')}
+                            ${pendingFees.map(f => `<tr class="row-warning"><td>${escapeHtml(f.studentName)}</td><td><strong style="color:#e74c3c">¥${f.amount.toLocaleString()}</strong></td><td><button class="btn btn-success btn-xs" onclick="openFeeModal('${escapeHtml(f.id)}')">去缴费</button></td></tr>`).join('')}
                         </tbody>
                     </table>
                 `}
@@ -77,15 +77,25 @@ function selectClass(classId) {
         const gradeSelect = document.getElementById('studentGradeFilter');
         const classSelect = document.getElementById('studentClassFilter');
         if (!classSelect) return;
-        // 按班级筛选
-        classSelect.value = classId;
-        // 触发年级联动刷新班级列表
+
+        const targetClass = data.classes.find(c => c.id === classId);
+        const targetGrade = targetClass?.grade || '';
+
+        // 同步年级下拉（这样班级列表才包含目标班级）
         if (gradeSelect) {
-            const grade = gradeSelect.value;
-            const classes = grade ? data.classes.filter(c => c.grade === grade && c.status === 'active') : data.classes.filter(c => c.status === 'active');
-            classSelect.innerHTML = `<option value="">全部班级</option><option value="__unassigned__">未分班</option>${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}`;
-            classSelect.value = classId;
+            if (targetGrade) {
+                gradeSelect.value = targetGrade;
+            } else {
+                gradeSelect.value = '';
+            }
+            // 按年级过滤班级
+            const classes = targetGrade
+                ? data.classes.filter(c => c.grade === targetGrade && c.status === 'active')
+                : data.classes.filter(c => c.status === 'active');
+            classSelect.innerHTML = `<option value="">全部班级</option><option value="__unassigned__">未分班</option>${classes.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('')}`;
         }
+
+        classSelect.value = classId;
         renderStudentList();
     }, 50);
 }
