@@ -85,30 +85,30 @@ function openProspectModal(id = null) {
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveProspect(event)">
             <div class="form-row">
-                <div class="form-group"><label>姓名 *</label><input type="text" name="name" value="${prospect?.name || ''}" required></div>
+                <div class="form-group"><label>姓名 *</label><input type="text" name="name" value="${escapeHtml(prospect?.name || '')}" required></div>
                 <div class="form-group">
                     <label>年级</label>
                     <select name="grade">
                         <option value="">请选择</option>
-                        ${(data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']).map(g => `<option value="${g}" ${prospect?.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
+                        ${(data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']).map(g => `<option value="${escapeHtml(g)}" ${prospect?.grade === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
                     </select>
                 </div>
-                <div class="form-group"><label>电话</label><input type="tel" name="phone" value="${prospect?.phone || ''}"></div>
+                <div class="form-group"><label>电话</label><input type="tel" name="phone" value="${escapeHtml(prospect?.phone || '')}"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>微信号</label><input type="text" name="wechat" value="${prospect?.wechat || ''}" placeholder="如：ZhaoSan_2025"></div>
+                <div class="form-group"><label>微信号</label><input type="text" name="wechat" value="${escapeHtml(prospect?.wechat || '')}" placeholder="如：ZhaoSan_2025"></div>
                 <div class="form-group">
                     <label>来源渠道</label>
                     <select name="source">
                         <option value="">请选择</option>
-                        ${sources.map((s, i) => `<option value="${s}" ${prospect?.source === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        ${sources.map((s) => `<option value="${escapeHtml(s)}" ${prospect?.source === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
                     <label>咨询意向</label>
                     <select name="intent">
                         <option value="">请选择</option>
-                        ${intentOptions.map(o => `<option value="${o}" ${prospect?.intent === o ? 'selected' : ''}>${o}</option>`).join('')}
+                        ${intentOptions.map(o => `<option value="${escapeHtml(o)}" ${prospect?.intent === o ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('')}
                     </select>
                 </div>
             </div>
@@ -117,7 +117,7 @@ function openProspectModal(id = null) {
                 <div class="form-group">
                     <label>试课状态</label>
                     <select name="trialStatus">
-                        ${statusValues.map((v, i) => `<option value="${v}" ${(prospect?.trialStatus || 'pending') === v ? 'selected' : ''}>${statusOptions[i]}</option>`).join('')}
+                        ${statusValues.map((v, i) => `<option value="${escapeHtml(v)}" ${(prospect?.trialStatus || 'pending') === v ? 'selected' : ''}>${escapeHtml(statusOptions[i])}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
@@ -130,7 +130,7 @@ function openProspectModal(id = null) {
                 </div>
             </div>
             <div class="form-row">
-                <div class="form-group" style="flex:2;"><label>备注</label><input type="text" name="remark" value="${prospect?.remark || ''}"></div>
+                <div class="form-group" style="flex:2;"><label>备注</label><input type="text" name="remark" value="${escapeHtml(prospect?.remark || '')}"></div>
             </div>
             <input type="hidden" name="id" value="${id || ''}">
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
@@ -175,7 +175,7 @@ function deleteProspect(id) {
     const prospect = (data.prospects || []).find(p => p.id === id);
     const isDealt = prospect?.dealStatus === 'deal';
     const msg = isDealt
-        ? `"${prospect?.name}"已转正式学员，删除意向记录不会影响正式学员。\n\n确定删除该意向记录？`
+        ? `"${escapeHtml(prospect?.name || '')}"已转正式学员，删除意向记录不会影响正式学员。\n\n确定删除该意向记录？`
         : '确定删除该意向学员？';
     if (!confirm(msg)) return;
     data.prospects = (data.prospects || []).filter(p => p.id !== id);
@@ -187,20 +187,28 @@ function deleteProspect(id) {
 function convertProspect(id) {
     const prospect = (data.prospects || []).find(p => p.id === id);
     if (!prospect) return;
-    if (!confirm(`确定将"${prospect.name}"转为正式学员？`)) return;
+    if (!confirm(`确定将"${escapeHtml(prospect.name)}"转为正式学员？`)) return;
 
     // 构建备注：微信+来源+意向
-    const wechatNote = prospect.wechat ? `微信：${prospect.wechat}；` : '';
-    const sourceNote = prospect.source ? `来源：${prospect.source}；` : '';
-    const intentNote = prospect.intent ? `意向：${prospect.intent}` : '';
+    const wechatNote = prospect.wechat ? `微信：${escapeHtml(prospect.wechat)}；` : '';
+    const sourceNote = prospect.source ? `来源：${escapeHtml(prospect.source)}；` : '';
+    const intentNote = prospect.intent ? `意向：${escapeHtml(prospect.intent)}` : '';
     const remark = wechatNote + sourceNote + intentNote;
+
+    // 级别推断：优先用 grade，否则从 intent 推断
+    let inferredGrade = prospect.grade || '';
+    if (!inferredGrade && prospect.intent) {
+        if (prospect.intent.includes('小升初')) inferredGrade = '六年级';
+        else if (prospect.intent.includes('中考')) inferredGrade = '初三';
+        // 其他情况 inferredGrade 保持空
+    }
 
     // 创建正式学员
     const studentData = {
         id: generateId(),
         name: prospect.name,
         gender: '',
-        grade: prospect.grade || prospect.intent?.includes('小升初') ? '六年级' : prospect.intent?.includes('中考') ? '初三' : '',
+        grade: inferredGrade,
         classId: '',
         teacher: '白老师',
         enrollDate: new Date().toISOString().split('T')[0],

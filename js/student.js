@@ -259,7 +259,7 @@ function openStudentModal(id = null) {
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveStudent(event)">
             <div class="form-row">
-                <div class="form-group"><label>姓名 *</label><input type="text" name="name" value="${student?.name || ''}" required></div>
+                <div class="form-group"><label>姓名 *</label><input type="text" name="name" value="${escapeHtml(student?.name || '')}" required></div>
                 <div class="form-group">
                     <label>性别</label>
                     <select name="gender">
@@ -270,22 +270,22 @@ function openStudentModal(id = null) {
                 <div class="form-group">
                     <label>年级</label>
                     <select name="grade">
-                        ${(data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']).map(g => `<option value="${g}" ${student?.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
+                        ${(data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']).map(g => `<option value="${escapeHtml(g)}" ${student?.grade === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
                     </select>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group"><label>所在班级</label><select name="classId"><option value="">未分班</option>${classOptions}</select></div>
-                <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="${student?.teacher || '白老师'}"></div>
+                <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="${escapeHtml(student?.teacher || '白老师')}"></div>
                 <div class="form-group"><label>入班时间</label><input type="date" name="enrollDate" value="${student?.enrollDate || new Date().toISOString().split('T')[0]}"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>联系电话</label><input type="tel" name="phone" value="${student?.phone || ''}"></div>
-                <div class="form-group"><label>紧急联系人</label><input type="tel" name="emergencyContact" value="${student?.emergencyContact || ''}"></div>
+                <div class="form-group"><label>联系电话</label><input type="tel" name="phone" value="${escapeHtml(student?.phone || '')}"></div>
+                <div class="form-group"><label>紧急联系人</label><input type="tel" name="emergencyContact" value="${escapeHtml(student?.emergencyContact || '')}"></div>
                 <div class="form-group"><label>首次入学时间</label><input type="date" name="firstEnrollDate" value="${student?.firstEnrollDate || student?.enrollDate || new Date().toISOString().split('T')[0]}"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>就读学校</label><input type="text" name="school" value="${student?.school || ''}" placeholder="如：XX小学" list="schoolDatalist" autocomplete="off"></div>
+                <div class="form-group"><label>就读学校</label><input type="text" name="school" value="${escapeHtml(student?.school || '')}" placeholder="如：XX小学" list="schoolDatalist" autocomplete="off"></div>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -308,7 +308,7 @@ function openStudentModal(id = null) {
                         <option value="lost" ${student?.followUpStatus === 'lost' ? 'selected' : ''}>已流失</option>
                     </select>
                 </div>
-                <div class="form-group" style="flex:2;"><label>备注</label><input type="text" name="remark" value="${student?.remark || ''}" placeholder="学员备注信息"></div>
+                <div class="form-group" style="flex:2;"><label>备注</label><input type="text" name="remark" value="${escapeHtml(student?.remark || '')}" placeholder="学员备注信息"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>

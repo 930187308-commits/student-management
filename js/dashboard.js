@@ -72,8 +72,20 @@ function switchTab(tab) {
 }
 
 function selectClass(classId) {
+    switchTab('students');
     setTimeout(() => {
-        const selector = document.getElementById('studentClassFilter');
-        if (selector) { selector.value = classId; renderStudents(); }
-    }, 100);
+        const gradeSelect = document.getElementById('studentGradeFilter');
+        const classSelect = document.getElementById('studentClassFilter');
+        if (!classSelect) return;
+        // 按班级筛选
+        classSelect.value = classId;
+        // 触发年级联动刷新班级列表
+        if (gradeSelect) {
+            const grade = gradeSelect.value;
+            const classes = grade ? data.classes.filter(c => c.grade === grade && c.status === 'active') : data.classes.filter(c => c.status === 'active');
+            classSelect.innerHTML = `<option value="">全部班级</option><option value="__unassigned__">未分班</option>${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}`;
+            classSelect.value = classId;
+        }
+        renderStudentList();
+    }, 50);
 }
