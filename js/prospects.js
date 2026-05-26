@@ -160,7 +160,7 @@ function saveProspect(e) {
     const rawClassId = form.classId?.value || '';
     const rawTrialStatus = form.trialStatus.value;
     const finalTrialStatus = rawClassId ? 'forming' : (rawTrialStatus === 'forming' ? 'pending' : rawTrialStatus);
-    const finalClassId = rawTrialStatus === 'forming' ? rawClassId : '';
+    const finalClassId = rawClassId ? rawClassId : '';
 
     const prospectData = {
         id,

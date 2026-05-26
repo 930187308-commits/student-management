@@ -5,6 +5,8 @@ let expandedClassId = null;
 function renderClasses() {
     const container = document.getElementById('tab-classes');
     const grades = [...new Set(data.classes.map(c => c.grade))];
+    const currentGradeFilter = document.getElementById('classGradeFilter')?.value || '';
+    const currentStatusFilter = document.getElementById('classStatusFilter')?.value || '';
 
     let html = `
         <div class="card">
@@ -12,13 +14,13 @@ function renderClasses() {
                 <div class="search-bar">
                     <select id="classGradeFilter" onchange="renderClasses()">
                         <option value="">全部年级</option>
-                        ${grades.map(g => `<option value="${g}">${g}</option>`).join('')}
+                        ${grades.map(g => `<option value="${g}" ${currentGradeFilter === g ? 'selected' : ''}>${g}</option>`).join('')}
                     </select>
                     <select id="classStatusFilter" onchange="renderClasses()">
                         <option value="">全部状态</option>
-                        <option value="active">正常</option>
-                        <option value="forming">组班中</option>
-                        <option value="finished">已结课</option>
+                        <option value="active" ${currentStatusFilter === 'active' ? 'selected' : ''}>正常</option>
+                        <option value="forming" ${currentStatusFilter === 'forming' ? 'selected' : ''}>组班中</option>
+                        <option value="finished" ${currentStatusFilter === 'finished' ? 'selected' : ''}>已结课</option>
                     </select>
                 </div>
                 <div class="toolbar">
@@ -38,9 +40,7 @@ function renderClasses() {
                     <thead><tr><th style="width: 40px;"></th><th>班级名称</th><th>年级</th><th>班型</th><th>上课时间</th><th>人数/满班</th><th>满班率</th><th>状态</th><th>操作</th></tr></thead>
                     <tbody>
                         ${data.classes.filter(c => {
-                            const gradeFilter = document.getElementById('classGradeFilter')?.value || '';
-                            const statusFilter = document.getElementById('classStatusFilter')?.value || '';
-                            return (!gradeFilter || c.grade === gradeFilter) && (!statusFilter || c.status === statusFilter);
+                            return (!currentGradeFilter || c.grade === currentGradeFilter) && (!currentStatusFilter || c.status === currentStatusFilter);
                         }).map(c => {
                             const count = c.status === 'forming'
                                 ? (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length
