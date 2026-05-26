@@ -271,14 +271,30 @@ function openClassModal(id = null) {
 function saveClass(e) {
     e.preventDefault();
     const form = e.target;
+    const isNew = !currentEditId;
+    const oldClass = isNew ? null : data.classes.find(c => c.id === currentEditId);
+    const oldStatus = oldClass?.status;
+    const newStatus = form.status.value;
+
     const classData = {
         id: currentEditId || generateId(),
         name: form.name.value, grade: form.grade.value, classType: form.classType.value,
         schedule: form.schedule.value, semester: form.semester.value,
-        maxStudents: parseInt(form.maxStudents.value), status: form.status.value,
+        maxStudents: parseInt(form.maxStudents.value), status: newStatus,
         plannedSessions: parseInt(form.plannedSessions?.value || 16),
         summerSchedule: form.summerSchedule.value
     };
+
+    // forming 班级转为 active/finished 时，未成交的意向学员自动出班
+    if (!isNew && oldStatus === 'forming' && newStatus !== 'forming') {
+        (data.prospects || []).forEach(p => {
+            if (p.classId === currentEditId && p.dealStatus !== 'deal') {
+                p.classId = '';
+                // trialStatus 保持 forming（仍是组班中状态，只是未分配班级）
+            }
+        });
+    }
+
     if (currentEditId) {
         const index = data.classes.findIndex(c => c.id === currentEditId);
         data.classes[index] = classData;
@@ -456,7 +472,7 @@ function addProspectToClass(prospectId, classId) {
 
 function removeProspectFromClass(prospectId, classId) {
     const p = (data.prospects || []).find(pt => pt.id === prospectId);
-    if (p) { p.classId = ''; p.trialStatus = 'pending'; }
+    if (p) { p.classId = ''; }
     saveData();
     openClassMemberManager(classId);
     showToast('已移出组班');

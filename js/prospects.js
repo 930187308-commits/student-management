@@ -156,11 +156,13 @@ function saveProspect(e) {
     const form = e.target;
     const id = form.id.value || generateId();
 
-    // 脏数据清理：classId 和 trialStatus 必须一致
+    // 脏数据清理：classId 和 trialStatus 关系
+    // - 选了 classId → trialStatus 强制为 forming
+    // - trialStatus !== forming → classId 清空
     const rawClassId = form.classId?.value || '';
     const rawTrialStatus = form.trialStatus.value;
-    const finalTrialStatus = rawClassId ? 'forming' : (rawTrialStatus === 'forming' ? 'pending' : rawTrialStatus);
-    const finalClassId = rawClassId ? rawClassId : '';
+    const finalTrialStatus = rawClassId ? 'forming' : rawTrialStatus;
+    const finalClassId = finalTrialStatus === 'forming' ? rawClassId : '';
 
     const prospectData = {
         id,
@@ -224,12 +226,13 @@ function convertProspect(id) {
     }
 
     // 创建正式学员
+    const targetClassId = prospect.classId || '';
     const studentData = {
         id: generateId(),
         name: prospect.name,
         gender: '',
         grade: inferredGrade,
-        classId: prospect.classId || '',
+        classId: targetClassId,
         teacher: '白老师',
         enrollDate: new Date().toISOString().split('T')[0],
         phone: prospect.phone || '',
@@ -239,8 +242,10 @@ function convertProspect(id) {
     };
     data.students.push(studentData);
 
-    // 更新成交状态
+    // 更新意向学员状态：成交、组班状态清除
     prospect.dealStatus = 'deal';
+    prospect.trialStatus = 'deal';
+    prospect.classId = '';
     saveData();
     showToast('已转为正式学员');
     render();
