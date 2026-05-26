@@ -14,6 +14,12 @@ function renderClasses() {
                         <option value="">全部年级</option>
                         ${grades.map(g => `<option value="${g}">${g}</option>`).join('')}
                     </select>
+                    <select id="classStatusFilter" onchange="renderClasses()">
+                        <option value="">全部状态</option>
+                        <option value="active">正常</option>
+                        <option value="forming">组班中</option>
+                        <option value="finished">已结课</option>
+                    </select>
                 </div>
                 <div class="toolbar">
                     <button class="btn btn-secondary btn-sm" onclick="openClassTypeManager()">管理班型</button>
@@ -32,8 +38,9 @@ function renderClasses() {
                     <thead><tr><th style="width: 40px;"></th><th>班级名称</th><th>年级</th><th>班型</th><th>上课时间</th><th>人数/满班</th><th>满班率</th><th>状态</th><th>操作</th></tr></thead>
                     <tbody>
                         ${data.classes.filter(c => {
-                            const filter = document.getElementById('classGradeFilter')?.value || '';
-                            return !filter || c.grade === filter;
+                            const gradeFilter = document.getElementById('classGradeFilter')?.value || '';
+                            const statusFilter = document.getElementById('classStatusFilter')?.value || '';
+                            return (!gradeFilter || c.grade === gradeFilter) && (!statusFilter || c.status === statusFilter);
                         }).map(c => {
                             const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
                             const fillRate = Math.round((count / c.maxStudents) * 100);
@@ -61,23 +68,37 @@ function renderClasses() {
                                     <tr>
                                         <td colspan="9" style="padding: 16px; background: var(--bg-card); border-bottom: 1px solid var(--table-border);">
                                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                                <strong style="color: #2c3e50;">班级学员列表</strong>
+                                                <strong style="color: #2c3e50;">${c.status === 'forming' ? '组班成员' : '班级学员列表'}</strong>
                                                 <div style="display: flex; gap: 8px;">
-                                                    <button class="btn btn-success btn-sm" onclick="switchToStudentTab(); setTimeout(() => { const s = document.getElementById('studentClassFilter'); if(s) s.value='${c.id}'; renderStudentList(); }, 100)">查看全部学员</button>
-                                                    <button class="btn btn-secondary btn-sm" onclick="exportClassStudents('${c.id}')">导出学员</button>
+                                                    <button class="btn btn-success btn-sm" onclick="openClassMemberManager('${c.id}')">管理成员</button>
+                                                    ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="switchToStudentTab(); setTimeout(() => { const s = document.getElementById('studentClassFilter'); if(s) s.value='${c.id}'; renderStudentList(); }, 100)">查看全部学员</button>` : ''}
+                                                    ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="exportClassStudents('${c.id}')">导出学员</button>` : ''}
                                                 </div>
                                             </div>
-                                            ${count === 0 ? '<div class="empty-state" style="padding: 20px;">该班级暂无在读学员</div>' : `
+                                            ${count === 0 && c.status !== 'forming' ? '<div class="empty-state" style="padding: 20px;">该班级暂无在读学员</div>' : ''}
+                                            ${c.status === 'active' && data.students.filter(s => s.classId === c.id && s.status === 'active').length > 0 ? `
                                                 <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                                     ${data.students.filter(s => s.classId === c.id && s.status === 'active').map(s => `
                                                         <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                                             <span style="width: 8px; height: 8px; border-radius: 50%; background: #27ae60;"></span>
-                                                            ${s.name}
-                                                            ${s.school ? `<span style="font-size: 11px; color: #888;">(${s.school})</span>` : ''}
+                                                            ${escapeHtml(s.name)}
+                                                            ${s.school ? `<span style="font-size: 11px; color: #888;">(${escapeHtml(s.school)})</span>` : ''}
                                                         </span>
                                                     `).join('')}
                                                 </div>
-                                            `}
+                                            ` : ''}
+                                            ${c.status === 'forming' && (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length > 0 ? `
+                                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                                    ${(data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').map(p => `
+                                                        <span style="padding: 6px 12px; background: #fff3cd; border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #f39c12;"></span>
+                                                            ${escapeHtml(p.name)}
+                                                            ${p.grade ? `<span style="font-size: 11px; color: #888;">(${escapeHtml(p.grade)})</span>` : ''}
+                                                        </span>
+                                                    `).join('')}
+                                                </div>
+                                            ` : ''}
+                                            ${c.status === 'forming' && (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length === 0 ? '<div class="empty-state" style="padding: 20px;">该组班暂无意向学员</div>' : ''}
                                         </td>
                                     </tr>
                                 ` : ''}
@@ -233,6 +254,7 @@ function openClassModal(id = null) {
                         <option value="finished" ${cls?.status === 'finished' ? 'selected' : ''}>已结课</option>
                     </select>
                 </div>
+                <div class="form-group"><label>本学期计划课次</label><input type="number" name="plannedSessions" value="${cls?.plannedSessions || 16}" min="1" placeholder="如：16"></div>
                 <div class="form-group" style="flex:2;"><label>暑假排课</label><input type="text" name="summerSchedule" value="${cls?.summerSchedule || ''}" placeholder="如：周一至周五上午"></div>
             </div>
             <div class="modal-footer">
@@ -252,6 +274,7 @@ function saveClass(e) {
         name: form.name.value, grade: form.grade.value, classType: form.classType.value,
         schedule: form.schedule.value, semester: form.semester.value,
         maxStudents: parseInt(form.maxStudents.value), status: form.status.value,
+        plannedSessions: parseInt(form.plannedSessions?.value || 16),
         summerSchedule: form.summerSchedule.value
     };
     if (currentEditId) {
@@ -313,6 +336,162 @@ function importClasses(event) {
                     maxStudents: parseInt(row[5]) || 10,
                     status: String(row[6] || 'active').trim(),
                     summerSchedule: String(row[7] || '').trim()
+                };
+                data.classes.push(classData);
+                imported++;
+            }
+
+            saveData();
+            render();
+            showToast(`成功导入 ${imported} 个班级`);
+        } catch (err) {
+            showToast('导入失败：' + err.message);
+        }
+    };
+    reader.readAsBinaryString(file);
+    event.target.value = '';
+}
+
+function openClassMemberManager(classId) {
+    const cls = data.classes.find(c => c.id === classId);
+    if (!cls) return;
+
+    if (cls.status === 'forming') {
+        // 组班中：从意向学员中拉入/移出
+        const formingProspects = (data.prospects || []).filter(p => p.trialStatus === 'forming');
+        const inClass = formingProspects.filter(p => p.classId === classId);
+        const notInClass = formingProspects.filter(p => p.classId !== classId);
+
+        document.getElementById('modalTitle').textContent = '管理组班成员';
+        document.getElementById('modalBody').innerHTML = `
+            <div style="margin-bottom: 16px;">
+                <div style="font-weight: 600; margin-bottom: 8px;">已在组班 (${inClass.length}人)</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
+                    ${inClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可移出成员</div>' : inClass.map(p => `
+                        <span style="padding: 6px 12px; background: #fff3cd; border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                            ${escapeHtml(p.name)}
+                            <button onclick="removeProspectFromClass('${p.id}', '${classId}')" style="background: none; border: none; cursor: pointer; color: #e74c3c; font-size: 12px; padding: 0 2px;">×</button>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+            <div>
+                <div style="font-weight: 600; margin-bottom: 8px;">可选意向学员 (点击加入组班)</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
+                    ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入成员</div>' : notInClass.map(p => `
+                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">
+                            ${escapeHtml(p.name)}
+                            <span style="color:#27ae60; font-size: 12px;">+</span>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+        `;
+    } else {
+        // 正常班级：从正式学员中拉入/移出
+        const inClass = data.students.filter(s => s.classId === classId && s.status === 'active');
+        const notInClass = data.students.filter(s => s.classId !== classId && s.status === 'active');
+
+        document.getElementById('modalTitle').textContent = '管理班级成员';
+        document.getElementById('modalBody').innerHTML = `
+            <div style="margin-bottom: 16px;">
+                <div style="font-weight: 600; margin-bottom: 8px;">班级成员 (${inClass.length}人)</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
+                    ${inClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无成员</div>' : inClass.map(s => `
+                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                            ${escapeHtml(s.name)}
+                            <button onclick="removeStudentFromClass('${s.id}', '${classId}')" style="background: none; border: none; cursor: pointer; color: #e74c3c; font-size: 12px; padding: 0 2px;">×</button>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+            <div>
+                <div style="font-weight: 600; margin-bottom: 8px;">可选在读学员 (点击加入班级)</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
+                    ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入学员</div>' : notInClass.map(s => `
+                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">
+                            ${escapeHtml(s.name)}
+                            <span style="color:#27ae60; font-size: 12px;">+</span>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+        `;
+    }
+    document.getElementById('modal').classList.add('show');
+}
+
+function addStudentToClass(studentId, classId) {
+    const s = data.students.find(st => st.id === studentId);
+    if (s) s.classId = classId;
+    saveData();
+    openClassMemberManager(classId);
+    showToast('已加入班级');
+}
+
+function removeStudentFromClass(studentId, classId) {
+    const s = data.students.find(st => st.id === studentId);
+    if (s) s.classId = '';
+    saveData();
+    openClassMemberManager(classId);
+    showToast('已移出班级');
+}
+
+function addProspectToClass(prospectId, classId) {
+    const p = (data.prospects || []).find(pt => pt.id === prospectId);
+    if (p) { p.classId = classId; p.trialStatus = 'forming'; }
+    saveData();
+    openClassMemberManager(classId);
+    showToast('已加入组班');
+}
+
+function removeProspectFromClass(prospectId, classId) {
+    const p = (data.prospects || []).find(pt => pt.id === prospectId);
+    if (p) { p.classId = ''; p.trialStatus = 'pending'; }
+    saveData();
+    openClassMemberManager(classId);
+    showToast('已移出组班');
+}
+
+function downloadClassTemplate() {
+    const headers = [['班级名称', '年级', '班型', '上课时间', '学期', '满班人数', '状态', '计划课次', '暑假排课']];
+    const sampleRows = [['初一基础-周四18:00', '初一', '基础', '周四 18:00-20:00', '2025秋季', '10', 'active', '16', '周一至周五上午']];
+    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleRows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '班级导入模板');
+    XLSX.writeFile(wb, '班级导入模板.xlsx');
+    showToast('模板已下载');
+}
+
+function importClasses(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const workbook = XLSX.read(e.target.result, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+
+            let imported = 0;
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row[0]) continue; // 班级名称必填
+
+                const classData = {
+                    id: generateId(),
+                    name: String(row[0]).trim(),
+                    grade: String(row[1] || '初一').trim(),
+                    classType: String(row[2] || '基础').trim(),
+                    schedule: String(row[3] || '').trim(),
+                    semester: String(row[4] || '2025秋季').trim(),
+                    maxStudents: parseInt(row[5]) || 10,
+                    status: String(row[6] || 'active').trim(),
+                    plannedSessions: row[7] ? parseInt(row[7]) : 16,
+                    summerSchedule: String(row[8] || '').trim()
                 };
                 data.classes.push(classData);
                 imported++;

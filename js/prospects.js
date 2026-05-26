@@ -47,13 +47,14 @@ function renderProspectList() {
         return true;
     }).sort((a, b) => (b.createDate || '').localeCompare(a.createDate || ''));
 
-    const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', deal: '已成交', lost: '已流失' };
+    const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
     const sourceMap = {};
     (data.prospectSources || []).forEach(s => sourceMap[s] = s);
 
     document.getElementById('prospectTableBody').innerHTML = filtered.map(p => {
-        const trialBadge = p.trialStatus === 'trial' ? 'badge-active' : p.trialStatus === 'deal' ? 'badge-success' : 'badge-normal';
+        const trialBadge = p.trialStatus === 'trial' ? 'badge-active' : p.trialStatus === 'forming' ? 'badge-trial' : p.trialStatus === 'deal' ? 'badge-success' : 'badge-normal';
         const dealBadge = p.dealStatus === 'deal' ? 'badge-active' : p.dealStatus === 'lost' ? 'badge-danger' : 'badge-normal';
+        const cls = p.classId ? data.classes.find(c => c.id === p.classId) : null;
         return `<tr>
             <td><strong>${escapeHtml(p.name)}</strong></td>
             <td>${escapeHtml(p.grade || '-')}</td>
@@ -78,8 +79,10 @@ function openProspectModal(id = null) {
     const prospect = id ? (data.prospects || []).find(p => p.id === id) : null;
     const sources = data.prospectSources || ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'];
     const intentOptions = ['补习数学', '提升成绩', '竞赛培训', '小升初', '中考备考', '其他'];
-    const statusOptions = ['待跟进', '已联系', '试课中', '已成交', '已流失'];
-    const statusValues = ['pending', 'contacted', 'trial', 'deal', 'lost'];
+    const statusOptions = ['待跟进', '已联系', '试课中', '组班中', '已成交', '已流失'];
+    const statusValues = ['pending', 'contacted', 'trial', 'forming', 'deal', 'lost'];
+    const formingClasses = data.classes.filter(c => c.status === 'forming');
+    const classOptions = formingClasses.map(c => `<option value="${escapeHtml(c.id)}" ${prospect?.classId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
 
     document.getElementById('modalTitle').textContent = id ? '编辑意向学员' : '新增意向学员';
     document.getElementById('modalBody').innerHTML = `
@@ -130,6 +133,13 @@ function openProspectModal(id = null) {
                 </div>
             </div>
             <div class="form-row">
+                <div class="form-group" style="flex:2;">
+                    <label>所属组班</label>
+                    <select name="classId">
+                        <option value="">不分配</option>
+                        ${classOptions || '<option value="">无可用组班</option>'}
+                    </select>
+                </div>
                 <div class="form-group" style="flex:2;"><label>备注</label><input type="text" name="remark" value="${escapeHtml(prospect?.remark || '')}"></div>
             </div>
             <input type="hidden" name="id" value="${id || ''}">
@@ -154,6 +164,7 @@ function saveProspect(e) {
         trialDate: form.trialDate.value,
         trialStatus: form.trialStatus.value,
         dealStatus: form.dealStatus.value,
+        classId: form.classId?.value || '',
         remark: form.remark.value,
         createDate: form.id.value ? (data.prospects || []).find(p => p.id === id)?.createDate : new Date().toISOString().split('T')[0]
     };
@@ -209,7 +220,7 @@ function convertProspect(id) {
         name: prospect.name,
         gender: '',
         grade: inferredGrade,
-        classId: '',
+        classId: prospect.classId || '',
         teacher: '白老师',
         enrollDate: new Date().toISOString().split('T')[0],
         phone: prospect.phone || '',
@@ -245,7 +256,7 @@ function importProspects(event) {
             const workbook = XLSX.read(e.target.result, { type: 'binary' });
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
             let imported = 0, skipped = 0;
-            const statusMap = { '待跟进': 'pending', '已联系': 'contacted', '试课中': 'trial', '已成交': 'deal', '已流失': 'lost' };
+            const statusMap = { '待跟进': 'pending', '已联系': 'contacted', '试课中': 'trial', '组班中': 'forming', '已成交': 'deal', '已流失': 'lost' };
             if (!data.prospects) data.prospects = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
@@ -264,6 +275,7 @@ function importProspects(event) {
                     trialStatus: statusMap[String(row[hasNewFormat ? 7 : 5] || '').trim()] || 'pending',
                     dealStatus: String(row[hasNewFormat ? 8 : 6] || '').trim() === '已成交' ? 'deal' : '',
                     remark: String(row[hasNewFormat ? 9 : 7] || '').trim(),
+                    classId: '',
                     createDate: new Date().toISOString().split('T')[0]
                 });
                 imported++;
