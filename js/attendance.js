@@ -47,8 +47,7 @@ function loadAttendanceClass(classId) {
     sessions.forEach(sess => Object.keys(sess.records || {}).forEach(id => recordStudentIds.add(id)));
     const students = data.students.filter(s =>
         (s.classId === classId && s.status === 'active') ||
-        recordStudentIds.has(s.id) ||
-        s.classJoinSessions?.[classId]
+        recordStudentIds.has(s.id)
     );
 
     // 补齐旧记录缺失的 id
