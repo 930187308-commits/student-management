@@ -96,7 +96,10 @@ function loadAttendanceClass(classId) {
                     ${students.map(s => {
                         const totalSessions = allDates.length;
                         let present = 0, absent = 0;
-                        const joinSession = s.classJoinSessions?.[classId] || 1;
+                        const inferredJoinSession = s.classId === classId && !s.classJoinSessions?.[classId] && s.classLeaveSessions
+                            ? Math.max(...Object.values(s.classLeaveSessions).map(v => parseInt(v, 10)).filter(v => !isNaN(v)), 0) + 1
+                            : 1;
+                        const joinSession = s.classJoinSessions?.[classId] || inferredJoinSession;
                         const leaveSession = s.classLeaveSessions?.[classId] || Infinity;
                         const isHistorical = s.classId !== classId;
                         allDates.forEach(date => {
@@ -112,11 +115,11 @@ function loadAttendanceClass(classId) {
                                     const session = sessions.find(sess => sess.date === date);
                                     const status = session?.records?.[s.id];
                                     const cls = status === 1 ? 'present' : status === 0 ? 'absent' : '';
-                                    if (i + 1 < joinSession && status == null) {
-                                        return `<td><input type="number" min="0" max="1" value="" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" onchange="updateAttendance(this)"><br><span style="color:#aaa; font-size:10px;">未转入</span></td>`;
+                                    if (i + 1 < joinSession) {
+                                        return `<td><input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" data-out-of-range="未转入" onchange="updateAttendance(this)"><br><span style="color:#aaa; font-size:10px;">未转入</span></td>`;
                                     }
-                                    if (i + 1 > leaveSession && status == null) {
-                                        return `<td><input type="number" min="0" max="1" value="" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" onchange="updateAttendance(this)"><br><span style="color:#aaa; font-size:10px;">已转出</span></td>`;
+                                    if (i + 1 > leaveSession) {
+                                        return `<td><input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" data-out-of-range="已转出" onchange="updateAttendance(this)"><br><span style="color:#aaa; font-size:10px;">已转出</span></td>`;
                                     }
                                     return `<td><input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" onchange="updateAttendance(this)"></td>`;
                                 }).join('')}
@@ -501,6 +504,14 @@ function updateAttendance(input) {
     if (value !== 0 && value !== 1 && value !== null) {
         input.value = '';
         return;
+    }
+
+    if (value === 1 && input.dataset.outOfRange) {
+        const ok = confirm(`该课次标记为“${input.dataset.outOfRange}”，不在当前班正常归属范围内，确认记录为出勤吗？`);
+        if (!ok) {
+            input.value = '';
+            return;
+        }
     }
 
     // 更新样式
