@@ -325,6 +325,17 @@ function saveStudent(e) {
     e.preventDefault();
     const form = e.target;
     const existingStudent = currentEditId ? data.students.find(s => s.id === currentEditId) : null;
+
+    // 同名检查（normalize后），排除自己
+    const normName = normalizeNameForMatch(form.name.value);
+    const dupStudents = data.students.filter(s =>
+        s.id !== currentEditId && normalizeNameForMatch(s.name) === normName
+    );
+    if (dupStudents.length > 0) {
+        const dupNames = dupStudents.map(s => `"${s.name}"`).join('、');
+        if (!confirm(`系统中已存在同名学员（${dupNames}），请确认是否继续创建？`)) return;
+    }
+
     const studentData = {
         id: currentEditId || generateId(),
         name: form.name.value, gender: form.gender.value, grade: form.grade.value,

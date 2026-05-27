@@ -53,6 +53,13 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+// ========== 姓名规范化（用于匹配） ==========
+// trim；去掉所有空格；中文、数字、字母都保留；其他字符也保留（用户原始显示不受影响）
+function normalizeNameForMatch(name) {
+    if (!name) return '';
+    return String(name).trim().replace(/\s+/g, '');
+}
+
 // ========== 日期解析工具 ==========
 
 // 统一将 Excel 日期、字符串日期、Date 对象转为 yyyy-mm-dd 格式
@@ -652,6 +659,96 @@ function askDuplicateStrategy(message) {
     if (choice === '1') return 'skip';
     if (choice === '2') return 'replace';
     return 'cancel';
+}
+
+// 导入预检查弹窗（通用）
+// checkFn 返回 { total, success, dup, fail, skip, errors[] }
+// errors 数组每项为 { row, msg }（row 为 1-based 行号）
+// actionLabel 如 "导入收费记录"
+// onConfirm 用户确认后执行的回调，签名为 (strategy?) => void
+// strategy 仅在有重复时传递 'skip' | 'replace'
+function showImportPreCheck({ title, checkResult, actionLabel = '导入', onConfirm, duplicateStrategy, onDuplicateStrategyChange }) {
+    const { total, success, dup, fail, skip, errors } = checkResult;
+    const hasDupe = dup > 0;
+    const errorList = errors.slice(0, 10);
+
+    let dupeSection = '';
+    if (hasDupe) {
+        dupeSection = `
+            <div style="margin-top: 12px; padding: 10px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
+                <div style="font-weight: 600; color: #856404; margin-bottom: 6px;">发现重复记录（${dup} 条）</div>
+                <div style="margin-bottom: 8px; font-size: 13px; color: #856404;">
+                    当前策略：<strong>${duplicateStrategy === 'skip' ? '保留现有并跳过' : duplicateStrategy === 'replace' ? '替换已有重复' : '未选择'}</strong>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="this.closest('.import-precheck-modal')._onStrategyChange('skip')" ${duplicateStrategy === 'skip' ? 'style="font-weight:bold;"' : ''}>保留现有</button>
+                    <button class="btn btn-secondary btn-sm" onclick="this.closest('.import-precheck-modal')._onStrategyChange('replace')" ${duplicateStrategy === 'replace' ? 'style="font-weight:bold;"' : ''}>替换已有</button>
+                </div>
+            </div>
+        `;
+    }
+
+    let errorSection = '';
+    if (errorList.length > 0) {
+        errorSection = `
+            <div style="margin-top: 12px; max-height: 180px; overflow-y: auto;">
+                <div style="font-weight: 600; color: #e74c3c; margin-bottom: 6px;">失败明细（前 ${errorList.length} 条）</div>
+                ${errorList.map(e => `<div style="font-size: 12px; color: #c0392b; margin-bottom: 2px;">第${e.row}行：${escapeHtml(e.msg)}</div>`).join('')}
+            </div>
+        `;
+    }
+
+    const modal = document.getElementById('modal');
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = `
+        <div class="import-precheck-modal">
+            <div style="font-size: 14px; line-height: 1.8;">
+                <div style="margin-bottom: 8px;">
+                    <span style="color: #888;">本次读取：</span><strong>${total}</strong> 条
+                </div>
+                <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <div><span style="color: #27ae60;">可导入</span> <strong style="color: #27ae60;">${success}</strong> 条</div>
+                    ${dup > 0 ? `<div><span style="color: #f39c12;">重复</span> <strong style="color: #f39c12;">${dup}</strong> 条</div>` : ''}
+                    ${fail > 0 ? `<div><span style="color: #e74c3c;">失败</span> <strong style="color: #e74c3c;">${fail}</strong> 条</div>` : ''}
+                    ${skip > 0 ? `<div><span style="color: #888;">跳过</span> <strong>${skip}</strong> 条</div>` : ''}
+                </div>
+                ${dup === 0 && fail === 0 ? `<div style="color: #27ae60; font-weight: 600;">✓ 所有数据可正常导入</div>` : ''}
+            </div>
+            ${dupeSection}
+            ${errorSection}
+            <div style="margin-top: 16px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 13px; color: #2980b9;">
+                ${hasDupe ? '请先选择重复处理策略，再确认导入。' : fail > 0 ? '失败记录不影响其他正常数据，可确认导入。' : '点击"确认"后将正式写入数据。'}
+            </div>
+            <div class="modal-footer" style="margin-top: 16px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="this.closest('.import-precheck-modal')._onConfirm()">确认${actionLabel}</button>
+            </div>
+        </div>
+    `;
+
+    const modalEl = modal.querySelector('.import-precheck-modal');
+    modalEl._onConfirm = () => {
+        if (hasDupe && !duplicateStrategy) {
+            showToast('请先选择重复处理策略');
+            return;
+        }
+        closeModal();
+        onConfirm(hasDupe ? duplicateStrategy : null);
+    };
+    modalEl._onStrategyChange = (s) => {
+        onDuplicateStrategyChange(s);
+        // re-render just the strategy buttons
+        const btn1 = modalEl.querySelector('button:nth-child(1)');
+        const btn2 = modalEl.querySelector('button:nth-child(2)');
+        if (btn1) btn1.style.fontWeight = s === 'skip' ? 'bold' : '';
+        if (btn2) btn2.style.fontWeight = s === 'replace' ? 'bold' : '';
+        const strategyLabel = modalEl.querySelector('.import-precheck-modal div[style*="background: #fff3cd"] div:nth-child(2)');
+        if (strategyLabel) {
+            strategyLabel.innerHTML = `当前策略：<strong>${s === 'skip' ? '保留现有并跳过' : '替换已有重复'}</strong>`;
+        }
+    };
+
+    modal.classList.add('show');
 }
 
 // Toast提示
