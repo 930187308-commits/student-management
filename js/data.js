@@ -665,24 +665,55 @@ function askDuplicateStrategy(message) {
 // checkFn 返回 { total, success, dup, fail, skip, errors[] }
 // errors 数组每项为 { row, msg }（row 为 1-based 行号）
 // actionLabel 如 "导入收费记录"
-// onConfirm 用户确认后执行的回调，签名为 (strategy?) => void
-// strategy 仅在有重复时传递 'skip' | 'replace'
-function showImportPreCheck({ title, checkResult, actionLabel = '导入', onConfirm, duplicateStrategy, onDuplicateStrategyChange }) {
-    const { total, success, dup, fail, skip, errors } = checkResult;
+// onConfirm 用户确认后执行的回调，签名为 ({ duplicateStrategy, missingStudentStrategy }) => void
+// duplicateStrategy 仅在有重复时传递 'skip' | 'replace'
+// missingStudentStrategy 仅在有无匹配学员时传递 'skip' | 'create'
+function showImportPreCheck({
+    title,
+    checkResult,
+    actionLabel = '导入',
+    onConfirm,
+    duplicateStrategy = null,
+    missingStudentStrategy = null
+}) {
+    const { total, success, dup, fail, skip, errors, missingStudents = [] } = checkResult;
     const hasDupe = dup > 0;
+    const hasMissingStudents = missingStudents.length > 0;
     const errorList = errors.slice(0, 10);
+    let currentDuplicateStrategy = duplicateStrategy;
+    let currentMissingStudentStrategy = missingStudentStrategy;
 
     let dupeSection = '';
     if (hasDupe) {
         dupeSection = `
             <div style="margin-top: 12px; padding: 10px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
                 <div style="font-weight: 600; color: #856404; margin-bottom: 6px;">发现重复记录（${dup} 条）</div>
-                <div style="margin-bottom: 8px; font-size: 13px; color: #856404;">
+                <div class="duplicate-strategy-label" style="margin-bottom: 8px; font-size: 13px; color: #856404;">
                     当前策略：<strong>${duplicateStrategy === 'skip' ? '保留现有并跳过' : duplicateStrategy === 'replace' ? '替换已有重复' : '未选择'}</strong>
                 </div>
                 <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-secondary btn-sm" onclick="this.closest('.import-precheck-modal')._onStrategyChange('skip')" ${duplicateStrategy === 'skip' ? 'style="font-weight:bold;"' : ''}>保留现有</button>
-                    <button class="btn btn-secondary btn-sm" onclick="this.closest('.import-precheck-modal')._onStrategyChange('replace')" ${duplicateStrategy === 'replace' ? 'style="font-weight:bold;"' : ''}>替换已有</button>
+                    <button class="btn btn-secondary btn-sm duplicate-skip-btn" onclick="this.closest('.import-precheck-modal')._onStrategyChange('skip')" ${duplicateStrategy === 'skip' ? 'style="font-weight:bold;"' : ''}>保留现有</button>
+                    <button class="btn btn-secondary btn-sm duplicate-replace-btn" onclick="this.closest('.import-precheck-modal')._onStrategyChange('replace')" ${duplicateStrategy === 'replace' ? 'style="font-weight:bold;"' : ''}>替换已有</button>
+                </div>
+            </div>
+        `;
+    }
+
+    let missingStudentSection = '';
+    if (hasMissingStudents) {
+        missingStudentSection = `
+            <div style="margin-top: 12px; padding: 10px; background: #fff7e6; border-radius: 6px; border: 1px solid #f39c12;">
+                <div style="font-weight: 600; color: #8a5a00; margin-bottom: 6px;">系统内无此学员（${missingStudents.length} 条）</div>
+                <div style="font-size: 12px; color: #8a5a00; margin-bottom: 8px;">
+                    ${missingStudents.slice(0, 5).map(s => `第${s.row}行：${escapeHtml(s.name)}`).join('<br>')}
+                    ${missingStudents.length > 5 ? `<br>还有 ${missingStudents.length - 5} 条未显示` : ''}
+                </div>
+                <div class="missing-strategy-label" style="margin-bottom: 8px; font-size: 13px; color: #8a5a00;">
+                    当前策略：<strong>${missingStudentStrategy === 'create' ? '自动新建学员后导入' : missingStudentStrategy === 'skip' ? '跳过这些记录' : '未选择'}</strong>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary btn-sm missing-skip-btn" onclick="this.closest('.import-precheck-modal')._onMissingStudentStrategyChange('skip')" ${missingStudentStrategy === 'skip' ? 'style="font-weight:bold;"' : ''}>跳过</button>
+                    <button class="btn btn-secondary btn-sm missing-create-btn" onclick="this.closest('.import-precheck-modal')._onMissingStudentStrategyChange('create')" ${missingStudentStrategy === 'create' ? 'style="font-weight:bold;"' : ''}>自动新建</button>
                 </div>
             </div>
         `;
@@ -712,12 +743,13 @@ function showImportPreCheck({ title, checkResult, actionLabel = '导入', onConf
                     ${fail > 0 ? `<div><span style="color: #e74c3c;">失败</span> <strong style="color: #e74c3c;">${fail}</strong> 条</div>` : ''}
                     ${skip > 0 ? `<div><span style="color: #888;">跳过</span> <strong>${skip}</strong> 条</div>` : ''}
                 </div>
-                ${dup === 0 && fail === 0 ? `<div style="color: #27ae60; font-weight: 600;">✓ 所有数据可正常导入</div>` : ''}
+                ${dup === 0 && fail === 0 && !hasMissingStudents ? `<div style="color: #27ae60; font-weight: 600;">✓ 所有数据可正常导入</div>` : ''}
             </div>
             ${dupeSection}
+            ${missingStudentSection}
             ${errorSection}
             <div style="margin-top: 16px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 13px; color: #2980b9;">
-                ${hasDupe ? '请先选择重复处理策略，再确认导入。' : fail > 0 ? '失败记录不影响其他正常数据，可确认导入。' : '点击"确认"后将正式写入数据。'}
+                ${hasDupe || hasMissingStudents ? '请先选择需要处理的策略，再确认导入。' : fail > 0 ? '失败记录不影响其他正常数据，可确认导入。' : '点击"确认"后将正式写入数据。'}
             </div>
             <div class="modal-footer" style="margin-top: 16px;">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
@@ -728,23 +760,40 @@ function showImportPreCheck({ title, checkResult, actionLabel = '导入', onConf
 
     const modalEl = modal.querySelector('.import-precheck-modal');
     modalEl._onConfirm = () => {
-        if (hasDupe && !duplicateStrategy) {
+        if (hasDupe && !currentDuplicateStrategy) {
             showToast('请先选择重复处理策略');
             return;
         }
+        if (hasMissingStudents && !currentMissingStudentStrategy) {
+            showToast('请先选择无匹配学员处理策略');
+            return;
+        }
         closeModal();
-        onConfirm(hasDupe ? duplicateStrategy : null);
+        onConfirm({
+            duplicateStrategy: hasDupe ? currentDuplicateStrategy : null,
+            missingStudentStrategy: hasMissingStudents ? currentMissingStudentStrategy : null
+        });
     };
     modalEl._onStrategyChange = (s) => {
-        onDuplicateStrategyChange(s);
-        // re-render just the strategy buttons
-        const btn1 = modalEl.querySelector('button:nth-child(1)');
-        const btn2 = modalEl.querySelector('button:nth-child(2)');
+        currentDuplicateStrategy = s;
+        const btn1 = modalEl.querySelector('.duplicate-skip-btn');
+        const btn2 = modalEl.querySelector('.duplicate-replace-btn');
         if (btn1) btn1.style.fontWeight = s === 'skip' ? 'bold' : '';
         if (btn2) btn2.style.fontWeight = s === 'replace' ? 'bold' : '';
-        const strategyLabel = modalEl.querySelector('.import-precheck-modal div[style*="background: #fff3cd"] div:nth-child(2)');
+        const strategyLabel = modalEl.querySelector('.duplicate-strategy-label');
         if (strategyLabel) {
             strategyLabel.innerHTML = `当前策略：<strong>${s === 'skip' ? '保留现有并跳过' : '替换已有重复'}</strong>`;
+        }
+    };
+    modalEl._onMissingStudentStrategyChange = (s) => {
+        currentMissingStudentStrategy = s;
+        const skipBtn = modalEl.querySelector('.missing-skip-btn');
+        const createBtn = modalEl.querySelector('.missing-create-btn');
+        if (skipBtn) skipBtn.style.fontWeight = s === 'skip' ? 'bold' : '';
+        if (createBtn) createBtn.style.fontWeight = s === 'create' ? 'bold' : '';
+        const strategyLabel = modalEl.querySelector('.missing-strategy-label');
+        if (strategyLabel) {
+            strategyLabel.innerHTML = `当前策略：<strong>${s === 'create' ? '自动新建学员后导入' : '跳过这些记录'}</strong>`;
         }
     };
 

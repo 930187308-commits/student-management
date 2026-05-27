@@ -207,7 +207,6 @@ function importFees(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            const total = rows.length - 1;
             const checkResult = precheckFeeImport(rows);
 
             // 弹窗预检查，用户确认后再执行实际写入
@@ -216,8 +215,8 @@ function importFees(event) {
                 checkResult,
                 actionLabel: '导入收费记录',
                 duplicateStrategy: 'skip',
-                onDuplicateStrategyChange: () => {},
-                onConfirm: (strategy) => executeFeeImport(checkResult, strategy)
+                missingStudentStrategy: checkResult.missingStudents.length > 0 ? null : 'skip',
+                onConfirm: (strategies) => executeFeeImport(checkResult, strategies)
             });
         } catch (err) {
             showToast('导入失败：' + err.message);
@@ -233,6 +232,7 @@ function precheckFeeImport(rows) {
     const validRows = [];
     let skipped = 0, failed = 0;
     const errors = [];
+    const missingStudents = [];
 
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
@@ -240,24 +240,6 @@ function precheckFeeImport(rows) {
         if (!row[0]) { skipped++; continue; }
 
         const studentName = String(row[0]).trim();
-
-        // 学员匹配：先用 normalizeNameForMatch 精确匹配
-        const normName = normalizeNameForMatch(studentName);
-        const matchedStudents = data.students.filter(s => normalizeNameForMatch(s.name) === normName);
-
-        if (matchedStudents.length === 0) {
-            errors.push({ row: rowNum, msg: `学员"${studentName}"系统内不存在` });
-            failed++;
-            continue;
-        }
-        if (matchedStudents.length > 1) {
-            const names = matchedStudents.map(s => `"${s.name}"`).join('、');
-            errors.push({ row: rowNum, msg: `学员"${studentName}"匹配到多个（${names}），无法确定` });
-            failed++;
-            continue;
-        }
-        const student = matchedStudents[0];
-
         const amount = parseFloat(row[1]);
         if (isNaN(amount)) { errors.push({ row: rowNum, msg: '金额无效' }); failed++; continue; }
 
@@ -278,6 +260,33 @@ function precheckFeeImport(rows) {
         }
 
         const packageName = String(row[5] || '').trim();
+        const normName = normalizeNameForMatch(studentName);
+        const matchedStudents = data.students.filter(s => normalizeNameForMatch(s.name) === normName);
+
+        if (matchedStudents.length > 1) {
+            const names = matchedStudents.map(s => `"${s.name}"`).join('、');
+            errors.push({ row: rowNum, msg: `学员"${studentName}"匹配到多个（${names}），无法确定，请先改名区分` });
+            failed++;
+            continue;
+        }
+
+        if (matchedStudents.length === 0) {
+            missingStudents.push({ row: rowNum, name: studentName });
+            validRows.push({
+                row,
+                student: null,
+                studentName,
+                amount,
+                paymentDate,
+                packageName,
+                status,
+                isDupe: false,
+                missingStudent: true
+            });
+            continue;
+        }
+
+        const student = matchedStudents[0];
         const isDupe = data.fees.some(f =>
             f.studentId === student.id &&
             f.paymentDate === paymentDate &&
@@ -288,23 +297,47 @@ function precheckFeeImport(rows) {
         validRows.push({ row, student, amount, paymentDate, packageName, status, isDupe });
     }
 
+    const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows, missingStudents };
 }
 
 // 确认导入后实际执行写入
-function executeFeeImport(checkResult, strategy) {
+function executeFeeImport(checkResult, strategies = {}) {
     const { validRows, errors } = checkResult;
-    let dupeStrategy = strategy || 'skip';
+    const dupeStrategy = strategies.duplicateStrategy || 'skip';
+    const missingStudentStrategy = strategies.missingStudentStrategy || 'skip';
     let imported = 0, replaced = 0, newStudents = 0;
 
-    const newStudentIds = []; // 记录本次新建的学员ID
-
     for (const v of validRows) {
+        let student = v.student;
+        if (v.missingStudent) {
+            if (missingStudentStrategy === 'skip') continue;
+            student = {
+                id: generateId(),
+                name: v.studentName,
+                gender: '',
+                grade: '',
+                classId: '',
+                teacher: '',
+                enrollDate: '',
+                firstEnrollDate: '',
+                phone: '',
+                emergencyContact: '',
+                status: 'active',
+                followUpStatus: '',
+                remark: '由收费记录导入自动创建',
+                school: '',
+                createdAt: new Date().toISOString()
+            };
+            data.students.push(student);
+            newStudents++;
+        }
+
         if (v.isDupe) {
             if (dupeStrategy === 'skip') { continue; }
             const idx = data.fees.findIndex(f =>
-                f.studentId === v.student.id &&
+                f.studentId === student.id &&
                 f.paymentDate === v.paymentDate &&
                 f.amount === v.amount &&
                 f.package === v.packageName
@@ -312,8 +345,8 @@ function executeFeeImport(checkResult, strategy) {
             if (idx !== -1) {
                 data.fees[idx] = {
                     id: data.fees[idx].id,
-                    studentId: v.student.id,
-                    studentName: v.student.name,
+                    studentId: student.id,
+                    studentName: student.name,
                     amount: v.amount,
                     pricePerHour: parseFloat(v.row[2]) || 200,
                     hours: parseInt(v.row[3]) || 0,
@@ -330,8 +363,8 @@ function executeFeeImport(checkResult, strategy) {
         }
         data.fees.push({
             id: generateId(),
-            studentId: v.student.id,
-            studentName: v.student.name,
+            studentId: student.id,
+            studentName: student.name,
             amount: v.amount,
             pricePerHour: parseFloat(v.row[2]) || 200,
             hours: parseInt(v.row[3]) || 0,
@@ -346,7 +379,7 @@ function executeFeeImport(checkResult, strategy) {
 
     saveData();
     render();
-    const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}`;
+    const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${newStudents > 0 ? `，新建学员 ${newStudents} 名` : ''}`;
     showToast(msg);
     if (errors.length > 0) console.log('导入错误:', errors);
 }
