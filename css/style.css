@@ -118,10 +118,14 @@ td.editable input { width: 100%; border: none; background: transparent; font-siz
 td.editable input:focus { outline: none; }
 
 /* 考勤表格 */
-.attendance-table { border-collapse: collapse; width: 100%; }
+.attendance-scroll { max-width: 100%; overflow-x: auto; position: relative; }
+.attendance-table { border-collapse: collapse; width: max-content; min-width: 100%; }
 .attendance-table th, .attendance-table td { border: 1px solid var(--border-color); padding: 6px 8px; text-align: center; font-size: 12px; }
 .attendance-table th { background: var(--table-header-bg); }
-.attendance-table td:first-child { text-align: center; background: var(--hover-bg); font-weight: 500; }
+.attendance-table th:first-child,
+.attendance-table td:first-child { position: sticky; left: 0; z-index: 2; min-width: 90px; max-width: 140px; background: var(--hover-bg); box-shadow: 1px 0 0 var(--border-color); }
+.attendance-table th:first-child { z-index: 3; background: var(--table-header-bg); }
+.attendance-table td:first-child { text-align: center; font-weight: 500; }
 .attendance-input { width: 40px; text-align: center; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px; font-size: 13px; background: var(--input-bg); color: var(--text-primary); }
 .attendance-input.present { background: #d4edda; color: #155724; }
 .attendance-input.absent { background: #f8d7da; color: #721c24; }

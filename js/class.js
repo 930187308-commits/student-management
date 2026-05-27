@@ -385,6 +385,7 @@ function precheckClassImport(rows) {
     const statusMap = { 'active': 'active', '正常': 'active', 'forming': 'forming', '组班中': 'forming', 'finished': 'finished', '已结课': 'finished' };
     const validRows = [];
     const errors = [];
+    const duplicates = [];
     let skipped = 0;
     let failed = 0;
 
@@ -408,13 +409,16 @@ function precheckClassImport(rows) {
             normalizeTextForMatch(c.name) === normalizeTextForMatch(name) &&
             normalizeTextForMatch(c.schedule) === normalizeTextForMatch(schedule)
         );
+        if (isDupe) {
+            duplicates.push({ row: rowNum, msg: `${name} / ${schedule || '上课时间空'}` });
+        }
 
         validRows.push({ row, isNewFormat, name, schedule, status: statusMap[rawStatus] || 'active', isDupe });
     }
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, validRows };
 }
 
 function executeClassImport(checkResult, strategies = {}) {

@@ -456,6 +456,7 @@ function precheckStudentImport(rows) {
     const validRows = [];
     const errors = [];
     const warnings = [];
+    const duplicates = [];
     let skipped = 0;
     let failed = 0;
 
@@ -486,12 +487,15 @@ function precheckStudentImport(rows) {
 
         const normName = normalizeNameForMatch(name);
         const isDupe = data.students.some(s => normalizeNameForMatch(s.name) === normName && (phone ? s.phone === phone : true));
+        if (isDupe) {
+            duplicates.push({ row: rowNum, msg: `${name}${phone ? ` / ${phone}` : ''}` });
+        }
         validRows.push({ row, cls, name, phone, rawStatus, status: statusMap[rawStatus] || 'active', isDupe });
     }
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, validRows };
 }
 
 function executeStudentImport(checkResult, strategies = {}) {

@@ -224,6 +224,7 @@ function importGrades(event) {
 function precheckGradeImport(rows) {
     const validRows = [];
     const errors = [];
+    const duplicates = [];
     let skipped = 0;
     let failed = 0;
 
@@ -252,13 +253,16 @@ function precheckGradeImport(rows) {
             g.testName === testName &&
             g.testDate === testDate
         );
+        if (isDupe) {
+            duplicates.push({ row: rowNum, msg: `${student.name} / ${testName} / ${testDate}` });
+        }
 
         validRows.push({ row, student, testDate, testName, isDupe });
     }
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, validRows };
 }
 
 function buildGradeFromImportRow(v, id) {

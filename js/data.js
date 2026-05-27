@@ -682,7 +682,7 @@ function showImportPreCheck({
     duplicateStrategy = null,
     missingStudentStrategy = null
 }) {
-    const { total, success, dup, fail, skip, errors, warnings = [], missingStudents = [] } = checkResult;
+    const { total, success, dup, fail, skip, errors, warnings = [], duplicates = [], missingStudents = [] } = checkResult;
     const hasDupe = dup > 0;
     const hasMissingStudents = missingStudents.length > 0;
     const errorList = errors.slice(0, 10);
@@ -692,9 +692,19 @@ function showImportPreCheck({
 
     let dupeSection = '';
     if (hasDupe) {
+        const duplicateList = duplicates.slice(0, 100);
         dupeSection = `
             <div style="margin-top: 12px; padding: 10px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
                 <div style="font-weight: 600; color: #856404; margin-bottom: 6px;">发现重复记录（${dup} 条）</div>
+                ${duplicateList.length > 0 ? `
+                    <details style="margin-bottom: 8px; font-size: 12px; color: #856404;">
+                        <summary style="cursor: pointer; user-select: none;">查看重复明细</summary>
+                        <div style="margin-top: 6px; max-height: 160px; overflow-y: auto;">
+                            ${duplicateList.map(d => `<div style="margin-bottom: 2px;">第${d.row}行：${escapeHtml(d.msg)}</div>`).join('')}
+                            ${duplicates.length > duplicateList.length ? `<div>还有 ${duplicates.length - duplicateList.length} 条未显示</div>` : ''}
+                        </div>
+                    </details>
+                ` : ''}
                 <div class="duplicate-strategy-label" style="margin-bottom: 8px; font-size: 13px; color: #856404;">
                     当前策略：<strong>${duplicateStrategy === 'skip' ? '保留现有并跳过' : duplicateStrategy === 'replace' ? '替换已有重复' : '未选择'}</strong>
                 </div>

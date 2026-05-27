@@ -65,6 +65,7 @@ function loadAttendanceClass(classId) {
         tableHtml = '<div class="empty-state">暂无考勤记录，请点击"新增课次"添加上课日期</div>';
     } else {
         tableHtml = `
+            <div class="attendance-scroll">
             <table class="attendance-table">
                 <thead>
                     <tr>
@@ -110,6 +111,7 @@ function loadAttendanceClass(classId) {
                     }).join('')}
                 </tbody>
             </table>
+            </div>
             <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center;">
                 <span style="font-size: 12px; color: #888;">说明：1=正常出勤 0=请假，空=未记录</span>
                 <button class="btn btn-secondary btn-sm" onclick="exportAttendance()">导出Excel</button>
@@ -160,6 +162,7 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
                 <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal(document.getElementById('tempSessionSelect').value)">+ 添加临时学员</button>
             </div>
         </div>
+        <div class="attendance-scroll">
         <table class="attendance-table">
             <thead>
                 <tr>
@@ -209,6 +212,7 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
                 }).join('')}
             </tbody>
         </table>
+        </div>
     </div>`;
 }
 
@@ -606,6 +610,7 @@ function precheckAttendanceImport(rows) {
     const validRows = [];
     const errors = [];
     const warnings = [];
+    const duplicates = [];
     const existingSessions = data.attendance
         .filter(a => a.classId === currentAttendanceClassId)
         .sort((a, b) => a.date.localeCompare(b.date));
@@ -679,12 +684,15 @@ function precheckAttendanceImport(rows) {
             seen.add(key);
 
             const isDupe = !!(meta.existingSession && meta.existingSession.records && meta.existingSession.records[student.id] !== undefined);
+            if (isDupe) {
+                duplicates.push({ row: rowNum, msg: `${student.name} / ${sessionKey} / ${meta.label}` });
+            }
             validRows.push({ student, status, date: sessionKey, sessionName: meta.label, existingSession: meta.existingSession, isDupe });
         }
     }
 
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total: readCount, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, validRows };
+    return { total: readCount, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, validRows };
 }
 
 function executeAttendanceImport(checkResult, strategies = {}) {

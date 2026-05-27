@@ -319,6 +319,7 @@ function precheckProspectImport(rows) {
 
     const validRows = [];
     const errors = [];
+    const duplicates = [];
     let skipped = 0;
     let failed = 0;
 
@@ -354,13 +355,16 @@ function precheckProspectImport(rows) {
             (p.phone === phone || p.wechat === wechat) &&
             (phone || wechat)
         );
+        if (isDupe) {
+            duplicates.push({ row: rowNum, msg: `${name}${phone ? ` / ${phone}` : ''}${wechat ? ` / ${wechat}` : ''}` });
+        }
 
         validRows.push({ row, hasNewFormat, name, phone, wechat, trialDate, trialStatus: trialStatus || 'pending', dealStatus: dealStatusMap[dealStatusRaw] || '', isDupe });
     }
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, validRows };
 }
 
 function buildProspectFromImportRow(v, id, existing = {}) {

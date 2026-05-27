@@ -232,6 +232,7 @@ function precheckFeeImport(rows) {
     const validRows = [];
     let skipped = 0, failed = 0;
     const errors = [];
+    const duplicates = [];
     const missingStudents = [];
 
     for (let i = 1; i < rows.length; i++) {
@@ -293,13 +294,16 @@ function precheckFeeImport(rows) {
             f.amount === amount &&
             f.package === packageName
         );
+        if (isDupe) {
+            duplicates.push({ row: rowNum, msg: `${student.name} / ${paymentDate || '日期空'} / ¥${amount} / ${packageName || '套餐空'}` });
+        }
 
         validRows.push({ row, student, amount, paymentDate, packageName, status, isDupe });
     }
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows, missingStudents };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, validRows, missingStudents };
 }
 
 // 确认导入后实际执行写入
