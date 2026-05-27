@@ -96,11 +96,8 @@ function loadAttendanceClass(classId) {
                     ${students.map(s => {
                         const totalSessions = allDates.length;
                         let present = 0, absent = 0;
-                        const inferredJoinSession = s.classId === classId && !s.classJoinSessions?.[classId] && s.classLeaveSessions
-                            ? Math.max(...Object.values(s.classLeaveSessions).map(v => parseInt(v, 10)).filter(v => !isNaN(v)), 0) + 1
-                            : 1;
-                        const joinSession = s.classJoinSessions?.[classId] || inferredJoinSession;
-                        const leaveSession = s.classLeaveSessions?.[classId] || Infinity;
+                        const joinSession = getStudentJoinSessionForClass(s, classId);
+                        const leaveSession = getStudentLeaveSessionForClass(s, classId);
                         const isHistorical = s.classId !== classId;
                         allDates.forEach(date => {
                             const session = sessions.find(sess => sess.date === date);
@@ -142,6 +139,37 @@ function loadAttendanceClass(classId) {
     const tempStudentsSection = sessions.length > 0 && allDates.length > 0 ? renderTemporaryStudentsSection(classId, sessions, allDates) : '';
 
     content.innerHTML = tableHtml + tempStudentsSection;
+}
+
+function getStudentJoinSessionForClass(student, classId) {
+    if (student.classJoinSessions?.[classId]) return student.classJoinSessions[classId];
+    if (student.classId !== classId) return 1;
+
+    const otherClassLastRecords = data.classes
+        .filter(c => c.id !== classId)
+        .map(c => getLastRecordedSessionIndex(student.id, c.id));
+    const lastOtherClassRecord = Math.max(0, ...otherClassLastRecords);
+    return lastOtherClassRecord > 0 ? lastOtherClassRecord + 1 : 1;
+}
+
+function getStudentLeaveSessionForClass(student, classId) {
+    if (student.classLeaveSessions?.[classId]) return student.classLeaveSessions[classId];
+    if (student.classId === classId) return Infinity;
+    const lastRecord = getLastRecordedSessionIndex(student.id, classId);
+    return lastRecord > 0 ? lastRecord : Infinity;
+}
+
+function getLastRecordedSessionIndex(studentId, classId) {
+    const sessions = data.attendance
+        .filter(a => a.classId === classId)
+        .sort((a, b) => a.date.localeCompare(b.date));
+    let lastIndex = 0;
+    sessions.forEach((sess, index) => {
+        if (sess.records && sess.records[studentId] !== undefined) {
+            lastIndex = index + 1;
+        }
+    });
+    return lastIndex;
 }
 
 function renderTemporaryStudentsSection(classId, sessions, allDates) {

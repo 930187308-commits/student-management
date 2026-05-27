@@ -598,7 +598,19 @@ function filterClassMemberList(classId, mode) {
 
 function addStudentToClass(studentId, classId) {
     const s = data.students.find(st => st.id === studentId);
-    if (s) s.classId = classId;
+    if (s) {
+        const oldClassId = s.classId;
+        s.classJoinSessions = s.classJoinSessions || {};
+        s.classLeaveSessions = s.classLeaveSessions || {};
+        if (oldClassId && oldClassId !== classId) {
+            const oldClassSessionCount = data.attendance.filter(a => a.classId === oldClassId).length;
+            s.classLeaveSessions[oldClassId] = Math.max(oldClassSessionCount, 1);
+        }
+        const newClassSessionCount = data.attendance.filter(a => a.classId === classId).length;
+        s.classJoinSessions[classId] = Math.max(newClassSessionCount + 1, 1);
+        delete s.classLeaveSessions[classId];
+        s.classId = classId;
+    }
     saveData();
     openClassMemberManager(classId);
     showToast('已加入班级');
@@ -606,7 +618,12 @@ function addStudentToClass(studentId, classId) {
 
 function removeStudentFromClass(studentId, classId) {
     const s = data.students.find(st => st.id === studentId);
-    if (s) s.classId = '';
+    if (s) {
+        s.classLeaveSessions = s.classLeaveSessions || {};
+        const classSessionCount = data.attendance.filter(a => a.classId === classId).length;
+        s.classLeaveSessions[classId] = Math.max(classSessionCount, 1);
+        s.classId = '';
+    }
     saveData();
     openClassMemberManager(classId);
     showToast('已移出班级');
