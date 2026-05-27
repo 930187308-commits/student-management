@@ -296,105 +296,121 @@ function importProspects(event) {
         try {
             const workbook = XLSX.read(e.target.result, { type: 'binary' });
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
-            let imported = 0, skipped = 0, failed = 0, replaced = 0;
-            const errors = [];
-            const statusMap = { 'pending': 'pending', '待跟进': 'pending', 'contacted': 'contacted', '已联系': 'contacted', 'trial': 'trial', '试课中': 'trial', 'forming': 'forming', '组班中': 'forming', 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
-            const dealStatusMap = { 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
-            if (!data.prospects) data.prospects = [];
-
-            const validRows = [];
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row[0]) { skipped++; continue; }
-                const hasNewFormat = row.length > 8;
-                const name = String(row[0] || '').trim();
-                const phone = String(row[hasNewFormat ? 2 : 1] || '').trim();
-                const wechat = hasNewFormat ? String(row[3] || '').trim() : '';
-                const trialDate = String(row[hasNewFormat ? 6 : 4] || '').trim();
-
-                const trialStatusRaw = String(row[hasNewFormat ? 7 : 5] || '').trim();
-                const trialStatus = statusMap[trialStatusRaw];
-                if (trialStatusRaw && !trialStatus) {
-                    errors.push(`第${i+1}行: 试课状态"${trialStatusRaw}"无法识别`);
-                    failed++;
-                    continue;
-                }
-
-                const dealStatusRaw = String(row[hasNewFormat ? 8 : 6] || '').trim();
-                if (dealStatusRaw && !dealStatusMap[dealStatusRaw]) {
-                    errors.push(`第${i+1}行: 成交状态"${dealStatusRaw}"无法识别`);
-                    failed++;
-                    continue;
-                }
-
-                const isDupe = data.prospects.some(p =>
-                    p.name === name && (p.phone === phone || p.wechat === wechat) && (phone || wechat)
-                );
-
-                validRows.push({ row, hasNewFormat, name, phone, wechat, trialDate, trialStatus: trialStatus || 'pending', dealStatus: dealStatusMap[dealStatusRaw] || '', isDupe });
-            }
-
-            const total = rows.length - 1;
-            const hasDupe = validRows.some(v => v.isDupe);
-            let dupeStrategy = 'skip';
-            if (hasDupe) {
-                dupeStrategy = askDuplicateStrategy('发现重复记录');
-                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
-            }
-
-            for (const v of validRows) {
-                if (v.isDupe) {
-                    if (dupeStrategy === 'skip') { skipped++; continue; }
-                    const idx = data.prospects.findIndex(p => p.name === v.name && (p.phone === v.phone || p.wechat === v.wechat) && (v.phone || v.wechat));
-                    if (idx !== -1) {
-                        data.prospects[idx] = {
-                            id: data.prospects[idx].id,
-                            name: v.name,
-                            grade: v.hasNewFormat ? String(v.row[1] || '').trim() : '',
-                            phone: v.phone,
-                            wechat: v.wechat,
-                            source: String(v.row[v.hasNewFormat ? 4 : 2] || '').trim(),
-                            intent: String(v.row[v.hasNewFormat ? 5 : 3] || '').trim(),
-                            trialDate: v.trialDate,
-                            trialStatus: v.trialStatus,
-                            dealStatus: v.dealStatus,
-                            remark: String(v.row[v.hasNewFormat ? 9 : 7] || '').trim(),
-                            classId: data.prospects[idx].classId || '',
-                            createDate: data.prospects[idx].createDate || new Date().toISOString().split('T')[0]
-                        };
-                        replaced++;
-                        imported++;
-                        continue;
-                    }
-                }
-                data.prospects.push({
-                    id: generateId(),
-                    name: v.name,
-                    grade: v.hasNewFormat ? String(v.row[1] || '').trim() : '',
-                    phone: v.phone,
-                    wechat: v.wechat,
-                    source: String(v.row[v.hasNewFormat ? 4 : 2] || '').trim(),
-                    intent: String(v.row[v.hasNewFormat ? 5 : 3] || '').trim(),
-                    trialDate: v.trialDate,
-                    trialStatus: v.trialStatus,
-                    dealStatus: v.dealStatus,
-                    remark: String(v.row[v.hasNewFormat ? 9 : 7] || '').trim(),
-                    classId: '',
-                    createDate: new Date().toISOString().split('T')[0]
-                });
-                imported++;
-            }
-            saveData();
-            render();
-            const msg = `本次读取 ${total} 条，成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
-            showToast(msg);
-            if (errors.length > 0) console.log('导入错误:', errors);
+            const checkResult = precheckProspectImport(rows);
+            showImportPreCheck({
+                title: '意向学员导入预览',
+                checkResult,
+                actionLabel: '导入意向学员',
+                duplicateStrategy: 'skip',
+                onConfirm: (strategies) => executeProspectImport(checkResult, strategies)
+            });
         } catch (err) {
             showToast('导入失败：' + err.message);
         }
     };
     reader.readAsBinaryString(file);
     event.target.value = '';
+}
+
+function precheckProspectImport(rows) {
+    const statusMap = { 'pending': 'pending', '待跟进': 'pending', 'contacted': 'contacted', '已联系': 'contacted', 'trial': 'trial', '试课中': 'trial', 'forming': 'forming', '组班中': 'forming', 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
+    const dealStatusMap = { '': '', 'none': '', '未成交': '', 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
+    if (!data.prospects) data.prospects = [];
+
+    const validRows = [];
+    const errors = [];
+    let skipped = 0;
+    let failed = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 1;
+        if (!row[0]) { skipped++; continue; }
+        const hasNewFormat = row.length > 8;
+        const name = String(row[0] || '').trim();
+        const phone = String(row[hasNewFormat ? 2 : 1] || '').trim();
+        const wechat = hasNewFormat ? String(row[3] || '').trim() : '';
+        const trialDateRaw = row[hasNewFormat ? 6 : 4];
+        const trialDate = trialDateRaw ? normalizeExcelDate(trialDateRaw) || String(trialDateRaw).trim() : '';
+
+        const trialStatusRaw = String(row[hasNewFormat ? 7 : 5] || '').trim();
+        const trialStatus = statusMap[trialStatusRaw];
+        if (trialStatusRaw && !trialStatus) {
+            errors.push({ row: rowNum, msg: `试课状态"${trialStatusRaw}"无法识别` });
+            failed++;
+            continue;
+        }
+
+        const dealStatusRaw = String(row[hasNewFormat ? 8 : 6] || '').trim();
+        if (dealStatusRaw && dealStatusMap[dealStatusRaw] === undefined) {
+            errors.push({ row: rowNum, msg: `成交状态"${dealStatusRaw}"无法识别` });
+            failed++;
+            continue;
+        }
+
+        const normName = normalizeNameForMatch(name);
+        const isDupe = data.prospects.some(p =>
+            normalizeNameForMatch(p.name) === normName &&
+            (p.phone === phone || p.wechat === wechat) &&
+            (phone || wechat)
+        );
+
+        validRows.push({ row, hasNewFormat, name, phone, wechat, trialDate, trialStatus: trialStatus || 'pending', dealStatus: dealStatusMap[dealStatusRaw] || '', isDupe });
+    }
+
+    const total = Math.max(rows.length - 1, 0);
+    const dup = validRows.filter(v => v.isDupe).length;
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows };
+}
+
+function buildProspectFromImportRow(v, id, existing = {}) {
+    return {
+        id,
+        name: v.name,
+        grade: v.hasNewFormat ? String(v.row[1] || '').trim() : '',
+        phone: v.phone,
+        wechat: v.wechat,
+        source: String(v.row[v.hasNewFormat ? 4 : 2] || '').trim(),
+        intent: String(v.row[v.hasNewFormat ? 5 : 3] || '').trim(),
+        trialDate: v.trialDate,
+        trialStatus: v.trialStatus,
+        dealStatus: v.dealStatus,
+        remark: String(v.row[v.hasNewFormat ? 9 : 7] || '').trim(),
+        classId: existing.classId || '',
+        createDate: existing.createDate || new Date().toISOString().split('T')[0]
+    };
+}
+
+function executeProspectImport(checkResult, strategies = {}) {
+    const dupeStrategy = strategies.duplicateStrategy || 'skip';
+    let imported = 0;
+    let replaced = 0;
+    let skipped = checkResult.skip || 0;
+
+    for (const v of checkResult.validRows) {
+        const normName = normalizeNameForMatch(v.name);
+        if (v.isDupe) {
+            if (dupeStrategy === 'skip') { skipped++; continue; }
+            const idx = data.prospects.findIndex(p =>
+                normalizeNameForMatch(p.name) === normName &&
+                (p.phone === v.phone || p.wechat === v.wechat) &&
+                (v.phone || v.wechat)
+            );
+            if (idx !== -1) {
+                data.prospects[idx] = buildProspectFromImportRow(v, data.prospects[idx].id, data.prospects[idx]);
+                replaced++;
+                imported++;
+                continue;
+            }
+        }
+        data.prospects.push(buildProspectFromImportRow(v, generateId()));
+        imported++;
+    }
+
+    saveData();
+    render();
+    const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+    showToast(msg);
 }
 
 function openSourceManager() {

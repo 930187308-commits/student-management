@@ -435,91 +435,123 @@ function importStudents(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            const statusMap = { '在读': 'active', 'active': 'active', '停课': 'inactive', 'inactive': 'inactive', '待续费': 'renewalPending', 'renewalpending': 'renewalPending', '已退费': 'withdrawn', 'withdrawn': 'withdrawn', '已毕业': 'graduated', 'graduated': 'graduated' };
-
-            const validRows = [];
-            let skipped = 0, failed = 0;
-            const errors = [];
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row[0]) { skipped++; continue; }
-
-                const className = String(row[3] || '').trim();
-                const cls = data.classes.find(c => c.name === className);
-                const name = String(row[0]).trim();
-                const phone = String(row[6] || '').trim();
-
-                const rawStatus = String(row[8] || '').trim().toLowerCase();
-                if (rawStatus && !statusMap[rawStatus]) {
-                    errors.push(`第${i+1}行: 状态"${rawStatus}"无法识别`); failed++; continue;
-                }
-
-                const isDupe = data.students.some(s => s.name === name && (phone ? s.phone === phone : true));
-
-                validRows.push({ row, cls, name, phone, rawStatus, isDupe });
-            }
-
-            const total = rows.length - 1;
-            const hasDupe = validRows.some(v => v.isDupe);
-            let dupeStrategy = 'skip';
-            if (hasDupe) {
-                dupeStrategy = askDuplicateStrategy('发现重复学员');
-                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
-            }
-
-            let imported = 0, replaced = 0;
-            for (const v of validRows) {
-                if (v.isDupe) {
-                    if (dupeStrategy === 'skip') { skipped++; continue; }
-                    const idx = data.students.findIndex(s => s.name === v.name && (v.phone ? s.phone === v.phone : true));
-                    if (idx !== -1) {
-                        const status = statusMap[v.rawStatus] || 'active';
-                        data.students[idx] = {
-                            id: data.students[idx].id,
-                            name: v.name,
-                            gender: String(v.row[1] || '男').trim(),
-                            grade: String(v.row[2] || '六年级').trim(),
-                            classId: v.cls?.id || data.students[idx].classId || '',
-                            teacher: String(v.row[4] || '白老师').trim(),
-                            enrollDate: String(v.row[5] || '').trim() || data.students[idx].enrollDate,
-                            phone: v.phone,
-                            emergencyContact: String(v.row[7] || '').trim(),
-                            status: status,
-                            remark: String(v.row[9] || '').trim(),
-                            school: String(v.row[10] || '').trim(),
-                            createdAt: data.students[idx].createdAt
-                        };
-                        replaced++;
-                        imported++;
-                        continue;
-                    }
-                }
-                const status = statusMap[v.rawStatus] || 'active';
-                data.students.push({
-                    id: generateId(),
-                    name: v.name,
-                    gender: String(v.row[1] || '男').trim(),
-                    grade: String(v.row[2] || '六年级').trim(),
-                    classId: v.cls?.id || '',
-                    teacher: String(v.row[4] || '白老师').trim(),
-                    enrollDate: String(v.row[5] || new Date().toISOString().split('T')[0]).trim(),
-                    phone: v.phone,
-                    emergencyContact: String(v.row[7] || '').trim(),
-                    status: status,
-                    remark: String(v.row[9] || '').trim(),
-                    school: String(v.row[10] || '').trim()
-                });
-                imported++;
-            }
-
-            saveData();
-            render();
-            const msg = `本次读取 ${total} 条，成功 ${imported} 名${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
-            showToast(msg);
+            const checkResult = precheckStudentImport(rows);
+            showImportPreCheck({
+                title: '学员导入预览',
+                checkResult,
+                actionLabel: '导入学员',
+                duplicateStrategy: 'skip',
+                onConfirm: (strategies) => executeStudentImport(checkResult, strategies)
+            });
         } catch (err) {
             showToast('导入失败：' + err.message);
         }
     };
     reader.readAsBinaryString(file);
     event.target.value = '';
+}
+
+function precheckStudentImport(rows) {
+    const statusMap = { '在读': 'active', 'active': 'active', '停课': 'inactive', 'inactive': 'inactive', '待续费': 'renewalPending', 'renewalpending': 'renewalPending', '已退费': 'withdrawn', 'withdrawn': 'withdrawn', '已毕业': 'graduated', 'graduated': 'graduated' };
+    const validRows = [];
+    const errors = [];
+    const warnings = [];
+    let skipped = 0;
+    let failed = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 1;
+        if (!row[0]) { skipped++; continue; }
+
+        const name = String(row[0]).trim();
+        const phone = String(row[6] || '').trim();
+        const rawStatus = String(row[8] || '').trim().toLowerCase();
+        if (rawStatus && !statusMap[rawStatus]) {
+            errors.push({ row: rowNum, msg: `状态"${rawStatus}"无法识别` });
+            failed++;
+            continue;
+        }
+
+        const className = String(row[3] || '').trim();
+        const normalizedClassName = normalizeTextForMatch(className);
+        const cls = className ? data.classes.find(c =>
+            normalizeTextForMatch(c.name) === normalizedClassName ||
+            normalizeTextForMatch(`${c.name}${c.schedule || ''}`) === normalizedClassName ||
+            normalizeTextForMatch(`${c.name}-${c.schedule || ''}`) === normalizedClassName
+        ) : null;
+        if (className && !cls) {
+            warnings.push({ row: rowNum, msg: `班级"${className}"不存在，将按未分班导入` });
+        }
+
+        const normName = normalizeNameForMatch(name);
+        const isDupe = data.students.some(s => normalizeNameForMatch(s.name) === normName && (phone ? s.phone === phone : true));
+        validRows.push({ row, cls, name, phone, rawStatus, status: statusMap[rawStatus] || 'active', isDupe });
+    }
+
+    const total = Math.max(rows.length - 1, 0);
+    const dup = validRows.filter(v => v.isDupe).length;
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, validRows };
+}
+
+function executeStudentImport(checkResult, strategies = {}) {
+    const dupeStrategy = strategies.duplicateStrategy || 'skip';
+    let imported = 0;
+    let replaced = 0;
+    let skipped = checkResult.skip || 0;
+
+    for (const v of checkResult.validRows) {
+        const normName = normalizeNameForMatch(v.name);
+        if (v.isDupe) {
+            if (dupeStrategy === 'skip') { skipped++; continue; }
+            const idx = data.students.findIndex(s => normalizeNameForMatch(s.name) === normName && (v.phone ? s.phone === v.phone : true));
+            if (idx !== -1) {
+                const existing = data.students[idx];
+                const enrollDate = normalizeExcelDate(v.row[5]) || String(v.row[5] || '').trim() || existing.enrollDate || '';
+                data.students[idx] = {
+                    id: existing.id,
+                    name: v.name,
+                    gender: String(v.row[1] || existing.gender || '男').trim(),
+                    grade: String(v.row[2] || existing.grade || '六年级').trim(),
+                    classId: v.cls?.id || existing.classId || '',
+                    teacher: String(v.row[4] || existing.teacher || '白老师').trim(),
+                    enrollDate,
+                    firstEnrollDate: existing.firstEnrollDate || enrollDate,
+                    phone: v.phone,
+                    emergencyContact: String(v.row[7] || '').trim(),
+                    status: v.status,
+                    remark: String(v.row[9] || '').trim(),
+                    school: String(v.row[10] || '').trim(),
+                    createdAt: existing.createdAt || new Date().toISOString()
+                };
+                replaced++;
+                imported++;
+                continue;
+            }
+        }
+
+        const enrollDate = normalizeExcelDate(v.row[5]) || String(v.row[5] || '').trim() || new Date().toISOString().split('T')[0];
+        data.students.push({
+            id: generateId(),
+            name: v.name,
+            gender: String(v.row[1] || '男').trim(),
+            grade: String(v.row[2] || '六年级').trim(),
+            classId: v.cls?.id || '',
+            teacher: String(v.row[4] || '白老师').trim(),
+            enrollDate,
+            firstEnrollDate: enrollDate,
+            phone: v.phone,
+            emergencyContact: String(v.row[7] || '').trim(),
+            status: v.status,
+            remark: String(v.row[9] || '').trim(),
+            school: String(v.row[10] || '').trim(),
+            createdAt: new Date().toISOString()
+        });
+        imported++;
+    }
+
+    saveData();
+    render();
+    const msg = `成功导入 ${imported} 名${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+    showToast(msg);
 }

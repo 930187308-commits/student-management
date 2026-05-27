@@ -60,6 +60,12 @@ function normalizeNameForMatch(name) {
     return String(name).trim().replace(/\s+/g, '');
 }
 
+// ========== 普通文本规范化（用于班级名称、上课时间等匹配） ==========
+function normalizeTextForMatch(text) {
+    if (text == null) return '';
+    return String(text).trim().replace(/\s+/g, '');
+}
+
 // ========== 日期解析工具 ==========
 
 // 统一将 Excel 日期、字符串日期、Date 对象转为 yyyy-mm-dd 格式
@@ -676,10 +682,11 @@ function showImportPreCheck({
     duplicateStrategy = null,
     missingStudentStrategy = null
 }) {
-    const { total, success, dup, fail, skip, errors, missingStudents = [] } = checkResult;
+    const { total, success, dup, fail, skip, errors, warnings = [], missingStudents = [] } = checkResult;
     const hasDupe = dup > 0;
     const hasMissingStudents = missingStudents.length > 0;
     const errorList = errors.slice(0, 10);
+    const warningList = warnings.slice(0, 10);
     let currentDuplicateStrategy = duplicateStrategy;
     let currentMissingStudentStrategy = missingStudentStrategy;
 
@@ -719,6 +726,16 @@ function showImportPreCheck({
         `;
     }
 
+    let warningSection = '';
+    if (warningList.length > 0) {
+        warningSection = `
+            <div style="margin-top: 12px; max-height: 160px; overflow-y: auto;">
+                <div style="font-weight: 600; color: #b9770e; margin-bottom: 6px;">提示明细（前 ${warningList.length} 条）</div>
+                ${warningList.map(w => `<div style="font-size: 12px; color: #9a6308; margin-bottom: 2px;">第${w.row}行：${escapeHtml(w.msg)}</div>`).join('')}
+            </div>
+        `;
+    }
+
     let errorSection = '';
     if (errorList.length > 0) {
         errorSection = `
@@ -747,6 +764,7 @@ function showImportPreCheck({
             </div>
             ${dupeSection}
             ${missingStudentSection}
+            ${warningSection}
             ${errorSection}
             <div style="margin-top: 16px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 13px; color: #2980b9;">
                 ${hasDupe || hasMissingStudents ? '请先选择需要处理的策略，再确认导入。' : fail > 0 ? '失败记录不影响其他正常数据，可确认导入。' : '点击"确认"后将正式写入数据。'}

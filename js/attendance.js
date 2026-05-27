@@ -508,7 +508,11 @@ function exportAttendance() {
     const sessions = data.attendance.filter(a => a.classId === currentAttendanceClassId).sort((a, b) => a.date.localeCompare(b.date));
     const allDates = [...new Set(sessions.map(s => s.date))].sort();
 
-    const headers = ['学员', ...allDates.map((d, i) => `第${i+1}次(${d})`), '出勤次数', '请假次数'];
+    const sessionHeader = ['学员姓名', ...allDates.map((d, i) => {
+        const session = sessions.find(sess => sess.date === d);
+        return session?.sessionName || `第${i+1}次`;
+    }), '出勤次数', '请假次数'];
+    const dateHeader = ['上课日期', ...allDates, '', ''];
     const rows = students.map(s => {
         let present = 0, absent = 0;
         const recordValues = allDates.map(date => {
@@ -521,7 +525,7 @@ function exportAttendance() {
         return [s.name, ...recordValues, present, absent];
     });
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const ws = XLSX.utils.aoa_to_sheet([sessionHeader, dateHeader, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '考勤记录');
     XLSX.writeFile(wb, `${cls?.name || '考勤记录'}.xlsx`);
@@ -531,10 +535,10 @@ function exportAttendance() {
 // 下载考勤导入模板（含填写说明）
 function downloadAttendanceTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([
-        ['上课日期', '学员姓名', '考勤状态'],
-        ['2025-10-15', '张三', '1'],
-        ['2025-10-15', '李四', '1'],
-        ['2025-10-15', '王五', '0'],
+        ['学员姓名', '第1次', '第2次', '第3次', '第4次'],
+        ['上课日期', '2026-05-01', '2026-05-08', '2026-05-15', '2026-05-22'],
+        ['张三', '1', '1', '0', ''],
+        ['李四', '1', '', '1', '1'],
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '考勤数据');
@@ -542,16 +546,17 @@ function downloadAttendanceTemplate() {
     const instrWs = XLSX.utils.aoa_to_sheet([
         ['考勤导入模板 - 填写说明'],
         ['字段', '说明', '必填', '格式/示例'],
-        ['上课日期', '本次课上课日期', '是', 'yyyy-mm-dd，如 2025-10-15'],
-        ['学员姓名', '学员真实姓名', '是', '如：张三'],
-        ['考勤状态', '1=正常出勤，0=请假', '是', '1 或 0，空值=未记录'],
+        ['第1行', '课次名称', '是', '第1次 / 第2次，也可写课程名'],
+        ['第2行', '上课日期', '推荐填写', 'yyyy-mm-dd，如 2026-05-01'],
+        ['第1列', '学员姓名', '是', '如：张三'],
+        ['考勤状态', '1=正常出勤，0=请假，空值=不记录', '选填', '1 / 0 / 空'],
         [''],
         ['注意事项'],
-        ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-15'],
-        ['2. 一个 Excel 文件可包含多个学员的同一次课考勤记录'],
-        ['3. 导入时以当前选择的班级为准，自动匹配该班级的学员姓名'],
-        ['4. 如学员姓名在当前班级不存在，该行会被跳过'],
-        ['5. 如日期对应的课次不存在，会自动新建课次'],
+        ['1. 必须先在系统中选择班级，再导入该班考勤'],
+        ['2. 优先按第2行日期匹配课次；日期不存在会自动新建课次'],
+        ['3. 如果日期为空，则按当前班级已有课次顺序匹配第N次，不会自动新建'],
+        ['4. 学员姓名只在当前班级在读学员中匹配，姓名空格会自动忽略'],
+        ['5. 如果已有同学同课次记录，预检查中会提示重复，可选择保留或替换'],
     ]);
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '考勤导入模板.xlsx');
@@ -572,45 +577,147 @@ function importAttendance(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            let imported = 0, replaced = 0, skipped = 0, failed = 0;
-            const errors = [];
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row[0] || !row[1]) { skipped++; continue; }
-
-                const date = normalizeExcelDate(row[0]);
-                if (!date) { errors.push(`第${i+1}行: 日期无法识别`); failed++; continue; }
-
-                const studentName = String(row[1]).trim();
-                const statusRaw = row[2];
-                const status = statusRaw === 1 || statusRaw === '1' ? 1 : statusRaw === 0 || statusRaw === '0' ? 0 : null;
-
-                if (status === null) { errors.push(`第${i+1}行: 考勤状态无效`); failed++; continue; }
-
-                const student = data.students.find(s => s.name === studentName && s.classId === currentAttendanceClassId);
-                if (!student) { errors.push(`第${i+1}行: 学员"${studentName}"不存在于本班`); failed++; continue; }
-
-                let session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
-                if (!session) {
-                    session = { id: generateId(), classId: currentAttendanceClassId, date: date, records: {} };
-                    data.attendance.push(session);
-                } else {
-                    replaced++;
-                }
-                session.records[student.id] = status;
-                imported++;
-            }
-
-            saveData();
-            loadAttendanceClass(currentAttendanceClassId);
-            const total = rows.length - 1;
-            const msg = `本次读取 ${total} 条，成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
-            showToast(msg);
-            if (errors.length > 0) console.log('导入错误:', errors);
+            const checkResult = precheckAttendanceImport(rows);
+            showImportPreCheck({
+                title: '考勤导入预览',
+                checkResult,
+                actionLabel: '导入考勤',
+                duplicateStrategy: 'skip',
+                onConfirm: (strategies) => executeAttendanceImport(checkResult, strategies)
+            });
         } catch (err) {
             showToast('导入失败：' + err.message);
         }
     };
     reader.readAsBinaryString(file);
     event.target.value = '';
+}
+
+function parseAttendanceStatus(value) {
+    if (value === '' || value == null) return null;
+    const text = String(value).trim();
+    if (text === '') return null;
+    if (text === '1' || text === '出勤' || text === '到课') return 1;
+    if (text === '0' || text === '请假' || text === '缺勤') return 0;
+    return undefined;
+}
+
+function precheckAttendanceImport(rows) {
+    const validRows = [];
+    const errors = [];
+    const warnings = [];
+    const existingSessions = data.attendance
+        .filter(a => a.classId === currentAttendanceClassId)
+        .sort((a, b) => a.date.localeCompare(b.date));
+    const students = data.students.filter(s => s.classId === currentAttendanceClassId && s.status === 'active');
+    const seen = new Set();
+    let skipped = 0;
+    let failed = 0;
+    let readCount = 0;
+
+    if (rows.length < 3) {
+        return { total: 0, success: 0, dup: 0, fail: 1, skip: 0, errors: [{ row: 1, msg: '考勤宽表至少需要课次行、日期行和学员行' }], warnings: [], validRows: [] };
+    }
+
+    const headers = rows[0] || [];
+    const dates = rows[1] || [];
+    const columnMeta = [];
+    for (let col = 1; col < headers.length; col++) {
+        const label = String(headers[col] || '').trim();
+        if (!label || /出勤|请假|合计|次数/.test(label)) continue;
+        const date = normalizeExcelDate(dates[col]);
+        const existingByDate = date ? existingSessions.find(s => s.date === date) : null;
+        const existingByIndex = !date ? existingSessions[col - 1] : null;
+        if (!date && !existingByIndex) {
+            warnings.push({ row: 2, msg: `${label} 未填写日期，且系统内没有对应第${col}次课，该列有记录时会失败` });
+        }
+        columnMeta.push({ col, label, date, existingSession: existingByDate || existingByIndex || null });
+    }
+
+    for (let rowIdx = 2; rowIdx < rows.length; rowIdx++) {
+        const row = rows[rowIdx] || [];
+        const rowNum = rowIdx + 1;
+        if (!row[0]) { skipped++; continue; }
+
+        const studentName = String(row[0]).trim();
+        const matchedStudents = students.filter(s => normalizeNameForMatch(s.name) === normalizeNameForMatch(studentName));
+        if (matchedStudents.length === 0) {
+            errors.push({ row: rowNum, msg: `学员"${studentName}"不存在于当前班级在读学员` });
+            failed++;
+            continue;
+        }
+        if (matchedStudents.length > 1) {
+            const names = matchedStudents.map(s => `"${s.name}"`).join('、');
+            errors.push({ row: rowNum, msg: `学员"${studentName}"匹配到多个（${names}），请先改名区分` });
+            failed++;
+            continue;
+        }
+        const student = matchedStudents[0];
+
+        for (const meta of columnMeta) {
+            const status = parseAttendanceStatus(row[meta.col]);
+            if (status === null) continue;
+            readCount++;
+            if (status === undefined) {
+                errors.push({ row: rowNum, msg: `${meta.label} 考勤状态"${row[meta.col]}"无效` });
+                failed++;
+                continue;
+            }
+            if (!meta.date && !meta.existingSession) {
+                errors.push({ row: rowNum, msg: `${meta.label} 未填写日期，且系统内没有对应课次` });
+                failed++;
+                continue;
+            }
+
+            const sessionKey = meta.date || meta.existingSession.date;
+            const key = `${student.id}|${sessionKey}`;
+            if (seen.has(key)) {
+                errors.push({ row: rowNum, msg: `${student.name} 在 ${sessionKey} 重复出现` });
+                failed++;
+                continue;
+            }
+            seen.add(key);
+
+            const isDupe = !!(meta.existingSession && meta.existingSession.records && meta.existingSession.records[student.id] !== undefined);
+            validRows.push({ student, status, date: sessionKey, sessionName: meta.label, existingSession: meta.existingSession, isDupe });
+        }
+    }
+
+    const dup = validRows.filter(v => v.isDupe).length;
+    return { total: readCount, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, validRows };
+}
+
+function executeAttendanceImport(checkResult, strategies = {}) {
+    const dupeStrategy = strategies.duplicateStrategy || 'skip';
+    let imported = 0;
+    let replaced = 0;
+    let skipped = checkResult.skip || 0;
+
+    for (const v of checkResult.validRows) {
+        if (v.isDupe && dupeStrategy === 'skip') { skipped++; continue; }
+
+        let session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === v.date);
+        if (!session) {
+            session = {
+                id: generateId(),
+                classId: currentAttendanceClassId,
+                date: v.date,
+                sessionName: v.sessionName,
+                records: {}
+            };
+            data.attendance.push(session);
+        } else if (!session.sessionName && v.sessionName) {
+            session.sessionName = v.sessionName;
+        }
+
+        if (session.records && session.records[v.student.id] !== undefined) replaced++;
+        if (!session.records) session.records = {};
+        session.records[v.student.id] = v.status;
+        imported++;
+    }
+
+    saveData();
+    loadAttendanceClass(currentAttendanceClassId);
+    const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+    showToast(msg);
 }

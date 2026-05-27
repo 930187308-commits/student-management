@@ -365,63 +365,74 @@ function importClasses(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            const statusMap = { 'active': 'active', '正常': 'active', 'forming': 'forming', '组班中': 'forming', 'finished': 'finished', '已结课': 'finished' };
+            const checkResult = precheckClassImport(rows);
+            showImportPreCheck({
+                title: '班级导入预览',
+                checkResult,
+                actionLabel: '导入班级',
+                duplicateStrategy: 'skip',
+                onConfirm: (strategies) => executeClassImport(checkResult, strategies)
+            });
+        } catch (err) {
+            showToast('导入失败：' + err.message);
+        }
+    };
+    reader.readAsBinaryString(file);
+    event.target.value = '';
+}
 
-            const validRows = [];
-            let skipped = 0, failed = 0;
-            const errors = [];
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row[0]) { skipped++; continue; }
+function precheckClassImport(rows) {
+    const statusMap = { 'active': 'active', '正常': 'active', 'forming': 'forming', '组班中': 'forming', 'finished': 'finished', '已结课': 'finished' };
+    const validRows = [];
+    const errors = [];
+    let skipped = 0;
+    let failed = 0;
 
-                const row7 = row[7];
-                const isNewFormat = row7 !== undefined && row7 !== null && String(row7).trim() !== '' && !isNaN(Number(row7));
-                const name = String(row[0]).trim();
-                const schedule = String(row[3] || '').trim();
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 1;
+        if (!row[0]) { skipped++; continue; }
 
-                const rawStatus = String(row[6] || '').trim().toLowerCase();
-                if (rawStatus && !statusMap[rawStatus]) {
-                    errors.push(`第${i+1}行: 状态"${rawStatus}"无法识别`); failed++; continue;
-                }
+        const row7 = row[7];
+        const isNewFormat = row7 !== undefined && row7 !== null && String(row7).trim() !== '' && !isNaN(Number(row7));
+        const name = String(row[0]).trim();
+        const schedule = String(row[3] || '').trim();
+        const rawStatus = String(row[6] || '').trim().toLowerCase();
+        if (rawStatus && !statusMap[rawStatus]) {
+            errors.push({ row: rowNum, msg: `状态"${rawStatus}"无法识别` });
+            failed++;
+            continue;
+        }
 
-                const isDupe = data.classes.some(c => c.name === name && c.schedule === schedule);
+        const isDupe = data.classes.some(c =>
+            normalizeTextForMatch(c.name) === normalizeTextForMatch(name) &&
+            normalizeTextForMatch(c.schedule) === normalizeTextForMatch(schedule)
+        );
 
-                validRows.push({ row, isNewFormat, name, schedule, status: statusMap[rawStatus] || 'active', isDupe });
-            }
+        validRows.push({ row, isNewFormat, name, schedule, status: statusMap[rawStatus] || 'active', isDupe });
+    }
 
-            const total = rows.length - 1;
-            const hasDupe = validRows.some(v => v.isDupe);
-            let dupeStrategy = 'skip';
-            if (hasDupe) {
-                dupeStrategy = askDuplicateStrategy('发现重复班级');
-                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
-            }
+    const total = Math.max(rows.length - 1, 0);
+    const dup = validRows.filter(v => v.isDupe).length;
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows };
+}
 
-            let imported = 0, replaced = 0;
-            for (const v of validRows) {
-                if (v.isDupe) {
-                    if (dupeStrategy === 'skip') { skipped++; continue; }
-                    const idx = data.classes.findIndex(c => c.name === v.name && c.schedule === v.schedule);
-                    if (idx !== -1) {
-                        data.classes[idx] = {
-                            id: data.classes[idx].id,
-                            name: v.name,
-                            grade: String(v.row[1] || '初一').trim(),
-                            classType: String(v.row[2] || '基础').trim(),
-                            schedule: v.schedule,
-                            semester: String(v.row[4] || '2025秋季').trim(),
-                            maxStudents: parseInt(v.row[5]) || 10,
-                            status: v.status,
-                            plannedSessions: v.isNewFormat ? parseInt(v.row[7]) : (data.classes[idx].plannedSessions || 16),
-                            summerSchedule: v.isNewFormat ? String(v.row[8] || '').trim() : String(v.row[7] || '').trim()
-                        };
-                        replaced++;
-                        imported++;
-                        continue;
-                    }
-                }
-                data.classes.push({
-                    id: generateId(),
+function executeClassImport(checkResult, strategies = {}) {
+    const dupeStrategy = strategies.duplicateStrategy || 'skip';
+    let imported = 0;
+    let replaced = 0;
+    let skipped = checkResult.skip || 0;
+
+    for (const v of checkResult.validRows) {
+        if (v.isDupe) {
+            if (dupeStrategy === 'skip') { skipped++; continue; }
+            const idx = data.classes.findIndex(c =>
+                normalizeTextForMatch(c.name) === normalizeTextForMatch(v.name) &&
+                normalizeTextForMatch(c.schedule) === normalizeTextForMatch(v.schedule)
+            );
+            if (idx !== -1) {
+                data.classes[idx] = {
+                    id: data.classes[idx].id,
                     name: v.name,
                     grade: String(v.row[1] || '初一').trim(),
                     classType: String(v.row[2] || '基础').trim(),
@@ -429,23 +440,33 @@ function importClasses(event) {
                     semester: String(v.row[4] || '2025秋季').trim(),
                     maxStudents: parseInt(v.row[5]) || 10,
                     status: v.status,
-                    plannedSessions: v.isNewFormat ? parseInt(v.row[7]) : 16,
+                    plannedSessions: v.isNewFormat ? parseInt(v.row[7]) : (data.classes[idx].plannedSessions || 16),
                     summerSchedule: v.isNewFormat ? String(v.row[8] || '').trim() : String(v.row[7] || '').trim()
-                });
+                };
+                replaced++;
                 imported++;
+                continue;
             }
-
-            saveData();
-            render();
-            const msg = `本次读取 ${total} 条，成功 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
-            showToast(msg);
-            if (errors.length > 0) console.log('导入错误:', errors);
-        } catch (err) {
-            showToast('导入失败：' + err.message);
         }
-    };
-    reader.readAsBinaryString(file);
-    event.target.value = '';
+        data.classes.push({
+            id: generateId(),
+            name: v.name,
+            grade: String(v.row[1] || '初一').trim(),
+            classType: String(v.row[2] || '基础').trim(),
+            schedule: v.schedule,
+            semester: String(v.row[4] || '2025秋季').trim(),
+            maxStudents: parseInt(v.row[5]) || 10,
+            status: v.status,
+            plannedSessions: v.isNewFormat ? parseInt(v.row[7]) : 16,
+            summerSchedule: v.isNewFormat ? String(v.row[8] || '').trim() : String(v.row[7] || '').trim()
+        });
+        imported++;
+    }
+
+    saveData();
+    render();
+    const msg = `成功导入 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+    showToast(msg);
 }
 
 function openClassMemberManager(classId) {
@@ -602,4 +623,3 @@ function removeProspectFromClass(prospectId, classId) {
     openClassMemberManager(classId);
     showToast('已移出组班');
 }
-

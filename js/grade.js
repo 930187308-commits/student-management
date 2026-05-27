@@ -205,100 +205,110 @@ function importGrades(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            const validRows = [];
-            let skipped = 0, failed = 0;
-            const errors = [];
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row[0] || !row[1] || row[3] === undefined) { skipped++; continue; }
-
-                const studentName = String(row[0]).trim();
-                const student = data.students.find(s => s.name === studentName);
-                if (!student) { errors.push(`第${i+1}行: 学员"${studentName}"不存在`); failed++; continue; }
-
-                const testDate = normalizeExcelDate(row[2]);
-                if (!testDate) { errors.push(`第${i+1}行: 日期无法识别`); failed++; continue; }
-
-                const testName = String(row[1]).trim();
-
-                const isDupe = data.grades.some(g =>
-                    g.studentId === student.id &&
-                    g.testName === testName &&
-                    g.testDate === testDate
-                );
-
-                validRows.push({ row, student, testDate, testName, isDupe });
-            }
-
-            const hasDupe = validRows.some(v => v.isDupe);
-            let dupeStrategy = 'skip';
-            if (hasDupe) {
-                dupeStrategy = askDuplicateStrategy('发现重复记录');
-                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
-            }
-
-            let imported = 0, replaced = 0;
-            for (const v of validRows) {
-                if (v.isDupe) {
-                    if (dupeStrategy === 'skip') { skipped++; continue; }
-                    const idx = data.grades.findIndex(g =>
-                        g.studentId === v.student.id &&
-                        g.testName === v.testName &&
-                        g.testDate === v.testDate
-                    );
-                    if (idx !== -1) {
-                        const rankingRaw = v.row[5];
-                        const ranking = rankingRaw === undefined || rankingRaw === '' || rankingRaw === null ? null : parseInt(rankingRaw, 10);
-                        data.grades[idx] = {
-                            id: data.grades[idx].id,
-                            studentId: v.student.id,
-                            studentName: v.student.name,
-                            classId: v.student.classId,
-                            testName: v.testName,
-                            testDate: v.testDate,
-                            score: parseInt(v.row[3]) || 0,
-                            fullScore: parseInt(v.row[4]) || 100,
-                            ranking: ranking,
-                            examType: String(v.row[6] || '校外成绩').trim() === '校内' ? 'school' : 'external',
-                            weakPoints: String(v.row[7] || '').trim(),
-                            remark: String(v.row[8] || '').trim()
-                        };
-                        replaced++;
-                        imported++;
-                        continue;
-                    }
-                }
-                const rankingRaw = v.row[5];
-                const ranking = rankingRaw === undefined || rankingRaw === '' || rankingRaw === null ? null : parseInt(rankingRaw, 10);
-                data.grades.push({
-                    id: generateId(),
-                    studentId: v.student.id,
-                    studentName: v.student.name,
-                    classId: v.student.classId,
-                    testName: v.testName,
-                    testDate: v.testDate,
-                    score: parseInt(v.row[3]) || 0,
-                    fullScore: parseInt(v.row[4]) || 100,
-                    ranking: ranking,
-                    examType: String(v.row[6] || '校外成绩').trim() === '校内' ? 'school' : 'external',
-                    weakPoints: String(v.row[7] || '').trim(),
-                    remark: String(v.row[8] || '').trim()
-                });
-                imported++;
-            }
-
-            saveData();
-            render();
-            const total = rows.length - 1;
-            const msg = `本次读取 ${total} 条，成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
-            showToast(msg);
-            if (errors.length > 0) console.log('导入错误:', errors);
+            const checkResult = precheckGradeImport(rows);
+            showImportPreCheck({
+                title: '成绩导入预览',
+                checkResult,
+                actionLabel: '导入成绩',
+                duplicateStrategy: 'skip',
+                onConfirm: (strategies) => executeGradeImport(checkResult, strategies)
+            });
         } catch (err) {
             showToast('导入失败：' + err.message);
         }
     };
     reader.readAsBinaryString(file);
     event.target.value = '';
+}
+
+function precheckGradeImport(rows) {
+    const validRows = [];
+    const errors = [];
+    let skipped = 0;
+    let failed = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 1;
+        if (!row[0] || !row[1] || row[3] === undefined) { skipped++; continue; }
+
+        const studentName = String(row[0]).trim();
+        const matchedStudents = data.students.filter(s => normalizeNameForMatch(s.name) === normalizeNameForMatch(studentName));
+        if (matchedStudents.length === 0) { errors.push({ row: rowNum, msg: `学员"${studentName}"不存在` }); failed++; continue; }
+        if (matchedStudents.length > 1) {
+            const names = matchedStudents.map(s => `"${s.name}"`).join('、');
+            errors.push({ row: rowNum, msg: `学员"${studentName}"匹配到多个（${names}），请先改名区分` });
+            failed++;
+            continue;
+        }
+
+        const testDate = normalizeExcelDate(row[2]);
+        if (!testDate) { errors.push({ row: rowNum, msg: '日期无法识别' }); failed++; continue; }
+
+        const student = matchedStudents[0];
+        const testName = String(row[1]).trim();
+        const isDupe = data.grades.some(g =>
+            g.studentId === student.id &&
+            g.testName === testName &&
+            g.testDate === testDate
+        );
+
+        validRows.push({ row, student, testDate, testName, isDupe });
+    }
+
+    const total = Math.max(rows.length - 1, 0);
+    const dup = validRows.filter(v => v.isDupe).length;
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, validRows };
+}
+
+function buildGradeFromImportRow(v, id) {
+    const rankingRaw = v.row[5];
+    const ranking = rankingRaw === undefined || rankingRaw === '' || rankingRaw === null ? null : parseInt(rankingRaw, 10);
+    return {
+        id,
+        studentId: v.student.id,
+        studentName: v.student.name,
+        classId: v.student.classId,
+        testName: v.testName,
+        testDate: v.testDate,
+        score: parseInt(v.row[3]) || 0,
+        fullScore: parseInt(v.row[4]) || 100,
+        ranking,
+        examType: String(v.row[6] || '校外成绩').trim() === '校内' ? 'school' : 'external',
+        weakPoints: String(v.row[7] || '').trim(),
+        remark: String(v.row[8] || '').trim()
+    };
+}
+
+function executeGradeImport(checkResult, strategies = {}) {
+    const dupeStrategy = strategies.duplicateStrategy || 'skip';
+    let imported = 0;
+    let replaced = 0;
+    let skipped = checkResult.skip || 0;
+
+    for (const v of checkResult.validRows) {
+        if (v.isDupe) {
+            if (dupeStrategy === 'skip') { skipped++; continue; }
+            const idx = data.grades.findIndex(g =>
+                g.studentId === v.student.id &&
+                g.testName === v.testName &&
+                g.testDate === v.testDate
+            );
+            if (idx !== -1) {
+                data.grades[idx] = buildGradeFromImportRow(v, data.grades[idx].id);
+                replaced++;
+                imported++;
+                continue;
+            }
+        }
+        data.grades.push(buildGradeFromImportRow(v, generateId()));
+        imported++;
+    }
+
+    saveData();
+    render();
+    const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+    showToast(msg);
 }
 
 function exportGrades() {
