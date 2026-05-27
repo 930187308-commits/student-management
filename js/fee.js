@@ -207,7 +207,6 @@ function importFees(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            // First pass: collect valid rows and check for duplicates
             const validRows = [];
             let skipped = 0, failed = 0;
             const errors = [];
@@ -220,16 +219,25 @@ function importFees(event) {
                 if (!student) { errors.push(`第${i+1}行: 学员"${studentName}"不存在`); failed++; continue; }
 
                 const amount = parseFloat(row[1]);
-                if (isNaN(amount)) { skipped++; continue; }
+                if (isNaN(amount)) { errors.push(`第${i+1}行: 金额无效`); failed++; continue; }
 
                 const paymentDateRaw = row[4];
                 let paymentDate = paymentDateRaw ? normalizeExcelDate(paymentDateRaw) : '';
                 if (!paymentDate) {
                     if (paymentDateRaw) { errors.push(`第${i+1}行: 缴费日期无法识别`); failed++; continue; }
                 }
-                const packageName = String(row[5] || '').trim();
 
-                // Check for duplicate
+                const statusRaw = String(row[7] || '').trim().toLowerCase();
+                let status = 'paid';
+                if (statusRaw === '') {
+                    status = 'paid';
+                } else if (statusRaw === '已缴' || statusRaw === 'paid' || statusRaw === '欠费' || statusRaw === 'pending') {
+                    status = (statusRaw === '欠费' || statusRaw === 'pending') ? 'pending' : 'paid';
+                } else {
+                    errors.push(`第${i+1}行: 状态"${statusRaw}"无法识别`); failed++; continue;
+                }
+
+                const packageName = String(row[5] || '').trim();
                 const isDupe = data.fees.some(f =>
                     f.studentId === student.id &&
                     f.paymentDate === paymentDate &&
@@ -237,22 +245,21 @@ function importFees(event) {
                     f.package === packageName
                 );
 
-                validRows.push({ row, student, amount, paymentDate, packageName, isDupe });
+                validRows.push({ row, student, amount, paymentDate, packageName, status, isDupe });
             }
 
-            // Ask user about duplicates if any
+            const total = rows.length - 1;
             const hasDupe = validRows.some(v => v.isDupe);
-            let dupeStrategy = 'skip'; // 'skip' | 'replace'
+            let dupeStrategy = 'skip';
             if (hasDupe) {
-                const choice = confirm('发现重复记录：\n\n- 确定：保留现有记录，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
-                dupeStrategy = choice ? 'skip' : 'replace';
+                dupeStrategy = askDuplicateStrategy('发现重复记录');
+                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
             }
 
             let imported = 0, replaced = 0;
             for (const v of validRows) {
                 if (v.isDupe) {
                     if (dupeStrategy === 'skip') { skipped++; continue; }
-                    // replace: find and update existing
                     const idx = data.fees.findIndex(f =>
                         f.studentId === v.student.id &&
                         f.paymentDate === v.paymentDate &&
@@ -270,7 +277,7 @@ function importFees(event) {
                             paymentDate: v.paymentDate,
                             package: v.packageName,
                             paymentMethod: String(v.row[6] || '').trim(),
-                            status: (String(v.row[7] || '').trim().toLowerCase() === '欠费' || String(v.row[7] || '').trim().toLowerCase() === 'pending') ? 'pending' : 'paid',
+                            status: v.status,
                             remark: String(v.row[8] || '').trim()
                         };
                         replaced++;
@@ -288,7 +295,7 @@ function importFees(event) {
                     paymentDate: v.paymentDate,
                     package: v.packageName,
                     paymentMethod: String(v.row[6] || '').trim(),
-                    status: (String(v.row[7] || '').trim().toLowerCase() === '欠费' || String(v.row[7] || '').trim().toLowerCase() === 'pending') ? 'pending' : 'paid',
+                    status: v.status,
                     remark: String(v.row[8] || '').trim()
                 });
                 imported++;
@@ -296,7 +303,7 @@ function importFees(event) {
 
             saveData();
             render();
-            const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            const msg = `本次读取 ${total} 条，成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
             showToast(msg);
             if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {

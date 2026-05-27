@@ -645,6 +645,15 @@ function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
+// 导入重复记录三选一策略
+// 返回 'skip' | 'replace' | 'cancel'
+function askDuplicateStrategy(message) {
+    const choice = prompt(`${message}\n请输入：1=保留现有并跳过重复，2=替换已有重复，3=取消本次导入`, '1');
+    if (choice === '1') return 'skip';
+    if (choice === '2') return 'replace';
+    return 'cancel';
+}
+
 // Toast提示
 function showToast(msg) {
     const toast = document.getElementById('toast');

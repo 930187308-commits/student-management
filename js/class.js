@@ -368,34 +368,41 @@ function importClasses(event) {
             const statusMap = { 'active': 'active', '正常': 'active', 'forming': 'forming', '组班中': 'forming', 'finished': 'finished', '已结课': 'finished' };
 
             const validRows = [];
+            let skipped = 0, failed = 0;
+            const errors = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row[0]) continue;
+                if (!row[0]) { skipped++; continue; }
 
                 const row7 = row[7];
                 const isNewFormat = row7 !== undefined && row7 !== null && String(row7).trim() !== '' && !isNaN(Number(row7));
                 const name = String(row[0]).trim();
                 const schedule = String(row[3] || '').trim();
+
+                const rawStatus = String(row[6] || '').trim().toLowerCase();
+                if (rawStatus && !statusMap[rawStatus]) {
+                    errors.push(`第${i+1}行: 状态"${rawStatus}"无法识别`); failed++; continue;
+                }
+
                 const isDupe = data.classes.some(c => c.name === name && c.schedule === schedule);
 
-                validRows.push({ row, isNewFormat, name, schedule, isDupe });
+                validRows.push({ row, isNewFormat, name, schedule, status: statusMap[rawStatus] || 'active', isDupe });
             }
 
+            const total = rows.length - 1;
             const hasDupe = validRows.some(v => v.isDupe);
             let dupeStrategy = 'skip';
             if (hasDupe) {
-                const choice = confirm('发现重复班级：\n\n- 确定：保留现有班级，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
-                dupeStrategy = choice ? 'skip' : 'replace';
+                dupeStrategy = askDuplicateStrategy('发现重复班级');
+                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
             }
 
             let imported = 0, replaced = 0;
             for (const v of validRows) {
                 if (v.isDupe) {
-                    if (dupeStrategy === 'skip') continue;
+                    if (dupeStrategy === 'skip') { skipped++; continue; }
                     const idx = data.classes.findIndex(c => c.name === v.name && c.schedule === v.schedule);
                     if (idx !== -1) {
-                        const rawStatus = String(v.row[6] || 'active').trim().toLowerCase();
-                        const status = statusMap[rawStatus] || 'active';
                         data.classes[idx] = {
                             id: data.classes[idx].id,
                             name: v.name,
@@ -404,7 +411,7 @@ function importClasses(event) {
                             schedule: v.schedule,
                             semester: String(v.row[4] || '2025秋季').trim(),
                             maxStudents: parseInt(v.row[5]) || 10,
-                            status: status,
+                            status: v.status,
                             plannedSessions: v.isNewFormat ? parseInt(v.row[7]) : (data.classes[idx].plannedSessions || 16),
                             summerSchedule: v.isNewFormat ? String(v.row[8] || '').trim() : String(v.row[7] || '').trim()
                         };
@@ -413,8 +420,6 @@ function importClasses(event) {
                         continue;
                     }
                 }
-                const rawStatus = String(v.row[6] || 'active').trim().toLowerCase();
-                const status = statusMap[rawStatus] || 'active';
                 data.classes.push({
                     id: generateId(),
                     name: v.name,
@@ -423,7 +428,7 @@ function importClasses(event) {
                     schedule: v.schedule,
                     semester: String(v.row[4] || '2025秋季').trim(),
                     maxStudents: parseInt(v.row[5]) || 10,
-                    status: status,
+                    status: v.status,
                     plannedSessions: v.isNewFormat ? parseInt(v.row[7]) : 16,
                     summerSchedule: v.isNewFormat ? String(v.row[8] || '').trim() : String(v.row[7] || '').trim()
                 });
@@ -432,7 +437,9 @@ function importClasses(event) {
 
             saveData();
             render();
-            showToast(`导入完成：成功 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}`);
+            const msg = `本次读取 ${total} 条，成功 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            showToast(msg);
+            if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {
             showToast('导入失败：' + err.message);
         }

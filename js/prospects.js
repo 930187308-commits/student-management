@@ -311,23 +311,41 @@ function importProspects(event) {
                 const phone = String(row[hasNewFormat ? 2 : 1] || '').trim();
                 const wechat = hasNewFormat ? String(row[3] || '').trim() : '';
                 const trialDate = String(row[hasNewFormat ? 6 : 4] || '').trim();
+
+                const trialStatusRaw = String(row[hasNewFormat ? 7 : 5] || '').trim();
+                const trialStatus = statusMap[trialStatusRaw];
+                if (trialStatusRaw && !trialStatus) {
+                    errors.push(`第${i+1}行: 试课状态"${trialStatusRaw}"无法识别`);
+                    failed++;
+                    continue;
+                }
+
+                const dealStatusRaw = String(row[hasNewFormat ? 8 : 6] || '').trim();
+                if (dealStatusRaw && !dealStatusMap[dealStatusRaw]) {
+                    errors.push(`第${i+1}行: 成交状态"${dealStatusRaw}"无法识别`);
+                    failed++;
+                    continue;
+                }
+
                 const isDupe = data.prospects.some(p =>
-                    p.name === name && (p.phone === phone || p.wechat === wechat) && phone
+                    p.name === name && (p.phone === phone || p.wechat === wechat) && (phone || wechat)
                 );
-                validRows.push({ row, hasNewFormat, name, phone, wechat, trialDate, isDupe });
+
+                validRows.push({ row, hasNewFormat, name, phone, wechat, trialDate, trialStatus: trialStatus || 'pending', dealStatus: dealStatusMap[dealStatusRaw] || '', isDupe });
             }
 
+            const total = rows.length - 1;
             const hasDupe = validRows.some(v => v.isDupe);
             let dupeStrategy = 'skip';
             if (hasDupe) {
-                const choice = confirm('发现重复记录：\n\n- 确定：保留现有记录，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
-                dupeStrategy = choice ? 'skip' : 'replace';
+                dupeStrategy = askDuplicateStrategy('发现重复记录');
+                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
             }
 
             for (const v of validRows) {
                 if (v.isDupe) {
                     if (dupeStrategy === 'skip') { skipped++; continue; }
-                    const idx = data.prospects.findIndex(p => p.name === v.name && (p.phone === v.phone || p.wechat === v.wechat) && v.phone);
+                    const idx = data.prospects.findIndex(p => p.name === v.name && (p.phone === v.phone || p.wechat === v.wechat) && (v.phone || v.wechat));
                     if (idx !== -1) {
                         data.prospects[idx] = {
                             id: data.prospects[idx].id,
@@ -338,8 +356,8 @@ function importProspects(event) {
                             source: String(v.row[v.hasNewFormat ? 4 : 2] || '').trim(),
                             intent: String(v.row[v.hasNewFormat ? 5 : 3] || '').trim(),
                             trialDate: v.trialDate,
-                            trialStatus: statusMap[String(v.row[v.hasNewFormat ? 7 : 5] || '').trim()] || 'pending',
-                            dealStatus: dealStatusMap[String(v.row[v.hasNewFormat ? 8 : 6] || '').trim()] || '',
+                            trialStatus: v.trialStatus,
+                            dealStatus: v.dealStatus,
                             remark: String(v.row[v.hasNewFormat ? 9 : 7] || '').trim(),
                             classId: data.prospects[idx].classId || '',
                             createDate: data.prospects[idx].createDate || new Date().toISOString().split('T')[0]
@@ -358,8 +376,8 @@ function importProspects(event) {
                     source: String(v.row[v.hasNewFormat ? 4 : 2] || '').trim(),
                     intent: String(v.row[v.hasNewFormat ? 5 : 3] || '').trim(),
                     trialDate: v.trialDate,
-                    trialStatus: statusMap[String(v.row[v.hasNewFormat ? 7 : 5] || '').trim()] || 'pending',
-                    dealStatus: dealStatusMap[String(v.row[v.hasNewFormat ? 8 : 6] || '').trim()] || '',
+                    trialStatus: v.trialStatus,
+                    dealStatus: v.dealStatus,
                     remark: String(v.row[v.hasNewFormat ? 9 : 7] || '').trim(),
                     classId: '',
                     createDate: new Date().toISOString().split('T')[0]
@@ -368,7 +386,7 @@ function importProspects(event) {
             }
             saveData();
             render();
-            const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            const msg = `本次读取 ${total} 条，成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
             showToast(msg);
             if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {

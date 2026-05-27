@@ -427,7 +427,8 @@ function importStudents(event) {
             const statusMap = { '在读': 'active', 'active': 'active', '停课': 'inactive', 'inactive': 'inactive', '待续费': 'renewalPending', 'renewalpending': 'renewalPending', '已退费': 'withdrawn', 'withdrawn': 'withdrawn', '已毕业': 'graduated', 'graduated': 'graduated' };
 
             const validRows = [];
-            let skipped = 0;
+            let skipped = 0, failed = 0;
+            const errors = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row[0]) { skipped++; continue; }
@@ -436,16 +437,23 @@ function importStudents(event) {
                 const cls = data.classes.find(c => c.name === className);
                 const name = String(row[0]).trim();
                 const phone = String(row[6] || '').trim();
+
+                const rawStatus = String(row[8] || '').trim().toLowerCase();
+                if (rawStatus && !statusMap[rawStatus]) {
+                    errors.push(`第${i+1}行: 状态"${rawStatus}"无法识别`); failed++; continue;
+                }
+
                 const isDupe = data.students.some(s => s.name === name && (phone ? s.phone === phone : true));
 
-                validRows.push({ row, cls, name, phone, isDupe });
+                validRows.push({ row, cls, name, phone, rawStatus, isDupe });
             }
 
+            const total = rows.length - 1;
             const hasDupe = validRows.some(v => v.isDupe);
             let dupeStrategy = 'skip';
             if (hasDupe) {
-                const choice = confirm('发现重复学员：\n\n- 确定：保留现有记录，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
-                dupeStrategy = choice ? 'skip' : 'replace';
+                dupeStrategy = askDuplicateStrategy('发现重复学员');
+                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
             }
 
             let imported = 0, replaced = 0;
@@ -454,8 +462,7 @@ function importStudents(event) {
                     if (dupeStrategy === 'skip') { skipped++; continue; }
                     const idx = data.students.findIndex(s => s.name === v.name && (v.phone ? s.phone === v.phone : true));
                     if (idx !== -1) {
-                        const rawStatus = String(v.row[8] || 'active').trim().toLowerCase();
-                        const status = statusMap[rawStatus] || 'active';
+                        const status = statusMap[v.rawStatus] || 'active';
                         data.students[idx] = {
                             id: data.students[idx].id,
                             name: v.name,
@@ -476,8 +483,7 @@ function importStudents(event) {
                         continue;
                     }
                 }
-                const rawStatus = String(v.row[8] || 'active').trim().toLowerCase();
-                const status = statusMap[rawStatus] || 'active';
+                const status = statusMap[v.rawStatus] || 'active';
                 data.students.push({
                     id: generateId(),
                     name: v.name,
@@ -497,7 +503,7 @@ function importStudents(event) {
 
             saveData();
             render();
-            const msg = `导入完成：成功 ${imported} 名${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 行` : ''}`;
+            const msg = `本次读取 ${total} 条，成功 ${imported} 名${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
             showToast(msg);
         } catch (err) {
             showToast('导入失败：' + err.message);

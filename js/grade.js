@@ -233,8 +233,8 @@ function importGrades(event) {
             const hasDupe = validRows.some(v => v.isDupe);
             let dupeStrategy = 'skip';
             if (hasDupe) {
-                const choice = confirm('发现重复记录：\n\n- 确定：保留现有记录，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
-                dupeStrategy = choice ? 'skip' : 'replace';
+                dupeStrategy = askDuplicateStrategy('发现重复记录');
+                if (dupeStrategy === 'cancel') { showToast('已取消导入'); return; }
             }
 
             let imported = 0, replaced = 0;
@@ -289,7 +289,8 @@ function importGrades(event) {
 
             saveData();
             render();
-            const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            const total = rows.length - 1;
+            const msg = `本次读取 ${total} 条，成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
             showToast(msg);
             if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {

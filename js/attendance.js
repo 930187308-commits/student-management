@@ -603,7 +603,8 @@ function importAttendance(event) {
 
             saveData();
             loadAttendanceClass(currentAttendanceClassId);
-            const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `（替换 ${replaced} 条）` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            const total = rows.length - 1;
+            const msg = `本次读取 ${total} 条，成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
             showToast(msg);
             if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {
