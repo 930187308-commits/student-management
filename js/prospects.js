@@ -26,6 +26,7 @@ function renderProspects() {
                     <button class="btn btn-secondary btn-sm" onclick="openSourceManager()">渠道管理</button>
                 </div>
             </div>
+            <div id="prospectCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div class="table-wrapper">
                 <table>
                     <thead><tr><th>姓名</th><th>年级</th><th>电话</th><th>来源</th><th>咨询意向</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>所属组班</th><th>录入日期</th><th>操作</th></tr></thead>
@@ -41,12 +42,16 @@ function renderProspects() {
 function renderProspectList() {
     const search = document.getElementById('prospectSearch')?.value?.toLowerCase() || '';
     const statusFilter = document.getElementById('prospectStatusFilter')?.value || '';
-
-    const filtered = (data.prospects || []).filter(p => {
+    const allData = data.prospects || [];
+    const filtered = allData.filter(p => {
         if (search && !p.name.toLowerCase().includes(search) && !(p.phone || '').includes(search) && !(p.wechat || '').includes(search)) return false;
         if (statusFilter && p.trialStatus !== statusFilter) return false;
         return true;
     }).sort((a, b) => (b.createDate || '').localeCompare(a.createDate || ''));
+    const total = allData.length;
+    const current = filtered.length;
+    const countBar = document.getElementById('prospectCountBar');
+    if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
 
     const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
     const sourceMap = {};
@@ -291,26 +296,71 @@ function importProspects(event) {
         try {
             const workbook = XLSX.read(e.target.result, { type: 'binary' });
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
-            let imported = 0, skipped = 0;
-            const statusMap = { '待跟进': 'pending', '已联系': 'contacted', '试课中': 'trial', '组班中': 'forming', '已成交': 'deal', '已流失': 'lost' };
+            let imported = 0, skipped = 0, failed = 0, replaced = 0;
+            const errors = [];
+            const statusMap = { 'pending': 'pending', '待跟进': 'pending', 'contacted': 'contacted', '已联系': 'contacted', 'trial': 'trial', '试课中': 'trial', 'forming': 'forming', '组班中': 'forming', 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
+            const dealStatusMap = { 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
             if (!data.prospects) data.prospects = [];
+
+            const validRows = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row[0]) { skipped++; continue; }
-                // 兼容新旧模板：新模板多 grade(1) 和 wechat(3)
                 const hasNewFormat = row.length > 8;
+                const name = String(row[0] || '').trim();
+                const phone = String(row[hasNewFormat ? 2 : 1] || '').trim();
+                const wechat = hasNewFormat ? String(row[3] || '').trim() : '';
+                const trialDate = String(row[hasNewFormat ? 6 : 4] || '').trim();
+                const isDupe = data.prospects.some(p =>
+                    p.name === name && (p.phone === phone || p.wechat === wechat) && phone
+                );
+                validRows.push({ row, hasNewFormat, name, phone, wechat, trialDate, isDupe });
+            }
+
+            const hasDupe = validRows.some(v => v.isDupe);
+            let dupeStrategy = 'skip';
+            if (hasDupe) {
+                const choice = confirm('发现重复记录：\n\n- 确定：保留现有记录，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
+                dupeStrategy = choice ? 'skip' : 'replace';
+            }
+
+            for (const v of validRows) {
+                if (v.isDupe) {
+                    if (dupeStrategy === 'skip') { skipped++; continue; }
+                    const idx = data.prospects.findIndex(p => p.name === v.name && (p.phone === v.phone || p.wechat === v.wechat) && v.phone);
+                    if (idx !== -1) {
+                        data.prospects[idx] = {
+                            id: data.prospects[idx].id,
+                            name: v.name,
+                            grade: v.hasNewFormat ? String(v.row[1] || '').trim() : '',
+                            phone: v.phone,
+                            wechat: v.wechat,
+                            source: String(v.row[v.hasNewFormat ? 4 : 2] || '').trim(),
+                            intent: String(v.row[v.hasNewFormat ? 5 : 3] || '').trim(),
+                            trialDate: v.trialDate,
+                            trialStatus: statusMap[String(v.row[v.hasNewFormat ? 7 : 5] || '').trim()] || 'pending',
+                            dealStatus: dealStatusMap[String(v.row[v.hasNewFormat ? 8 : 6] || '').trim()] || '',
+                            remark: String(v.row[v.hasNewFormat ? 9 : 7] || '').trim(),
+                            classId: data.prospects[idx].classId || '',
+                            createDate: data.prospects[idx].createDate || new Date().toISOString().split('T')[0]
+                        };
+                        replaced++;
+                        imported++;
+                        continue;
+                    }
+                }
                 data.prospects.push({
                     id: generateId(),
-                    name: String(row[0] || '').trim(),
-                    grade: hasNewFormat ? String(row[1] || '').trim() : '',
-                    phone: String(row[hasNewFormat ? 2 : 1] || '').trim(),
-                    wechat: hasNewFormat ? String(row[3] || '').trim() : '',
-                    source: String(row[hasNewFormat ? 4 : 2] || '').trim(),
-                    intent: String(row[hasNewFormat ? 5 : 3] || '').trim(),
-                    trialDate: String(row[hasNewFormat ? 6 : 4] || '').trim(),
-                    trialStatus: statusMap[String(row[hasNewFormat ? 7 : 5] || '').trim()] || 'pending',
-                    dealStatus: String(row[hasNewFormat ? 8 : 6] || '').trim() === '已成交' ? 'deal' : '',
-                    remark: String(row[hasNewFormat ? 9 : 7] || '').trim(),
+                    name: v.name,
+                    grade: v.hasNewFormat ? String(v.row[1] || '').trim() : '',
+                    phone: v.phone,
+                    wechat: v.wechat,
+                    source: String(v.row[v.hasNewFormat ? 4 : 2] || '').trim(),
+                    intent: String(v.row[v.hasNewFormat ? 5 : 3] || '').trim(),
+                    trialDate: v.trialDate,
+                    trialStatus: statusMap[String(v.row[v.hasNewFormat ? 7 : 5] || '').trim()] || 'pending',
+                    dealStatus: dealStatusMap[String(v.row[v.hasNewFormat ? 8 : 6] || '').trim()] || '',
+                    remark: String(v.row[v.hasNewFormat ? 9 : 7] || '').trim(),
                     classId: '',
                     createDate: new Date().toISOString().split('T')[0]
                 });
@@ -318,7 +368,9 @@ function importProspects(event) {
             }
             saveData();
             render();
-            showToast(`导入完成：成功 ${imported} 条${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`);
+            const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            showToast(msg);
+            if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {
             showToast('导入失败：' + err.message);
         }

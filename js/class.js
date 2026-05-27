@@ -1,6 +1,6 @@
 // ==================== 班级管理 ====================
 
-let expandedClassId = null;
+let expandedClassIds = new Set();
 
 function renderClasses() {
     const container = document.getElementById('tab-classes');
@@ -46,7 +46,7 @@ function renderClasses() {
                                 ? (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length
                                 : data.students.filter(s => s.classId === c.id && s.status === 'active').length;
                             const fillRate = Math.round((count / c.maxStudents) * 100);
-                            const isExpanded = expandedClassId === c.id;
+                            const isExpanded = expandedClassIds.has(c.id);
                             return `
                                 <tr style="background: var(--hover-bg);">
                                     <td style="text-align: center;">
@@ -115,7 +115,11 @@ function renderClasses() {
 }
 
 function toggleClassExpand(classId) {
-    expandedClassId = expandedClassId === classId ? null : classId;
+    if (expandedClassIds.has(classId)) {
+        expandedClassIds.delete(classId);
+    } else {
+        expandedClassIds.add(classId);
+    }
     renderClasses();
 }
 
@@ -334,13 +338,13 @@ function downloadClassTemplate() {
         ['上课时间', '周几几点', '选填', '如：周四 18:00-20:00'],
         ['学期', '学期名称', '选填', '如：2025秋季，默认2025秋季'],
         ['满班人数', '最大人数', '选填', '数字，默认 10'],
-        ['状态', '班级状态', '选填', 'active / forming / finished，默认 active'],
+        ['状态', '班级状态', '选填', 'active（默认正常）/ forming / finished / 正常 / 组班中 / 已结课'],
         ['计划课次', '本学期计划课次', '选填', '数字，默认 16'],
         ['暑假排课', '暑假排课安排', '选填', '如：周一至周五上午'],
         [''],
         ['注意事项'],
         ['1. 日期必须为 yyyy-mm-dd 格式'],
-        ['2. 状态 active=正常，forming=组班中，finished=已结课'],
+        ['2. 状态：active/正常=进行中，forming/组班中=组班中，finished/已结课=已结课，无法识别默认active'],
         ['3. 计划课次用于首页显示计划课次/已进行课次'],
         ['4. 旧模板（无计划课次列）导入时计划课次默认为 16'],
     ]);
@@ -361,34 +365,74 @@ function importClasses(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            let imported = 0;
+            const statusMap = { 'active': 'active', '正常': 'active', 'forming': 'forming', '组班中': 'forming', 'finished': 'finished', '已结课': 'finished' };
+
+            const validRows = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row[0]) continue; // 班级名称必填
+                if (!row[0]) continue;
 
-                // 兼容旧模板：row[7] 是否为数字（计划课次），决定新模板还是旧模板
                 const row7 = row[7];
                 const isNewFormat = row7 !== undefined && row7 !== null && String(row7).trim() !== '' && !isNaN(Number(row7));
+                const name = String(row[0]).trim();
+                const schedule = String(row[3] || '').trim();
+                const isDupe = data.classes.some(c => c.name === name && c.schedule === schedule);
 
-                const classData = {
+                validRows.push({ row, isNewFormat, name, schedule, isDupe });
+            }
+
+            const hasDupe = validRows.some(v => v.isDupe);
+            let dupeStrategy = 'skip';
+            if (hasDupe) {
+                const choice = confirm('发现重复班级：\n\n- 确定：保留现有班级，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
+                dupeStrategy = choice ? 'skip' : 'replace';
+            }
+
+            let imported = 0, replaced = 0;
+            for (const v of validRows) {
+                if (v.isDupe) {
+                    if (dupeStrategy === 'skip') continue;
+                    const idx = data.classes.findIndex(c => c.name === v.name && c.schedule === v.schedule);
+                    if (idx !== -1) {
+                        const rawStatus = String(v.row[6] || 'active').trim().toLowerCase();
+                        const status = statusMap[rawStatus] || 'active';
+                        data.classes[idx] = {
+                            id: data.classes[idx].id,
+                            name: v.name,
+                            grade: String(v.row[1] || '初一').trim(),
+                            classType: String(v.row[2] || '基础').trim(),
+                            schedule: v.schedule,
+                            semester: String(v.row[4] || '2025秋季').trim(),
+                            maxStudents: parseInt(v.row[5]) || 10,
+                            status: status,
+                            plannedSessions: v.isNewFormat ? parseInt(v.row[7]) : (data.classes[idx].plannedSessions || 16),
+                            summerSchedule: v.isNewFormat ? String(v.row[8] || '').trim() : String(v.row[7] || '').trim()
+                        };
+                        replaced++;
+                        imported++;
+                        continue;
+                    }
+                }
+                const rawStatus = String(v.row[6] || 'active').trim().toLowerCase();
+                const status = statusMap[rawStatus] || 'active';
+                data.classes.push({
                     id: generateId(),
-                    name: String(row[0]).trim(),
-                    grade: String(row[1] || '初一').trim(),
-                    classType: String(row[2] || '基础').trim(),
-                    schedule: String(row[3] || '').trim(),
-                    semester: String(row[4] || '2025秋季').trim(),
-                    maxStudents: parseInt(row[5]) || 10,
-                    status: String(row[6] || 'active').trim(),
-                    plannedSessions: isNewFormat ? parseInt(row7) : 16,
-                    summerSchedule: isNewFormat ? String(row[8] || '').trim() : String(row7 || '').trim()
-                };
-                data.classes.push(classData);
+                    name: v.name,
+                    grade: String(v.row[1] || '初一').trim(),
+                    classType: String(v.row[2] || '基础').trim(),
+                    schedule: v.schedule,
+                    semester: String(v.row[4] || '2025秋季').trim(),
+                    maxStudents: parseInt(v.row[5]) || 10,
+                    status: status,
+                    plannedSessions: v.isNewFormat ? parseInt(v.row[7]) : 16,
+                    summerSchedule: v.isNewFormat ? String(v.row[8] || '').trim() : String(v.row[7] || '').trim()
+                });
                 imported++;
             }
 
             saveData();
             render();
-            showToast(`成功导入 ${imported} 个班级`);
+            showToast(`导入完成：成功 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}`);
         } catch (err) {
             showToast('导入失败：' + err.message);
         }
@@ -406,12 +450,15 @@ function openClassMemberManager(classId) {
         const formingProspects = (data.prospects || []).filter(p => p.trialStatus === 'forming');
         const inClass = formingProspects.filter(p => p.classId === classId);
         const notInClass = formingProspects.filter(p => p.classId !== classId);
+        const sameGrade = notInClass.filter(p => p.grade === cls.grade);
+        const otherGrade = notInClass.filter(p => p.grade !== cls.grade);
 
         document.getElementById('modalTitle').textContent = '管理组班成员';
         document.getElementById('modalBody').innerHTML = `
             <div style="margin-bottom: 16px;">
+                <input type="text" id="memberSearchInput" placeholder="搜索意向学员姓名..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 12px;">
                 <div style="font-weight: 600; margin-bottom: 8px;">已在组班 (${inClass.length}人)</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">
                     ${inClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可移出成员</div>' : inClass.map(p => `
                         <span style="padding: 6px 12px; background: #fff3cd; border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                             ${escapeHtml(p.name)}
@@ -420,19 +467,19 @@ function openClassMemberManager(classId) {
                     `).join('')}
                 </div>
             </div>
-            <div>
+            <div id="notInClassSection">
                 <div style="font-weight: 600; margin-bottom: 8px;">可选意向学员 (点击加入组班)</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
-                    ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入成员</div>' : notInClass.map(p => `
-                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">
-                            ${escapeHtml(p.name)}
-                            <span style="color:#27ae60; font-size: 12px;">+</span>
-                        </span>
-                    `).join('')}
+                <div id="memberSameGrade" style="margin-bottom: 12px;">
+                    ${sameGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #27ae60; font-size: 13px;">同年级 (${sameGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${sameGrade.map(p => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">${escapeHtml(p.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : ''}
                 </div>
+                <div id="memberOtherGrade">
+                    ${otherGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #888; font-size: 13px;">其他年级 (${otherGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${otherGrade.map(p => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">${escapeHtml(p.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : ''}
+                </div>
+                ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入成员</div>' : ''}
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
         `;
+        document.getElementById('memberSearchInput').addEventListener('input', (e) => filterClassMemberList(classId, 'forming'));
     } else {
         // 正常班级：从正式学员中拉入/移出，按年级分区
         const inClass = data.students.filter(s => s.classId === classId && s.status === 'active');
@@ -443,8 +490,9 @@ function openClassMemberManager(classId) {
         document.getElementById('modalTitle').textContent = '管理班级成员';
         document.getElementById('modalBody').innerHTML = `
             <div style="margin-bottom: 16px;">
+                <input type="text" id="memberSearchInput" placeholder="搜索学员姓名..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 12px;">
                 <div style="font-weight: 600; margin-bottom: 8px;">班级成员 (${inClass.length}人)</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">
                     ${inClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无成员</div>' : inClass.map(s => `
                         <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                             ${escapeHtml(s.name)}
@@ -453,37 +501,67 @@ function openClassMemberManager(classId) {
                     `).join('')}
                 </div>
             </div>
-            ${sameGrade.length > 0 ? `
-            <div style="margin-bottom: 12px;">
-                <div style="font-weight: 600; margin-bottom: 8px; color: #27ae60;">同年级 (${sameGrade.length}人)</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
-                    ${sameGrade.map(s => `
-                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">
-                            ${escapeHtml(s.name)}
-                            <span style="color:#27ae60; font-size: 12px;">+</span>
-                        </span>
-                    `).join('')}
+            <div id="notInClassSection">
+                <div id="memberSameGrade" style="margin-bottom: 12px;">
+                    ${sameGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #27ae60; font-size: 13px;">同年级 (${sameGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${sameGrade.map(s => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">${escapeHtml(s.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : ''}
                 </div>
-            </div>
-            ` : ''}
-            ${otherGrade.length > 0 ? `
-            <div>
-                <div style="font-weight: 600; margin-bottom: 8px; color: #888;">其他年级 (${otherGrade.length}人)</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto;">
-                    ${otherGrade.map(s => `
-                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">
-                            ${escapeHtml(s.name)}
-                            <span style="color:#27ae60; font-size: 12px;">+</span>
-                        </span>
-                    `).join('')}
+                <div id="memberOtherGrade">
+                    ${otherGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #888; font-size: 13px;">其他年级 (${otherGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${otherGrade.map(s => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">${escapeHtml(s.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : ''}
                 </div>
+                ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入学员</div>' : ''}
             </div>
-            ` : ''}
-            ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入学员</div>' : ''}
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
         `;
+        document.getElementById('memberSearchInput').addEventListener('input', (e) => filterClassMemberList(classId, 'active'));
     }
     document.getElementById('modal').classList.add('show');
+}
+
+function filterClassMemberList(classId, mode) {
+    const search = document.getElementById('memberSearchInput')?.value?.toLowerCase()?.trim() || '';
+    const cls = data.classes.find(c => c.id === classId);
+    const section = document.getElementById('notInClassSection');
+    if (!section) return;
+
+    if (mode === 'forming') {
+        const formingProspects = (data.prospects || []).filter(p => p.trialStatus === 'forming');
+        const notInClass = formingProspects.filter(p => p.classId !== classId);
+        let sameGrade = notInClass.filter(p => p.grade === cls?.grade);
+        let otherGrade = notInClass.filter(p => p.grade !== cls?.grade);
+
+        if (search) {
+            sameGrade = sameGrade.filter(p => p.name.toLowerCase().includes(search));
+            otherGrade = otherGrade.filter(p => p.name.toLowerCase().includes(search));
+        }
+
+        const sameEl = document.getElementById('memberSameGrade');
+        const otherEl = document.getElementById('memberOtherGrade');
+        if (sameEl) {
+            sameEl.innerHTML = sameGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #27ae60; font-size: 13px;">${search ? '符合条件' : '同年级'} (${sameGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${sameGrade.map(p => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">${escapeHtml(p.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : (search ? `<div style="color:#888;font-size:13px;margin-bottom:8px;">无符合条件学员</div>` : '');
+        }
+        if (otherEl) {
+            otherEl.innerHTML = otherGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #888; font-size: 13px;">${search ? '符合条件' : '其他年级'} (${otherGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${otherGrade.map(p => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">${escapeHtml(p.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : '';
+        }
+    } else {
+        const notInClass = data.students.filter(s => s.classId !== classId && s.status === 'active');
+        const cls = data.classes.find(c => c.id === classId);
+        let sameGrade = notInClass.filter(s => s.grade === cls?.grade);
+        let otherGrade = notInClass.filter(s => s.grade !== cls?.grade);
+
+        if (search) {
+            sameGrade = sameGrade.filter(s => s.name.toLowerCase().includes(search));
+            otherGrade = otherGrade.filter(s => s.name.toLowerCase().includes(search));
+        }
+
+        const sameEl = document.getElementById('memberSameGrade');
+        const otherEl = document.getElementById('memberOtherGrade');
+        if (sameEl) {
+            sameEl.innerHTML = sameGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #27ae60; font-size: 13px;">${search ? '符合条件' : '同年级'} (${sameGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${sameGrade.map(s => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">${escapeHtml(s.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : (search ? `<div style="color:#888;font-size:13px;margin-bottom:8px;">无符合条件学员</div>` : '');
+        }
+        if (otherEl) {
+            otherEl.innerHTML = otherGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #888; font-size: 13px;">${search ? '符合条件' : '其他年级'} (${otherGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${otherGrade.map(s => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">${escapeHtml(s.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : '';
+        }
+    }
 }
 
 function addStudentToClass(studentId, classId) {

@@ -19,6 +19,7 @@ function renderCommunications() {
                     <button class="btn btn-primary" onclick="openCommModal()">+ 新增沟通</button>
                 </div>
             </div>
+            <div id="commCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div class="table-wrapper">
                 <table><thead><tr><th>主题</th><th>学员</th><th>日期</th><th>方式</th><th>状态</th><th>沟通对象</th><th>操作</th></tr></thead><tbody id="commTableBody"></tbody></table>
             </div>
@@ -33,11 +34,16 @@ function renderCommunications() {
 function renderCommTable() {
     const search = document.getElementById('commSearch')?.value?.toLowerCase() || '';
     const statusFilter = document.getElementById('commStatusFilter')?.value || '';
-    const filtered = data.communications.filter(c => {
+    const allData = data.communications || [];
+    const filtered = allData.filter(c => {
         if (search && !c.studentName.toLowerCase().includes(search)) return false;
         if (statusFilter && c.status !== statusFilter) return false;
         return true;
     }).sort((a, b) => (b.contactDate || '').localeCompare(a.contactDate || ''));
+    const total = allData.length;
+    const current = filtered.length;
+    const countBar = document.getElementById('commCountBar');
+    if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
     document.getElementById('commTableBody').innerHTML = filtered.map(c => {
         const topic = (data.communicationTopics || []).find(t => t.id === c.topicId);
         const statusBadge = c.status === 'pending' ? 'badge-pending' : 'badge-active';

@@ -398,14 +398,14 @@ function downloadStudentTemplate() {
         ['入班时间', '报名/入班日期', '选填', 'yyyy-mm-dd，如 2025-09-01'],
         ['联系电话', '家长电话', '选填', '如：13800138001'],
         ['紧急联系人', '紧急联系人', '选填', '如：13900139001'],
-        ['状态', '在读状态', '选填', 'active（默认在读）'],
+        ['状态', '在读状态', '选填', 'active（默认在读）/ inactive / renewalPending / withdrawn / graduated / 在读 / 停课 / 待续费 / 已退费 / 已毕业'],
         ['备注', '补充说明', '选填', '如：数学基础扎实'],
         ['就读学校', '就读学校', '选填', '如：XX小学'],
         [''],
         ['注意事项'],
         ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-09-01'],
         ['2. 班级名称如不匹配现有班级，会以"未分班"状态导入'],
-        ['3. 状态字段不区分大小写，建议留空'],
+        ['3. 状态：active/在读=正常在读，inactive/停课，renewalPending/待续费，withdrawn/已退费，graduated/已毕业，无法识别默认active'],
     ]);
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '学员导入模板.xlsx');
@@ -424,36 +424,81 @@ function importStudents(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            let imported = 0, skipped = 0;
+            const statusMap = { '在读': 'active', 'active': 'active', '停课': 'inactive', 'inactive': 'inactive', '待续费': 'renewalPending', 'renewalpending': 'renewalPending', '已退费': 'withdrawn', 'withdrawn': 'withdrawn', '已毕业': 'graduated', 'graduated': 'graduated' };
+
+            const validRows = [];
+            let skipped = 0;
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row[0]) { skipped++; continue; } // 姓名必填
+                if (!row[0]) { skipped++; continue; }
 
-                // 通过班级名称查找班级ID
                 const className = String(row[3] || '').trim();
                 const cls = data.classes.find(c => c.name === className);
+                const name = String(row[0]).trim();
+                const phone = String(row[6] || '').trim();
+                const isDupe = data.students.some(s => s.name === name && (phone ? s.phone === phone : true));
 
-                const studentData = {
+                validRows.push({ row, cls, name, phone, isDupe });
+            }
+
+            const hasDupe = validRows.some(v => v.isDupe);
+            let dupeStrategy = 'skip';
+            if (hasDupe) {
+                const choice = confirm('发现重复学员：\n\n- 确定：保留现有记录，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
+                dupeStrategy = choice ? 'skip' : 'replace';
+            }
+
+            let imported = 0, replaced = 0;
+            for (const v of validRows) {
+                if (v.isDupe) {
+                    if (dupeStrategy === 'skip') { skipped++; continue; }
+                    const idx = data.students.findIndex(s => s.name === v.name && (v.phone ? s.phone === v.phone : true));
+                    if (idx !== -1) {
+                        const rawStatus = String(v.row[8] || 'active').trim().toLowerCase();
+                        const status = statusMap[rawStatus] || 'active';
+                        data.students[idx] = {
+                            id: data.students[idx].id,
+                            name: v.name,
+                            gender: String(v.row[1] || '男').trim(),
+                            grade: String(v.row[2] || '六年级').trim(),
+                            classId: v.cls?.id || data.students[idx].classId || '',
+                            teacher: String(v.row[4] || '白老师').trim(),
+                            enrollDate: String(v.row[5] || '').trim() || data.students[idx].enrollDate,
+                            phone: v.phone,
+                            emergencyContact: String(v.row[7] || '').trim(),
+                            status: status,
+                            remark: String(v.row[9] || '').trim(),
+                            school: String(v.row[10] || '').trim(),
+                            createdAt: data.students[idx].createdAt
+                        };
+                        replaced++;
+                        imported++;
+                        continue;
+                    }
+                }
+                const rawStatus = String(v.row[8] || 'active').trim().toLowerCase();
+                const status = statusMap[rawStatus] || 'active';
+                data.students.push({
                     id: generateId(),
-                    name: String(row[0]).trim(),
-                    gender: String(row[1] || '男').trim(),
-                    grade: String(row[2] || '六年级').trim(),
-                    classId: cls?.id || '',
-                    teacher: String(row[4] || '白老师').trim(),
-                    enrollDate: String(row[5] || new Date().toISOString().split('T')[0]).trim(),
-                    phone: String(row[6] || '').trim(),
-                    emergencyContact: String(row[7] || '').trim(),
-                    status: String(row[8] || 'active').trim(),
-                    remark: String(row[9] || '').trim(),
-                    school: String(row[10] || '').trim()
-                };
-                data.students.push(studentData);
+                    name: v.name,
+                    gender: String(v.row[1] || '男').trim(),
+                    grade: String(v.row[2] || '六年级').trim(),
+                    classId: v.cls?.id || '',
+                    teacher: String(v.row[4] || '白老师').trim(),
+                    enrollDate: String(v.row[5] || new Date().toISOString().split('T')[0]).trim(),
+                    phone: v.phone,
+                    emergencyContact: String(v.row[7] || '').trim(),
+                    status: status,
+                    remark: String(v.row[9] || '').trim(),
+                    school: String(v.row[10] || '').trim()
+                });
                 imported++;
             }
 
             saveData();
             render();
-            showToast(`导入完成：成功 ${imported} 名${skipped > 0 ? `，跳过 ${skipped} 行` : ''}`);
+            const msg = `导入完成：成功 ${imported} 名${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 行` : ''}`;
+            showToast(msg);
         } catch (err) {
             showToast('导入失败：' + err.message);
         }

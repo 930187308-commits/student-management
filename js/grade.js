@@ -23,6 +23,7 @@ function renderGrades() {
                     </div>
                 </div>
             </div>
+            <div id="gradeCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div class="table-wrapper">
                 <table><thead><tr><th>学员</th><th>测试名称</th><th style="white-space:nowrap;">日期</th><th>类型</th><th>得分</th><th>排名</th><th>备注</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
             </div>
@@ -40,7 +41,12 @@ function renderGrades() {
 function renderGradeTable() {
     const search = document.getElementById('gradeSearch')?.value?.toLowerCase() || '';
     const classId = document.getElementById('gradeClassFilter')?.value || '';
-    const filtered = data.grades.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId)).sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
+    const allData = data.grades || [];
+    const filtered = allData.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId)).sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
+    const total = allData.length;
+    const current = filtered.length;
+    const countBar = document.getElementById('gradeCountBar');
+    if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
 
     const tbody = document.getElementById('gradeTableBody');
     tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.remark || '-')}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
@@ -199,52 +205,91 @@ function importGrades(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            let imported = 0, skipped = 0, failed = 0;
+            const validRows = [];
+            let skipped = 0, failed = 0;
             const errors = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (!row[0] || !row[1] || row[3] === undefined) {
-                    skipped++;
-                    continue;
-                }
+                if (!row[0] || !row[1] || row[3] === undefined) { skipped++; continue; }
 
                 const studentName = String(row[0]).trim();
                 const student = data.students.find(s => s.name === studentName);
-                if (!student) {
-                    errors.push(`第${i+1}行: 学员"${studentName}"不存在`);
-                    failed++;
-                    continue;
-                }
+                if (!student) { errors.push(`第${i+1}行: 学员"${studentName}"不存在`); failed++; continue; }
 
-                const rankingRaw = row[5];
-                const ranking = rankingRaw === undefined || rankingRaw === '' || rankingRaw === null ? null : parseInt(rankingRaw, 10);
                 const testDate = normalizeExcelDate(row[2]);
-                if (!testDate) {
-                    errors.push(`第${i+1}行: 日期无法识别`);
-                    failed++;
-                    continue;
+                if (!testDate) { errors.push(`第${i+1}行: 日期无法识别`); failed++; continue; }
+
+                const testName = String(row[1]).trim();
+
+                const isDupe = data.grades.some(g =>
+                    g.studentId === student.id &&
+                    g.testName === testName &&
+                    g.testDate === testDate
+                );
+
+                validRows.push({ row, student, testDate, testName, isDupe });
+            }
+
+            const hasDupe = validRows.some(v => v.isDupe);
+            let dupeStrategy = 'skip';
+            if (hasDupe) {
+                const choice = confirm('发现重复记录：\n\n- 确定：保留现有记录，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
+                dupeStrategy = choice ? 'skip' : 'replace';
+            }
+
+            let imported = 0, replaced = 0;
+            for (const v of validRows) {
+                if (v.isDupe) {
+                    if (dupeStrategy === 'skip') { skipped++; continue; }
+                    const idx = data.grades.findIndex(g =>
+                        g.studentId === v.student.id &&
+                        g.testName === v.testName &&
+                        g.testDate === v.testDate
+                    );
+                    if (idx !== -1) {
+                        const rankingRaw = v.row[5];
+                        const ranking = rankingRaw === undefined || rankingRaw === '' || rankingRaw === null ? null : parseInt(rankingRaw, 10);
+                        data.grades[idx] = {
+                            id: data.grades[idx].id,
+                            studentId: v.student.id,
+                            studentName: v.student.name,
+                            classId: v.student.classId,
+                            testName: v.testName,
+                            testDate: v.testDate,
+                            score: parseInt(v.row[3]) || 0,
+                            fullScore: parseInt(v.row[4]) || 100,
+                            ranking: ranking,
+                            examType: String(v.row[6] || '校外成绩').trim() === '校内' ? 'school' : 'external',
+                            weakPoints: String(v.row[7] || '').trim(),
+                            remark: String(v.row[8] || '').trim()
+                        };
+                        replaced++;
+                        imported++;
+                        continue;
+                    }
                 }
-                const gradeData = {
+                const rankingRaw = v.row[5];
+                const ranking = rankingRaw === undefined || rankingRaw === '' || rankingRaw === null ? null : parseInt(rankingRaw, 10);
+                data.grades.push({
                     id: generateId(),
-                    studentId: student.id,
-                    studentName: student.name,
-                    classId: student.classId,
-                    testName: String(row[1]).trim(),
-                    testDate: testDate,
-                    score: parseInt(row[3]) || 0,
-                    fullScore: parseInt(row[4]) || 100,
+                    studentId: v.student.id,
+                    studentName: v.student.name,
+                    classId: v.student.classId,
+                    testName: v.testName,
+                    testDate: v.testDate,
+                    score: parseInt(v.row[3]) || 0,
+                    fullScore: parseInt(v.row[4]) || 100,
                     ranking: ranking,
-                    examType: String(row[6] || '校外成绩').trim() === '校内' ? 'school' : 'external',
-                    weakPoints: String(row[7] || '').trim(),
-                    remark: String(row[8] || '').trim()
-                };
-                data.grades.push(gradeData);
+                    examType: String(v.row[6] || '校外成绩').trim() === '校内' ? 'school' : 'external',
+                    weakPoints: String(v.row[7] || '').trim(),
+                    remark: String(v.row[8] || '').trim()
+                });
                 imported++;
             }
 
             saveData();
             render();
-            const msg = `导入完成：成功 ${imported} 条${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
             showToast(msg);
             if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {

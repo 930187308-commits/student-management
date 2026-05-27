@@ -22,6 +22,7 @@ function renderFees() {
                     </div>
                 </div>
             </div>
+            <div id="feeCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div style="display: flex; gap: 24px; margin-bottom: 16px; flex-wrap: wrap;">
                 <div><span style="color: #888;">已缴合计：</span><strong style="color: #27ae60;">¥${totalPaid.toLocaleString()}</strong></div>
                 <div><span style="color: #888;">欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
@@ -43,9 +44,14 @@ function renderFees() {
 function renderFeeTable() {
     const search = document.getElementById('feeSearch')?.value?.toLowerCase() || '';
     const status = document.getElementById('feeStatusFilter')?.value || '';
-    const filtered = data.fees.filter(f => (!search || f.studentName.toLowerCase().includes(search)) && (!status || f.status === status)).sort((a, b) => (b.paymentDate || '').localeCompare(a.paymentDate || ''));
+    const allData = data.fees || [];
+    const filtered = allData.filter(f => (!search || f.studentName.toLowerCase().includes(search)) && (!status || f.status === status)).sort((a, b) => (b.paymentDate || '').localeCompare(a.paymentDate || ''));
+    const total = allData.length;
+    const current = filtered.length;
+    const countBar = document.getElementById('feeCountBar');
+    if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
     const tbody = document.getElementById('feeTableBody');
-    tbody.innerHTML = filtered.map(f => `<tr><td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.map(f => `<tr><td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
 }
 
 function openFeeModal(id = null) {
@@ -173,15 +179,15 @@ function downloadFeeTemplate() {
         ['缴费金额', '本次缴费总金额（元）', '是', '数字，如 8000'],
         ['课时单价', '每个课时单价（元）', '选填', '数字，默认 200'],
         ['购买课时', '本次购买课时数', '选填', '数字，如 40'],
-        ['缴费日期', '实际缴费日期', '选填', 'yyyy-mm-dd，如 2025-10-01'],
+        ['缴费日期', '实际缴费日期', '选填', 'yyyy-mm-dd，如 2025-10-01，留空表示未知'],
         ['套餐', '套餐名称', '选填', '如：秋季班40课时'],
         ['付款方式', '付款渠道', '选填', '微信转账 / 支付宝 / 银行转账 / 现金'],
-        ['状态', '是否已缴', '选填', '已缴 / 欠费，默认已缴'],
+        ['状态', '是否已缴', '选填', '已缴 / 欠费 / paid / pending（默认已缴）'],
         ['备注', '补充说明', '选填', '如：老学员续费'],
         [''],
         ['注意事项'],
-        ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-01'],
-        ['2. 状态写"已缴"表示已缴费，"欠费"表示未缴费'],
+        ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-01，留空则不记录日期'],
+        ['2. 状态：已缴/paid=已缴费，欠费/pending=未缴费，无法识别则默认已缴'],
         ['3. 导入时通过学员姓名匹配，找到则录入，找不到则跳过'],
         ['4. 金额和课时须为数字，异常值会被跳过'],
     ]);
@@ -201,7 +207,9 @@ function importFees(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
 
-            let imported = 0, skipped = 0, failed = 0;
+            // First pass: collect valid rows and check for duplicates
+            const validRows = [];
+            let skipped = 0, failed = 0;
             const errors = [];
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
@@ -209,11 +217,7 @@ function importFees(event) {
 
                 const studentName = String(row[0]).trim();
                 const student = data.students.find(s => s.name === studentName);
-                if (!student) {
-                    errors.push(`第${i+1}行: 学员"${studentName}"不存在`);
-                    failed++;
-                    continue;
-                }
+                if (!student) { errors.push(`第${i+1}行: 学员"${studentName}"不存在`); failed++; continue; }
 
                 const amount = parseFloat(row[1]);
                 if (isNaN(amount)) { skipped++; continue; }
@@ -222,32 +226,77 @@ function importFees(event) {
                 let paymentDate = paymentDateRaw ? normalizeExcelDate(paymentDateRaw) : '';
                 if (!paymentDate) {
                     if (paymentDateRaw) { errors.push(`第${i+1}行: 缴费日期无法识别`); failed++; continue; }
-                    paymentDate = new Date().toISOString().split('T')[0];
                 }
-                const hours = parseInt(row[3]) || 0;
-                const pricePerHour = parseFloat(row[2]) || 200;
-                const statusRaw = String(row[7] || '').trim().toLowerCase();
-                const status = statusRaw === '欠费' || statusRaw === 'pending' ? 'pending' : 'paid';
+                const packageName = String(row[5] || '').trim();
 
+                // Check for duplicate
+                const isDupe = data.fees.some(f =>
+                    f.studentId === student.id &&
+                    f.paymentDate === paymentDate &&
+                    f.amount === amount &&
+                    f.package === packageName
+                );
+
+                validRows.push({ row, student, amount, paymentDate, packageName, isDupe });
+            }
+
+            // Ask user about duplicates if any
+            const hasDupe = validRows.some(v => v.isDupe);
+            let dupeStrategy = 'skip'; // 'skip' | 'replace'
+            if (hasDupe) {
+                const choice = confirm('发现重复记录：\n\n- 确定：保留现有记录，跳过重复\n- 取消：用导入记录覆盖重复\n\n按"确定"保留现有，按"取消"替换重复。');
+                dupeStrategy = choice ? 'skip' : 'replace';
+            }
+
+            let imported = 0, replaced = 0;
+            for (const v of validRows) {
+                if (v.isDupe) {
+                    if (dupeStrategy === 'skip') { skipped++; continue; }
+                    // replace: find and update existing
+                    const idx = data.fees.findIndex(f =>
+                        f.studentId === v.student.id &&
+                        f.paymentDate === v.paymentDate &&
+                        f.amount === v.amount &&
+                        f.package === v.packageName
+                    );
+                    if (idx !== -1) {
+                        data.fees[idx] = {
+                            id: data.fees[idx].id,
+                            studentId: v.student.id,
+                            studentName: v.student.name,
+                            amount: v.amount,
+                            pricePerHour: parseFloat(v.row[2]) || 200,
+                            hours: parseInt(v.row[3]) || 0,
+                            paymentDate: v.paymentDate,
+                            package: v.packageName,
+                            paymentMethod: String(v.row[6] || '').trim(),
+                            status: (String(v.row[7] || '').trim().toLowerCase() === '欠费' || String(v.row[7] || '').trim().toLowerCase() === 'pending') ? 'pending' : 'paid',
+                            remark: String(v.row[8] || '').trim()
+                        };
+                        replaced++;
+                        imported++;
+                        continue;
+                    }
+                }
                 data.fees.push({
                     id: generateId(),
-                    studentId: student.id,
-                    studentName: student.name,
-                    amount: amount,
-                    pricePerHour: pricePerHour,
-                    hours: hours,
-                    paymentDate: paymentDate,
-                    package: String(row[5] || '').trim(),
-                    paymentMethod: String(row[6] || '').trim(),
-                    status: status,
-                    remark: String(row[8] || '').trim()
+                    studentId: v.student.id,
+                    studentName: v.student.name,
+                    amount: v.amount,
+                    pricePerHour: parseFloat(v.row[2]) || 200,
+                    hours: parseInt(v.row[3]) || 0,
+                    paymentDate: v.paymentDate,
+                    package: v.packageName,
+                    paymentMethod: String(v.row[6] || '').trim(),
+                    status: (String(v.row[7] || '').trim().toLowerCase() === '欠费' || String(v.row[7] || '').trim().toLowerCase() === 'pending') ? 'pending' : 'paid',
+                    remark: String(v.row[8] || '').trim()
                 });
                 imported++;
             }
 
             saveData();
             render();
-            const msg = `导入完成：成功 ${imported} 条${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+            const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
             showToast(msg);
             if (errors.length > 0) console.log('导入错误:', errors);
         } catch (err) {
