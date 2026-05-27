@@ -48,8 +48,7 @@ function loadAttendanceClass(classId) {
     const students = data.students.filter(s =>
         (s.classId === classId && s.status === 'active') ||
         recordStudentIds.has(s.id) ||
-        s.classJoinSessions?.[classId] ||
-        s.classLeaveSessions?.[classId]
+        s.classJoinSessions?.[classId]
     );
 
     // 补齐旧记录缺失的 id
@@ -98,7 +97,7 @@ function loadAttendanceClass(classId) {
                         let present = 0, absent = 0;
                         const joinSession = getStudentJoinSessionForClass(s, classId);
                         const leaveSession = getStudentLeaveSessionForClass(s, classId);
-                        const isHistorical = s.classId !== classId;
+                        const isHistorical = s.classId !== classId && recordStudentIds.has(s.id);
                         const isTransferredIn = s.classId === classId && joinSession > 1;
                         allDates.forEach(date => {
                             const session = sessions.find(sess => sess.date === date);
