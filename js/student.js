@@ -254,7 +254,6 @@ function openStudentModal(id = null) {
     currentEditId = id;
     const student = id ? data.students.find(s => s.id === id) : null;
     const classOptions = data.classes.filter(c => c.status === 'active').map(c => `<option value="${c.id}" ${student?.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
-    const currentClassSessionCount = student?.classId ? data.attendance.filter(a => a.classId === student.classId).length : 0;
 
     document.getElementById('modalTitle').textContent = id ? '编辑学员' : '新增学员';
     document.getElementById('modalBody').innerHTML = `
@@ -279,8 +278,6 @@ function openStudentModal(id = null) {
                 <div class="form-group"><label>所在班级</label><select name="classId"><option value="">未分班</option>${classOptions}</select></div>
                 <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="${escapeHtml(student?.teacher || '白老师')}"></div>
                 <div class="form-group"><label>入班时间</label><input type="date" name="enrollDate" value="${student?.enrollDate || new Date().toISOString().split('T')[0]}"></div>
-                <div class="form-group"><label>转入课次</label><input type="number" name="classJoinSession" min="1" value="${student?.classJoinSessions?.[student?.classId] || 1}" placeholder="第几次课开始"></div>
-                <div class="form-group"><label>转出课次</label><input type="number" name="classLeaveSession" min="1" value="${student?.classLeaveSessions?.[student?.classId] || ''}" placeholder="${currentClassSessionCount ? `如：${currentClassSessionCount}` : '最后上到第几次'}"></div>
             </div>
             <div class="form-row">
                 <div class="form-group"><label>联系电话</label><input type="tel" name="phone" value="${escapeHtml(student?.phone || '')}"></div>
@@ -341,15 +338,16 @@ function saveStudent(e) {
 
     const classJoinSessions = { ...(existingStudent?.classJoinSessions || {}) };
     const classLeaveSessions = { ...(existingStudent?.classLeaveSessions || {}) };
-    if (form.classId.value) {
-        const joinSession = parseInt(form.classJoinSession?.value, 10);
-        classJoinSessions[form.classId.value] = !isNaN(joinSession) && joinSession > 0 ? joinSession : 1;
-        delete classLeaveSessions[form.classId.value];
-    }
     if (existingStudent?.classId && existingStudent.classId !== form.classId.value) {
-        const leaveSession = parseInt(form.classLeaveSession?.value, 10);
-        const fallbackLeaveSession = data.attendance.filter(a => a.classId === existingStudent.classId).length;
-        classLeaveSessions[existingStudent.classId] = !isNaN(leaveSession) && leaveSession > 0 ? leaveSession : Math.max(fallbackLeaveSession, 1);
+        const oldClassSessionCount = data.attendance.filter(a => a.classId === existingStudent.classId).length;
+        classLeaveSessions[existingStudent.classId] = Math.max(oldClassSessionCount, 1);
+        if (form.classId.value) {
+            const newClassSessionCount = data.attendance.filter(a => a.classId === form.classId.value).length;
+            classJoinSessions[form.classId.value] = Math.max(newClassSessionCount + 1, 1);
+            delete classLeaveSessions[form.classId.value];
+        }
+    } else if (!currentEditId && form.classId.value) {
+        classJoinSessions[form.classId.value] = 1;
     }
 
     const studentData = {
