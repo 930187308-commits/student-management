@@ -42,8 +42,15 @@ function loadAttendanceClass(classId) {
     if (!classId) { content.innerHTML = '<div class="empty-state">请先选择班级</div>'; return; }
 
     const cls = data.classes.find(c => c.id === classId);
-    const students = data.students.filter(s => s.classId === classId && s.status === 'active');
     const sessions = data.attendance.filter(a => a.classId === classId).sort((a, b) => a.date.localeCompare(b.date));
+    const recordStudentIds = new Set();
+    sessions.forEach(sess => Object.keys(sess.records || {}).forEach(id => recordStudentIds.add(id)));
+    const students = data.students.filter(s =>
+        (s.classId === classId && s.status === 'active') ||
+        recordStudentIds.has(s.id) ||
+        s.classJoinSessions?.[classId] ||
+        s.classLeaveSessions?.[classId]
+    );
 
     // 补齐旧记录缺失的 id
     let patchedSessionIds = false;
@@ -89,6 +96,9 @@ function loadAttendanceClass(classId) {
                     ${students.map(s => {
                         const totalSessions = allDates.length;
                         let present = 0, absent = 0;
+                        const joinSession = s.classJoinSessions?.[classId] || 1;
+                        const leaveSession = s.classLeaveSessions?.[classId] || Infinity;
+                        const isHistorical = s.classId !== classId;
                         allDates.forEach(date => {
                             const session = sessions.find(sess => sess.date === date);
                             const status = session?.records?.[s.id];
@@ -97,11 +107,17 @@ function loadAttendanceClass(classId) {
                         });
                         return `
                             <tr>
-                                <td>${s.name}</td>
+                                <td>${escapeHtml(s.name)}${isHistorical ? '<br><span style="font-size:10px;color:#888;">历史</span>' : ''}</td>
                                 ${allDates.map((date, i) => {
                                     const session = sessions.find(sess => sess.date === date);
                                     const status = session?.records?.[s.id];
                                     const cls = status === 1 ? 'present' : status === 0 ? 'absent' : '';
+                                    if (i + 1 < joinSession && status == null) {
+                                        return `<td><input type="number" min="0" max="1" value="" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" onchange="updateAttendance(this)"><br><span style="color:#aaa; font-size:10px;">未转入</span></td>`;
+                                    }
+                                    if (i + 1 > leaveSession && status == null) {
+                                        return `<td><input type="number" min="0" max="1" value="" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" onchange="updateAttendance(this)"><br><span style="color:#aaa; font-size:10px;">已转出</span></td>`;
+                                    }
                                     return `<td><input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" onchange="updateAttendance(this)"></td>`;
                                 }).join('')}
                                 <td><strong>${present}</strong></td>
