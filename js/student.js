@@ -339,9 +339,11 @@ function saveStudent(e) {
     const classJoinSessions = { ...(existingStudent?.classJoinSessions || {}) };
     const classLeaveSessions = { ...(existingStudent?.classLeaveSessions || {}) };
     if (existingStudent?.classId && existingStudent.classId !== form.classId.value) {
-        const oldClassSessionCount = data.attendance.filter(a => a.classId === existingStudent.classId).length;
-        classLeaveSessions[existingStudent.classId] = Math.max(oldClassSessionCount, 1);
-        if (form.classId.value) {
+        const oldClassLastRecord = getStudentLastRecordedSessionIndex(existingStudent.id, existingStudent.classId);
+        if (oldClassLastRecord > 0) {
+            classLeaveSessions[existingStudent.classId] = oldClassLastRecord;
+        }
+        if (form.classId.value && oldClassLastRecord > 0) {
             const newClassSessionCount = data.attendance.filter(a => a.classId === form.classId.value).length;
             classJoinSessions[form.classId.value] = Math.max(newClassSessionCount + 1, 1);
             delete classLeaveSessions[form.classId.value];
@@ -371,6 +373,19 @@ function saveStudent(e) {
     closeModal();
     showToast('保存成功');
     render();
+}
+
+function getStudentLastRecordedSessionIndex(studentId, classId) {
+    const sessions = data.attendance
+        .filter(a => a.classId === classId)
+        .sort((a, b) => a.date.localeCompare(b.date));
+    let lastIndex = 0;
+    sessions.forEach((session, index) => {
+        if (session.records && session.records[studentId] !== undefined) {
+            lastIndex = index + 1;
+        }
+    });
+    return lastIndex;
 }
 
 function updateSchoolDatalist() {

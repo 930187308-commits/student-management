@@ -603,11 +603,15 @@ function addStudentToClass(studentId, classId) {
         s.classJoinSessions = s.classJoinSessions || {};
         s.classLeaveSessions = s.classLeaveSessions || {};
         if (oldClassId && oldClassId !== classId) {
-            const oldClassSessionCount = data.attendance.filter(a => a.classId === oldClassId).length;
-            s.classLeaveSessions[oldClassId] = Math.max(oldClassSessionCount, 1);
+            const oldClassLastRecord = getClassStudentLastRecordedSessionIndex(studentId, oldClassId);
+            if (oldClassLastRecord > 0) {
+                s.classLeaveSessions[oldClassId] = oldClassLastRecord;
+            }
         }
-        const newClassSessionCount = data.attendance.filter(a => a.classId === classId).length;
-        s.classJoinSessions[classId] = Math.max(newClassSessionCount + 1, 1);
+        if (!oldClassId || oldClassId === classId || getClassStudentLastRecordedSessionIndex(studentId, oldClassId) > 0) {
+            const newClassSessionCount = data.attendance.filter(a => a.classId === classId).length;
+            s.classJoinSessions[classId] = Math.max(newClassSessionCount + 1, 1);
+        }
         delete s.classLeaveSessions[classId];
         s.classId = classId;
     }
@@ -620,13 +624,28 @@ function removeStudentFromClass(studentId, classId) {
     const s = data.students.find(st => st.id === studentId);
     if (s) {
         s.classLeaveSessions = s.classLeaveSessions || {};
-        const classSessionCount = data.attendance.filter(a => a.classId === classId).length;
-        s.classLeaveSessions[classId] = Math.max(classSessionCount, 1);
+        const lastRecord = getClassStudentLastRecordedSessionIndex(studentId, classId);
+        if (lastRecord > 0) {
+            s.classLeaveSessions[classId] = lastRecord;
+        }
         s.classId = '';
     }
     saveData();
     openClassMemberManager(classId);
     showToast('已移出班级');
+}
+
+function getClassStudentLastRecordedSessionIndex(studentId, classId) {
+    const sessions = data.attendance
+        .filter(a => a.classId === classId)
+        .sort((a, b) => a.date.localeCompare(b.date));
+    let lastIndex = 0;
+    sessions.forEach((session, index) => {
+        if (session.records && session.records[studentId] !== undefined) {
+            lastIndex = index + 1;
+        }
+    });
+    return lastIndex;
 }
 
 function addProspectToClass(prospectId, classId) {
