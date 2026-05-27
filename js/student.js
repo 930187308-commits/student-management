@@ -405,7 +405,7 @@ function downloadStudentTemplate() {
         ['注意事项'],
         ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-09-01'],
         ['2. 班级名称如不匹配现有班级，会以"未分班"状态导入'],
-        ['3. 状态：active/在读=正常在读，inactive/停课，renewalPending/待续费，withdrawn/已退费，graduated/已毕业，无法识别默认active'],
+        ['3. 状态：active/在读=正常在读，inactive/停课，renewalPending/待续费，withdrawn/已退费，graduated/已毕业，无法识别会导入失败并跳过'],
     ]);
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '学员导入模板.xlsx');
