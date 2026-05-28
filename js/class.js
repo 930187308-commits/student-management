@@ -26,6 +26,7 @@ function renderClasses() {
                 <div class="toolbar">
                     <button class="btn btn-secondary btn-sm" onclick="openClassTypeManager()">管理班型</button>
                     <button class="btn btn-secondary btn-sm" onclick="openGradeManager()">管理年级</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openArchivedClassManager()">归档班级</button>
                     <button class="btn btn-primary" onclick="openClassModal()">+ 新增班级</button>
                     <div class="divider"></div>
                     <button class="btn btn-secondary" onclick="downloadClassTemplate()">下载导入模板</button>
@@ -299,6 +300,7 @@ async function saveClass(e) {
     const oldClass = isNew ? null : data.classes.find(c => c.id === currentEditId);
     const oldStatus = oldClass?.status;
     const newStatus = form.status.value;
+    const statusChangedToFinished = !isNew && oldStatus !== 'finished' && newStatus === 'finished';
 
     const classData = {
         id: currentEditId || generateId(),
@@ -306,8 +308,10 @@ async function saveClass(e) {
         schedule: form.schedule.value, semester: form.semester.value,
         maxStudents: parseInt(form.maxStudents.value), status: newStatus,
         plannedSessions: parseInt(form.plannedSessions?.value || 16),
-        summerSchedule: form.summerSchedule.value
+        summerSchedule: form.summerSchedule.value,
+        archivedAt: newStatus === 'finished' ? (oldClass?.archivedAt || new Date().toISOString()) : oldClass?.archivedAt
     };
+    if (newStatus !== 'finished') delete classData.archivedAt;
 
     // forming 班级转为 active/finished 时，未成交的意向学员自动出班
     if (!isNew && oldStatus === 'forming' && newStatus !== 'forming') {
@@ -325,9 +329,15 @@ async function saveClass(e) {
     } else {
         data.classes.push(classData);
     }
+
+    const studentsChanged = statusChangedToFinished ? maybeMarkClassStudentsInactive(currentEditId) : false;
+
     try {
-        if (!isNew && oldStatus === 'forming' && newStatus !== 'forming') {
-            await saveCollectionsToApi({ classes: data.classes, prospects: data.prospects });
+        if ((!isNew && oldStatus === 'forming' && newStatus !== 'forming') || studentsChanged) {
+            const updates = { classes: data.classes };
+            if (oldStatus === 'forming' && newStatus !== 'forming') updates.prospects = data.prospects;
+            if (studentsChanged) updates.students = data.students;
+            await saveCollectionsToApi(updates);
         } else {
             await saveClassesToApi(data.classes);
         }
@@ -344,7 +354,7 @@ async function deleteClass(id) {
     const cls = data.classes.find(c => c.id === id);
     if (!cls) return;
     if (cls.status === 'finished') {
-        showToast('该班级已归档');
+        showToast('该班级已归档，可在“归档班级”中彻底删除测试数据');
         return;
     }
     if (!confirm('确定将该班级归档为“已结课”吗？历史考勤会保留，不会物理删除班级。')) return;
@@ -353,13 +363,114 @@ async function deleteClass(id) {
     (data.prospects || []).forEach(p => {
         if (p.classId === id && p.dealStatus !== 'deal') p.classId = '';
     });
+    const studentsChanged = maybeMarkClassStudentsInactive(id);
     try {
-        await saveCollectionsToApi({ classes: data.classes, prospects: data.prospects });
+        const updates = { classes: data.classes, prospects: data.prospects };
+        if (studentsChanged) updates.students = data.students;
+        await saveCollectionsToApi(updates);
     } catch (error) {
         showToast('归档失败：' + error.message);
         return;
     }
     showToast('班级已归档');
+    render();
+}
+
+function maybeMarkClassStudentsInactive(classId) {
+    const activeStudents = (data.students || []).filter(s =>
+        s.classId === classId && (s.status === 'active' || s.status === 'renewalPending' || !s.status)
+    );
+    if (activeStudents.length === 0) return false;
+    const names = activeStudents.slice(0, 8).map(s => s.name).join('、');
+    const more = activeStudents.length > 8 ? `等 ${activeStudents.length} 人` : `${activeStudents.length} 人`;
+    if (!confirm(`这个班级还有 ${more} 在读/待续费学员：${names}\n\n是否同步把他们改为“停课”？\n\n选择“确定”：批量改为停课，保留所在班级用于历史追踪。\n选择“取消”：只归档班级，学员状态不变。`)) {
+        return false;
+    }
+    activeStudents.forEach(s => {
+        s.status = 'inactive';
+        s.archivedAt = s.archivedAt || new Date().toISOString();
+    });
+    return true;
+}
+
+function openArchivedClassManager() {
+    const archivedClasses = (data.classes || [])
+        .filter(c => c.status === 'finished')
+        .sort((a, b) => String(b.archivedAt || '').localeCompare(String(a.archivedAt || '')));
+    document.getElementById('modalTitle').textContent = '归档班级管理';
+    document.getElementById('modalBody').innerHTML = `
+        <div style="line-height:1.7;font-size:14px;">
+            <div style="padding:10px;background:#fff3cd;border-radius:8px;color:#856404;margin-bottom:12px;">
+                归档班级用于保留历史考勤、收费和学员学习轨迹。只有确认是测试数据或误建班级时，才建议彻底删除。
+            </div>
+            ${archivedClasses.length === 0 ? '<div class="empty-state">暂无已归档班级</div>' : `
+                <div class="table-wrapper" style="max-height:420px;overflow:auto;">
+                    <table>
+                        <thead><tr><th>班级名称</th><th>年级</th><th>上课时间</th><th>历史考勤</th><th>关联学员</th><th>归档时间</th><th>操作</th></tr></thead>
+                        <tbody>
+                            ${archivedClasses.map(c => {
+                                const attendanceCount = (data.attendance || []).filter(a => a.classId === c.id).length;
+                                const studentCount = (data.students || []).filter(s => s.classId === c.id).length;
+                                return `
+                                    <tr>
+                                        <td>${escapeHtml(c.name || '')}</td>
+                                        <td>${escapeHtml(c.grade || '')}</td>
+                                        <td>${escapeHtml(c.schedule || '')}</td>
+                                        <td>${attendanceCount}</td>
+                                        <td>${studentCount}</td>
+                                        <td style="white-space:nowrap;">${c.archivedAt ? new Date(c.archivedAt).toLocaleString() : '-'}</td>
+                                        <td><button class="btn btn-danger btn-xs" onclick="permanentlyDeleteArchivedClass('${c.id}')">彻底删除</button></td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `}
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+    `;
+    document.getElementById('modal').classList.add('show');
+}
+
+async function permanentlyDeleteArchivedClass(classId) {
+    const cls = (data.classes || []).find(c => c.id === classId);
+    if (!cls) return;
+    if (cls.status !== 'finished') {
+        showToast('只能彻底删除已归档班级');
+        return;
+    }
+    const attendanceCount = (data.attendance || []).filter(a => a.classId === classId).length;
+    const studentCount = (data.students || []).filter(s => s.classId === classId).length;
+    const prospectCount = (data.prospects || []).filter(p => p.classId === classId).length;
+    if (!confirm(`确定彻底删除归档班级“${cls.name}”吗？\n\n将同时清理：\n- 该班级资料\n- 该班级考勤课次 ${attendanceCount} 条\n- 学员/意向学员中的班级关联 ${studentCount + prospectCount} 条\n\n此操作适合清理测试数据。真实历史班级不建议删除。`)) return;
+    if (!confirm('最后确认：彻底删除后只能通过服务器备份恢复。确定继续？')) return;
+
+    data.classes = (data.classes || []).filter(c => c.id !== classId);
+    data.attendance = (data.attendance || []).filter(a => a.classId !== classId);
+    (data.students || []).forEach(s => {
+        if (s.classId === classId) s.classId = '';
+        if (s.classJoinSessions) delete s.classJoinSessions[classId];
+        if (s.classLeaveSessions) delete s.classLeaveSessions[classId];
+    });
+    (data.prospects || []).forEach(p => {
+        if (p.classId === classId) p.classId = '';
+    });
+
+    try {
+        await createServerBackup('彻底删除归档班级前自动备份');
+        await saveCollectionsToApi({
+            classes: data.classes,
+            attendance: data.attendance,
+            students: data.students,
+            prospects: data.prospects
+        });
+    } catch (error) {
+        showToast('彻底删除失败：' + error.message);
+        return;
+    }
+    showToast('已彻底删除归档班级及相关测试数据');
+    openArchivedClassManager();
     render();
 }
 
