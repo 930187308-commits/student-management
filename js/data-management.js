@@ -135,7 +135,7 @@ function getDataHealthReport() {
 
 function openDataHealthCheck() {
     const report = getDataHealthReport();
-    const safeCleanCount = report.orphanAttendance.length + report.unknownRecordRefs;
+    const safeCleanCount = report.orphanAttendance.length + report.unknownRecordRefs + report.orphanFees.length;
     updateDataHealthBadge(report);
     document.getElementById('modalTitle').textContent = '数据体检';
     document.getElementById('modalBody').innerHTML = `
