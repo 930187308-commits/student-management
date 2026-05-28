@@ -266,7 +266,7 @@ async function deleteProspect(id) {
     render();
 }
 
-function convertProspect(id) {
+async function convertProspect(id) {
     const prospect = (data.prospects || []).find(p => p.id === id);
     if (!prospect) return;
     if (!confirm(`确定将"${escapeHtml(prospect.name)}"转为正式学员？`)) return;
@@ -306,7 +306,12 @@ function convertProspect(id) {
     prospect.dealStatus = 'deal';
     prospect.trialStatus = 'deal';
     prospect.classId = '';
-    saveData();
+    try {
+        await saveCollectionsToApi({ students: data.students, prospects: data.prospects });
+    } catch (error) {
+        showToast('转正式失败：' + error.message);
+        return;
+    }
     showToast('已转为正式学员');
     render();
 }

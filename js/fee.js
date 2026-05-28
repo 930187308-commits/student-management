@@ -440,7 +440,7 @@ async function executeFeeImport(checkResult, strategies = {}) {
 
     try {
         if (newStudents > 0) {
-            await saveData();
+            await saveCollectionsToApi({ students: data.students, fees: data.fees });
         } else {
             await saveFeesToApi(data.fees);
         }

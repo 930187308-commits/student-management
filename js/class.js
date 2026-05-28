@@ -327,7 +327,7 @@ async function saveClass(e) {
     }
     try {
         if (!isNew && oldStatus === 'forming' && newStatus !== 'forming') {
-            await saveData();
+            await saveCollectionsToApi({ classes: data.classes, prospects: data.prospects });
         } else {
             await saveClassesToApi(data.classes);
         }
@@ -340,7 +340,7 @@ async function saveClass(e) {
     render();
 }
 
-function deleteClass(id) {
+async function deleteClass(id) {
     const cls = data.classes.find(c => c.id === id);
     if (!cls) return;
     if (cls.status === 'finished') {
@@ -353,7 +353,12 @@ function deleteClass(id) {
     (data.prospects || []).forEach(p => {
         if (p.classId === id && p.dealStatus !== 'deal') p.classId = '';
     });
-    saveData();
+    try {
+        await saveCollectionsToApi({ classes: data.classes, prospects: data.prospects });
+    } catch (error) {
+        showToast('归档失败：' + error.message);
+        return;
+    }
     showToast('班级已归档');
     render();
 }
@@ -640,7 +645,7 @@ function filterClassMemberList(classId, mode) {
     }
 }
 
-function addStudentToClass(studentId, classId) {
+async function addStudentToClass(studentId, classId) {
     const s = data.students.find(st => st.id === studentId);
     if (s) {
         const oldClassId = s.classId;
@@ -659,12 +664,17 @@ function addStudentToClass(studentId, classId) {
         delete s.classLeaveSessions[classId];
         s.classId = classId;
     }
-    saveData();
+    try {
+        await saveStudentsToApi(data.students);
+    } catch (error) {
+        showToast('加入班级失败：' + error.message);
+        return;
+    }
     openClassMemberManager(classId);
     showToast('已加入班级');
 }
 
-function removeStudentFromClass(studentId, classId) {
+async function removeStudentFromClass(studentId, classId) {
     const s = data.students.find(st => st.id === studentId);
     if (s) {
         s.classLeaveSessions = s.classLeaveSessions || {};
@@ -674,7 +684,12 @@ function removeStudentFromClass(studentId, classId) {
         }
         s.classId = '';
     }
-    saveData();
+    try {
+        await saveStudentsToApi(data.students);
+    } catch (error) {
+        showToast('移出班级失败：' + error.message);
+        return;
+    }
     openClassMemberManager(classId);
     showToast('已移出班级');
 }
@@ -692,18 +707,28 @@ function getClassStudentLastRecordedSessionIndex(studentId, classId) {
     return lastIndex;
 }
 
-function addProspectToClass(prospectId, classId) {
+async function addProspectToClass(prospectId, classId) {
     const p = (data.prospects || []).find(pt => pt.id === prospectId);
     if (p) { p.classId = classId; p.trialStatus = 'forming'; }
-    saveData();
+    try {
+        await saveProspectsToApi(data.prospects);
+    } catch (error) {
+        showToast('加入组班失败：' + error.message);
+        return;
+    }
     openClassMemberManager(classId);
     showToast('已加入组班');
 }
 
-function removeProspectFromClass(prospectId, classId) {
+async function removeProspectFromClass(prospectId, classId) {
     const p = (data.prospects || []).find(pt => pt.id === prospectId);
     if (p) { p.classId = ''; }
-    saveData();
+    try {
+        await saveProspectsToApi(data.prospects);
+    } catch (error) {
+        showToast('移出组班失败：' + error.message);
+        return;
+    }
     openClassMemberManager(classId);
     showToast('已移出组班');
 }

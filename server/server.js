@@ -19,6 +19,19 @@ const MIME_TYPES = {
 
 const SAMPLE_STUDENT_IDS = new Set(['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10']);
 const SAMPLE_STUDENT_NAMES = new Set(['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十', '郑十一', '陈十二']);
+const API_COLLECTIONS = new Set([
+    'classes',
+    'students',
+    'prospects',
+    'fees',
+    'attendance',
+    'grades',
+    'communications',
+    'communicationTopics',
+    'prospectSources',
+    'classTypes',
+    'gradeOptions'
+]);
 
 openDatabase();
 
@@ -135,6 +148,64 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === 'GET' && pathname === '/api/meta') {
         sendJson(res, 200, getMeta());
+        return true;
+    }
+
+    if (req.method === 'PUT' && pathname === '/api/batch') {
+        const currentUpdatedAt = getDataUpdatedAt();
+        const baseUpdatedAt = req.headers['x-base-data-updated-at'];
+        if (currentUpdatedAt && !baseUpdatedAt) {
+            sendJson(res, 428, {
+                error: '缺少数据版本号，已拒绝覆盖服务器数据',
+                hint: '请刷新页面后重试。'
+            }, {
+                'X-Data-Updated-At': currentUpdatedAt
+            });
+            return true;
+        }
+        if (currentUpdatedAt && baseUpdatedAt !== currentUpdatedAt) {
+            sendJson(res, 409, {
+                error: '服务器数据已被其他设备更新，已拒绝覆盖',
+                hint: '请刷新页面加载最新数据后，再重新修改。',
+                serverUpdatedAt: currentUpdatedAt,
+                clientBaseUpdatedAt: baseUpdatedAt
+            }, {
+                'X-Data-Updated-At': currentUpdatedAt
+            });
+            return true;
+        }
+
+        const rawBody = await readRequestBody(req);
+        const parsed = JSON.parse(rawBody || '{}');
+        const updates = parsed.collections || parsed;
+        if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
+            sendJson(res, 400, { error: '批量保存内容必须是对象' });
+            return true;
+        }
+
+        const invalidKeys = Object.keys(updates).filter((key) => !API_COLLECTIONS.has(key));
+        if (invalidKeys.length > 0) {
+            sendJson(res, 400, { error: `不支持的集合：${invalidKeys.join(', ')}` });
+            return true;
+        }
+        const invalidCollections = Object.entries(updates).filter(([, value]) => !Array.isArray(value));
+        if (invalidCollections.length > 0) {
+            sendJson(res, 400, { error: `${invalidCollections.map(([key]) => key).join(', ')} 必须是数组` });
+            return true;
+        }
+
+        const saved = setData({
+            ...getData(),
+            ...updates,
+            lastModified: new Date().toISOString()
+        }, `api_batch_${Object.keys(updates).join('_')}`);
+        const responsePayload = { updatedAt: getDataUpdatedAt() || null };
+        Object.keys(updates).forEach((key) => {
+            responsePayload[key] = saved[key];
+        });
+        sendJson(res, 200, responsePayload, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
         return true;
     }
 

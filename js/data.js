@@ -492,6 +492,37 @@ async function saveCollectionToApi(collectionName, items) {
     return data[collectionName];
 }
 
+async function saveCollectionsToApi(collections) {
+    if (lastSavedDataSnapshot) {
+        undoDataSnapshot = cloneData(lastSavedDataSnapshot);
+    }
+    const response = await fetch(`${SERVER_URL}/api/batch`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Base-Data-Updated-At': serverDataUpdatedAt || ''
+        },
+        body: JSON.stringify({ collections })
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || `批量保存失败：${response.status}`);
+    }
+    const payload = await response.json();
+    serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
+    Object.keys(collections).forEach(collectionName => {
+        data[collectionName] = payload[collectionName] || collections[collectionName];
+    });
+    data.lastModified = payload.updatedAt || new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSavedDataSnapshot = cloneData(data);
+    lastSaveTime = new Date();
+    dataModified = false;
+    updateAutoSaveIndicator();
+    updateUndoButton();
+    return payload;
+}
+
 async function loadClassesFromApi() {
     return loadCollectionFromApi('classes');
 }

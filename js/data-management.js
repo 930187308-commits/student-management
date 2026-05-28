@@ -308,7 +308,7 @@ async function cleanSafeHealthIssues() {
     const removedAttendance = beforeAttendance - data.attendance.length;
     const removedFees = beforeFees - data.fees.length;
     await createServerBackup('数据体检清理前自动备份');
-    await saveData();
+    await saveCollectionsToApi({ attendance: data.attendance, fees: data.fees });
     showToast(`已清理考勤 ${removedAttendance} 条，无效学员记录 ${removedRecordRefs} 个，收费 ${removedFees} 条`);
     openDataHealthCheck();
 }

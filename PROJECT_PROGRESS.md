@@ -314,7 +314,10 @@
   - `/api/classTypes`
   - `/api/gradeOptions`
 - 已将沟通主题、招生渠道、班型、年级管理切到对应配置 API。
-- 当前 UI 暂不改变，阶段 3 的常用业务模块已基本完成模块 API 拆分。
+- 后端新增 `PUT /api/batch`，用于一次保存多个相关集合。
+- 已将意向学员转正式、组班转正式清理、班级归档、班级成员拉入/移出、收费导入自动新建学员、数据体检安全清理改为模块批量保存。
+- 当前只保留导入本地备份、一键清空、重置示例数据等整包覆盖操作继续使用 `/data`。
+- 当前 UI 暂不改变，阶段 3 的常用业务模块和联动操作已基本完成 API 拆分。
 
 ## 后续业务规则规划
 
@@ -401,8 +404,8 @@
 
 ## 当前风险与注意事项
 
-- 当前前端仍是整份 `/data` 快照读写，还不是模块化 API。
-- 当前 SQLite 表结构已预留，但前端尚未使用拆表数据。
+- 当前前端初始加载仍读取整份 `/data` 快照，保存侧已基本切到模块 API / 批量 API。
+- 当前 SQLite 表结构已预留，核心数据仍以 `app_state` 快照为权威来源，后续可再逐步拆到真实表。
 - Node 的 `node:sqlite` 在 Node 24 中仍有实验警告，但当前可用。
 - MacBook 需要切到 `feature/server-sqlite` 后再协作。
 - 不要再启动旧 Python `8080` 服务。
@@ -414,10 +417,10 @@
 
 ```text
 当前项目：AI 教培工作台
-当前阶段：阶段 2，Mac mini 服务器化 + SQLite，可用基线已确认
+当前阶段：阶段 3，模块 API / 批量 API 拆分基本完成，等待稳定性观察和下一步真实拆表规划
 当前主协作分支：feature/server-sqlite
 请先 git pull origin feature/server-sqlite，然后读取 PROJECT_PROGRESS.md。
 前端小功能和录入体验优化可以由 Claude Code 做。
-后端、SQLite、部署、数据同步、备份恢复、API 拆分请交给 Mac mini / Codex。
+后端、SQLite、部署、数据同步、备份恢复、API 拆分和真实拆表规划请交给 Mac mini / Codex。
 不要录入真实学生信息到测试数据或 GitHub。
 ```
