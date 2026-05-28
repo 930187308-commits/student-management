@@ -508,6 +508,14 @@ async function saveStudentsToApi(students) {
     return saveCollectionToApi('students', students);
 }
 
+async function loadProspectsFromApi() {
+    return loadCollectionFromApi('prospects');
+}
+
+async function saveProspectsToApi(prospects) {
+    return saveCollectionToApi('prospects', prospects);
+}
+
 function cloneData(source) {
     return JSON.parse(JSON.stringify(source || {}));
 }

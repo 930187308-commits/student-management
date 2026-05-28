@@ -160,7 +160,7 @@ async function handleApi(req, res, pathname) {
         return true;
     }
 
-    const collectionMatch = pathname.match(/^\/api\/(classes|students)$/);
+    const collectionMatch = pathname.match(/^\/api\/(classes|students|prospects)$/);
     if (collectionMatch) {
         const collectionName = collectionMatch[1];
         if (req.method === 'GET') {

@@ -120,7 +120,12 @@ async function deleteSelectedProspects() {
     if (!confirm(`确定删除选中的 ${ids.length} 条意向学员记录吗？此操作不可恢复。`)) return;
     await createServerBackup('批量删除意向学员前自动备份');
     data.prospects = (data.prospects || []).filter(p => !ids.includes(p.id));
-    await saveData();
+    try {
+        await saveProspectsToApi(data.prospects);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast(`已删除 ${ids.length} 条意向记录`);
     render();
 }
@@ -196,7 +201,7 @@ function openProspectModal(id = null) {
     document.getElementById('modal').classList.add('show');
 }
 
-function saveProspect(e) {
+async function saveProspect(e) {
     e.preventDefault();
     const form = e.target;
     const id = form.id.value || generateId();
@@ -232,13 +237,18 @@ function saveProspect(e) {
         if (!data.prospects) data.prospects = [];
         data.prospects.push(prospectData);
     }
-    saveData();
+    try {
+        await saveProspectsToApi(data.prospects);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     showToast('保存成功');
     render();
 }
 
-function deleteProspect(id) {
+async function deleteProspect(id) {
     const prospect = (data.prospects || []).find(p => p.id === id);
     const isDealt = prospect?.dealStatus === 'deal';
     const msg = isDealt
@@ -246,7 +256,12 @@ function deleteProspect(id) {
         : '确定删除该意向学员？';
     if (!confirm(msg)) return;
     data.prospects = (data.prospects || []).filter(p => p.id !== id);
-    saveData();
+    try {
+        await saveProspectsToApi(data.prospects);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast('删除成功');
     render();
 }
@@ -426,7 +441,7 @@ function buildProspectFromImportRow(v, id, existing = {}) {
     };
 }
 
-function executeProspectImport(checkResult, strategies = {}) {
+async function executeProspectImport(checkResult, strategies = {}) {
     const dupeStrategy = strategies.duplicateStrategy || 'skip';
     let imported = 0;
     let replaced = 0;
@@ -452,7 +467,12 @@ function executeProspectImport(checkResult, strategies = {}) {
         imported++;
     }
 
-    saveData();
+    try {
+        await saveProspectsToApi(data.prospects);
+    } catch (error) {
+        showToast('导入保存失败：' + error.message);
+        return;
+    }
     render();
     const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
     showToast(msg);
