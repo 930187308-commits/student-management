@@ -607,6 +607,7 @@ function initTabs() {
 // 渲染
 function render() {
     renderStats();
+    if (typeof updateDataHealthBadge === 'function') updateDataHealthBadge();
     renderDashboard();
     renderClasses();
     renderStudents();

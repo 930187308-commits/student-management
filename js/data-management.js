@@ -118,6 +118,7 @@ function getDataHealthReport() {
 function openDataHealthCheck() {
     const report = getDataHealthReport();
     const safeCleanCount = report.orphanAttendance.length + report.unknownRecordRefs;
+    updateDataHealthBadge(report);
     document.getElementById('modalTitle').textContent = '数据体检';
     document.getElementById('modalBody').innerHTML = `
         <div style="font-size: 14px; line-height: 1.8;">
@@ -139,6 +140,29 @@ function openDataHealthCheck() {
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');
+}
+
+function getActionableHealthCount(report = getDataHealthReport()) {
+    return report.orphanAttendance.length
+        + report.unknownRecordRefs
+        + report.missingDebtRecords.length
+        + report.activeNoPaid.length;
+}
+
+function updateDataHealthBadge(report = null) {
+    const badge = document.getElementById('dataHealthBadge');
+    if (!badge || !data) return;
+    const healthReport = report || getDataHealthReport();
+    const count = getActionableHealthCount(healthReport);
+    if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.style.display = 'inline-block';
+        badge.title = `有 ${count} 项数据需要处理`;
+    } else {
+        badge.textContent = '';
+        badge.style.display = 'none';
+        badge.title = '';
+    }
 }
 
 function renderTuitionHealthDetails(report) {
