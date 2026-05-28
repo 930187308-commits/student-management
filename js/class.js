@@ -386,13 +386,14 @@ function precheckClassImport(rows) {
     const validRows = [];
     const errors = [];
     const duplicates = [];
+    const skippedDetails = [];
     let skipped = 0;
     let failed = 0;
 
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const rowNum = i + 1;
-        if (!row[0]) { skipped++; continue; }
+        if (!row[0]) { skipped++; skippedDetails.push({ row: rowNum, msg: '未填写班级名称' }); continue; }
 
         const row7 = row[7];
         const isNewFormat = row7 !== undefined && row7 !== null && String(row7).trim() !== '' && !isNaN(Number(row7));
@@ -418,7 +419,7 @@ function precheckClassImport(rows) {
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, skippedDetails, validRows };
 }
 
 function executeClassImport(checkResult, strategies = {}) {

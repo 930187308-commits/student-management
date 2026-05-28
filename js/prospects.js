@@ -24,12 +24,14 @@ function renderProspects() {
                     </div>
                     <button class="btn btn-primary" onclick="openProspectModal()">+ 新增意向</button>
                     <button class="btn btn-secondary btn-sm" onclick="openSourceManager()">渠道管理</button>
+                    <button class="btn btn-secondary btn-sm" onclick="exportSelectedProspects()">导出选中</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteSelectedProspects()">删除选中</button>
                 </div>
             </div>
             <div id="prospectCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
+                    <thead><tr><th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th><th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
                     <tbody id="prospectTableBody"></tbody>
                 </table>
             </div>
@@ -63,6 +65,7 @@ function renderProspectList() {
         const remark = p.remark || '';
         const shortRemark = remark.length > 16 ? `${remark.slice(0, 16)}...` : remark;
         return `<tr>
+            <td><input type="checkbox" class="prospect-select" value="${p.id}"></td>
             <td><strong>${escapeHtml(p.name)}</strong></td>
             <td>${escapeHtml(p.grade || '-')}</td>
             <td>${escapeHtml(p.wechat || '-')}</td>
@@ -79,7 +82,39 @@ function renderProspectList() {
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="11" style="text-align:center;color:#888;">暂无意向学员</td></tr>';
+    }).join('') || '<tr><td colspan="12" style="text-align:center;color:#888;">暂无意向学员</td></tr>';
+}
+
+function getSelectedProspectIds() {
+    return Array.from(document.querySelectorAll('.prospect-select:checked')).map(el => el.value);
+}
+
+function toggleAllProspectSelection(checkbox) {
+    document.querySelectorAll('.prospect-select').forEach(el => { el.checked = checkbox.checked; });
+}
+
+function exportSelectedProspects() {
+    const ids = getSelectedProspectIds();
+    if (ids.length === 0) { showToast('请先勾选意向学员'); return; }
+    const selected = (data.prospects || []).filter(p => ids.includes(p.id));
+    const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
+    const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '录入日期'];
+    const rows = selected.map(p => [p.name, p.grade || '', p.phone || '', p.wechat || '', p.source || '', p.intent || '', p.trialDate || '', statusMap[p.trialStatus] || '', p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交', p.remark || '', p.createDate || '']);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '选中意向学员');
+    XLSX.writeFile(wb, `选中意向学员_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast('导出成功');
+}
+
+function deleteSelectedProspects() {
+    const ids = getSelectedProspectIds();
+    if (ids.length === 0) { showToast('请先勾选意向学员'); return; }
+    if (!confirm(`确定删除选中的 ${ids.length} 条意向学员记录吗？此操作不可恢复。`)) return;
+    data.prospects = (data.prospects || []).filter(p => !ids.includes(p.id));
+    saveData();
+    showToast(`已删除 ${ids.length} 条意向记录`);
+    render();
 }
 
 function openProspectModal(id = null) {
@@ -317,13 +352,14 @@ function precheckProspectImport(rows) {
     const validRows = [];
     const errors = [];
     const duplicates = [];
+    const skippedDetails = [];
     let skipped = 0;
     let failed = 0;
 
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const rowNum = i + 1;
-        if (!row[0]) { skipped++; continue; }
+        if (!row[0]) { skipped++; skippedDetails.push({ row: rowNum, msg: '未填写姓名' }); continue; }
         const hasNewFormat = row.length > 8;
         const name = String(row[0] || '').trim();
         const phone = String(row[hasNewFormat ? 2 : 1] || '').trim();
@@ -361,7 +397,7 @@ function precheckProspectImport(rows) {
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, skippedDetails, validRows };
 }
 
 function buildProspectFromImportRow(v, id, existing = {}) {

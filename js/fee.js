@@ -28,10 +28,12 @@ function renderFees() {
                 <div><span style="color: #888;">欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
             </div>
             <div class="table-wrapper">
-                <table><thead><tr><th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
+                <table><thead><tr><th><input type="checkbox" onchange="toggleAllFeeSelection(this)"></th><th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
             </div>
             <div style="margin-top: 16px; display: flex; gap: 12px;">
                 <button class="btn btn-secondary" onclick="exportFees()">导出Excel</button>
+                <button class="btn btn-secondary" onclick="exportSelectedFees()">导出选中</button>
+                <button class="btn btn-danger" onclick="deleteSelectedFees()">删除选中</button>
             </div>
         </div>
     `;
@@ -51,7 +53,7 @@ function renderFeeTable() {
     const countBar = document.getElementById('feeCountBar');
     if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
     const tbody = document.getElementById('feeTableBody');
-    tbody.innerHTML = filtered.map(f => `<tr><td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.map(f => `<tr><td><input type="checkbox" class="fee-select" value="${f.id}"></td><td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
 }
 
 function openFeeModal(id = null) {
@@ -154,12 +156,41 @@ function deleteFee(id) {
 }
 
 function exportFees() {
+    exportFeeRows(data.fees || [], '收费记录.xlsx');
+}
+
+function getSelectedFeeIds() {
+    return Array.from(document.querySelectorAll('.fee-select:checked')).map(el => el.value);
+}
+
+function toggleAllFeeSelection(checkbox) {
+    document.querySelectorAll('.fee-select').forEach(el => { el.checked = checkbox.checked; });
+}
+
+function exportSelectedFees() {
+    const ids = getSelectedFeeIds();
+    if (ids.length === 0) { showToast('请先勾选收费记录'); return; }
+    const selected = (data.fees || []).filter(f => ids.includes(f.id));
+    exportFeeRows(selected, `选中收费记录_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function deleteSelectedFees() {
+    const ids = getSelectedFeeIds();
+    if (ids.length === 0) { showToast('请先勾选收费记录'); return; }
+    if (!confirm(`确定删除选中的 ${ids.length} 条收费记录吗？此操作不可恢复。`)) return;
+    data.fees = (data.fees || []).filter(f => !ids.includes(f.id));
+    saveData();
+    showToast(`已删除 ${ids.length} 条收费记录`);
+    render();
+}
+
+function exportFeeRows(fees, filename) {
     const headers = ['学员', '缴费金额', '课时单价', '购买课时', '缴费日期', '套餐', '付款方式', '状态'];
-    const rows = data.fees.map(f => [f.studentName, f.amount, f.pricePerHour, f.hours, f.paymentDate, f.package, f.paymentMethod, f.status === 'paid' ? '已缴' : '欠费']);
+    const rows = fees.map(f => [f.studentName, f.amount, f.pricePerHour, f.hours, f.paymentDate, f.package, f.paymentMethod, f.status === 'paid' ? '已缴' : '欠费']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '收费记录');
-    XLSX.writeFile(wb, '收费记录.xlsx');
+    XLSX.writeFile(wb, filename);
     showToast('导出成功');
 }
 
@@ -234,11 +265,12 @@ function precheckFeeImport(rows) {
     const errors = [];
     const duplicates = [];
     const missingStudents = [];
+    const skippedDetails = [];
 
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const rowNum = i + 1;
-        if (!row[0]) { skipped++; continue; }
+        if (!row[0]) { skipped++; skippedDetails.push({ row: rowNum, msg: '未填写学员姓名' }); continue; }
 
         const studentName = String(row[0]).trim();
         const amount = parseFloat(row[1]);
@@ -303,7 +335,7 @@ function precheckFeeImport(rows) {
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, validRows, missingStudents };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, skippedDetails, validRows, missingStudents };
 }
 
 // 确认导入后实际执行写入

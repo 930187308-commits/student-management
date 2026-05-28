@@ -36,6 +36,10 @@ function renderStudents() {
                         <input type="file" accept=".xlsx,.xls" onchange="importStudents(event)">
                     </div>
                 </div>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="exportSelectedStudents()">导出选中</button>
+                    <button class="btn btn-danger btn-sm" style="flex:1;" onclick="deleteSelectedStudents()">删除选中</button>
+                </div>
                 <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="openStudentModal()">+ 新增学员</button>
             </div>
             <div class="right-panel" id="studentDetail">
@@ -93,12 +97,19 @@ function renderStudentList() {
         const badgeColor = s.status === 'renewalPending' ? 'background:#f39c12;color:white;' : s.status === 'active' ? 'background:#d4edda;color:#155724;' : 'background:#e8f4fd;color:#666;';
         return `<div class="student-item ${currentStudentId === s.id ? 'active' : ''}" onclick="selectStudent('${s.id}')" ${statusClass}>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="name" style="font-weight: 600; font-size: 14px;">${escapeHtml(s.name)}</div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" class="student-select" value="${s.id}" onclick="event.stopPropagation()">
+                    <div class="name" style="font-weight: 600; font-size: 14px;">${escapeHtml(s.name)}</div>
+                </div>
                 <span class="badge" style="${badgeColor} font-size: 10px;">${statusText}</span>
             </div>
             <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(s.grade)} · ${escapeHtml(cls?.name) || '未分班'}</div>
         </div>`;
     }).join('');
+}
+
+function getSelectedStudentIds() {
+    return Array.from(document.querySelectorAll('.student-select:checked')).map(el => el.value);
 }
 
 function selectStudent(id) {
@@ -420,6 +431,52 @@ function deleteStudent(id) {
     render();
 }
 
+function exportSelectedStudents() {
+    const ids = getSelectedStudentIds();
+    if (ids.length === 0) { showToast('请先勾选学员'); return; }
+    const selected = (data.students || []).filter(s => ids.includes(s.id));
+    exportStudentRows(selected, `选中学员_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function deleteSelectedStudents() {
+    const ids = getSelectedStudentIds();
+    if (ids.length === 0) { showToast('请先勾选学员'); return; }
+    const selected = (data.students || []).filter(s => ids.includes(s.id));
+    const activeLike = selected.filter(s => s.status === 'active' || s.status === 'renewalPending');
+    const inactiveLike = selected.filter(s => s.status !== 'active' && s.status !== 'renewalPending');
+    const message = [
+        `确定处理选中的 ${ids.length} 名学员吗？`,
+        activeLike.length ? `${activeLike.length} 名在读/待续费学员会改为停课。` : '',
+        inactiveLike.length ? `${inactiveLike.length} 名非在读学员会被彻底删除。` : '',
+        '此操作会立即保存。'
+    ].filter(Boolean).join('\n');
+    if (!confirm(message)) return;
+    activeLike.forEach(s => {
+        s.status = 'inactive';
+        s._archivedAt = new Date().toISOString();
+    });
+    const deleteIds = new Set(inactiveLike.map(s => s.id));
+    data.students = (data.students || []).filter(s => !deleteIds.has(s.id));
+    if (ids.includes(currentStudentId)) currentStudentId = null;
+    saveData();
+    showToast(`已处理 ${ids.length} 名学员`);
+    render();
+}
+
+function exportStudentRows(students, filename) {
+    const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业', forming: '组班中（旧）' };
+    const headers = ['姓名', '性别', '年级', '所在班级', '授课老师', '入班时间', '首次入学', '联系电话', '紧急联系人', '就读学校', '状态', '备注'];
+    const rows = students.map(s => {
+        const cls = (data.classes || []).find(c => c.id === s.classId);
+        return [s.name || '', s.gender || '', s.grade || '', cls?.name || '未分班', s.teacher || '', s.enrollDate || '', s.firstEnrollDate || '', s.phone || '', s.emergencyContact || '', s.school || '', statusMap[s.status] || s.status || '', s.remark || ''];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '选中学员');
+    XLSX.writeFile(wb, filename);
+    showToast('导出成功');
+}
+
 // 下载学员导入模板（含填写说明）
 function downloadStudentTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([
@@ -488,13 +545,14 @@ function precheckStudentImport(rows) {
     const errors = [];
     const warnings = [];
     const duplicates = [];
+    const skippedDetails = [];
     let skipped = 0;
     let failed = 0;
 
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const rowNum = i + 1;
-        if (!row[0]) { skipped++; continue; }
+        if (!row[0]) { skipped++; skippedDetails.push({ row: rowNum, msg: '未填写学员姓名' }); continue; }
 
         const name = String(row[0]).trim();
         const phone = String(row[6] || '').trim();
@@ -526,7 +584,7 @@ function precheckStudentImport(rows) {
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, skippedDetails, validRows };
 }
 
 function executeStudentImport(checkResult, strategies = {}) {

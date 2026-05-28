@@ -225,13 +225,18 @@ function precheckGradeImport(rows) {
     const validRows = [];
     const errors = [];
     const duplicates = [];
+    const skippedDetails = [];
     let skipped = 0;
     let failed = 0;
 
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const rowNum = i + 1;
-        if (!row[0] || !row[1] || row[3] === undefined) { skipped++; continue; }
+        if (!row[0] || !row[1] || row[3] === undefined) {
+            skipped++;
+            skippedDetails.push({ row: rowNum, msg: '缺少学员、测试名称或得分' });
+            continue;
+        }
 
         const studentName = String(row[0]).trim();
         const matchedStudents = data.students.filter(s => normalizeNameForMatch(s.name) === normalizeNameForMatch(studentName));
@@ -262,7 +267,7 @@ function precheckGradeImport(rows) {
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, validRows };
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, skippedDetails, validRows };
 }
 
 function buildGradeFromImportRow(v, id) {

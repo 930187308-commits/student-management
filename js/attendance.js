@@ -654,6 +654,7 @@ function precheckAttendanceImport(rows) {
     const errors = [];
     const warnings = [];
     const duplicates = [];
+    const skippedDetails = [];
     const existingSessions = data.attendance
         .filter(a => a.classId === currentAttendanceClassId)
         .sort((a, b) => a.date.localeCompare(b.date));
@@ -664,7 +665,7 @@ function precheckAttendanceImport(rows) {
     let readCount = 0;
 
     if (rows.length < 3) {
-        return { total: 0, success: 0, dup: 0, fail: 1, skip: 0, errors: [{ row: 1, msg: '考勤宽表至少需要课次行、日期行和学员行' }], warnings: [], validRows: [] };
+        return { total: 0, success: 0, dup: 0, fail: 1, skip: 0, errors: [{ row: 1, msg: '考勤宽表至少需要课次行、日期行和学员行' }], warnings: [], skippedDetails: [], validRows: [] };
     }
 
     const headers = rows[0] || [];
@@ -685,7 +686,7 @@ function precheckAttendanceImport(rows) {
     for (let rowIdx = 2; rowIdx < rows.length; rowIdx++) {
         const row = rows[rowIdx] || [];
         const rowNum = rowIdx + 1;
-        if (!row[0]) { skipped++; continue; }
+        if (!row[0]) { skipped++; skippedDetails.push({ row: rowNum, msg: '未填写学员姓名' }); continue; }
 
         const studentName = String(row[0]).trim();
         const matchedStudents = students.filter(s => normalizeNameForMatch(s.name) === normalizeNameForMatch(studentName));
@@ -735,7 +736,7 @@ function precheckAttendanceImport(rows) {
     }
 
     const dup = validRows.filter(v => v.isDupe).length;
-    return { total: readCount, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, validRows };
+    return { total: readCount, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, skippedDetails, validRows };
 }
 
 function executeAttendanceImport(checkResult, strategies = {}) {

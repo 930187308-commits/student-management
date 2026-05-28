@@ -728,26 +728,39 @@ function showImportPreCheck({
     duplicateStrategy = null,
     missingStudentStrategy = null
 }) {
-    const { total, success, dup, fail, skip, errors, warnings = [], duplicates = [], missingStudents = [] } = checkResult;
+    const { total, success, dup, fail, skip, errors, warnings = [], duplicates = [], missingStudents = [], skippedDetails = [] } = checkResult;
     const hasDupe = dup > 0;
     const hasMissingStudents = missingStudents.length > 0;
-    const errorList = errors.slice(0, 10);
-    const warningList = warnings.slice(0, 10);
     let currentDuplicateStrategy = duplicateStrategy;
     let currentMissingStudentStrategy = missingStudentStrategy;
 
+    const buildDetailsSection = ({ title, items, color, bg, border, emptyText = '' }) => {
+        if (!items || items.length === 0) return '';
+        const list = items.slice(0, 200);
+        return `
+            <div style="margin-top: 12px; padding: 10px; background: ${bg}; border-radius: 6px; border: 1px solid ${border};">
+                <details style="font-size: 12px; color: ${color};">
+                    <summary style="cursor: pointer; user-select: none; font-weight: 600;">${title}（${items.length} 条）</summary>
+                    <div style="margin-top: 6px; max-height: 180px; overflow-y: auto;">
+                        ${list.map(item => `<div style="margin-bottom: 2px;">${item.row ? `第${item.row}行：` : ''}${escapeHtml(item.msg || item.name || emptyText)}</div>`).join('')}
+                        ${items.length > list.length ? `<div>还有 ${items.length - list.length} 条未显示</div>` : ''}
+                    </div>
+                </details>
+            </div>
+        `;
+    };
+
     let dupeSection = '';
     if (hasDupe) {
-        const duplicateList = duplicates.slice(0, 100);
         dupeSection = `
             <div style="margin-top: 12px; padding: 10px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
                 <div style="font-weight: 600; color: #856404; margin-bottom: 6px;">发现重复记录（${dup} 条）</div>
-                ${duplicateList.length > 0 ? `
+                ${duplicates.length > 0 ? `
                     <details style="margin-bottom: 8px; font-size: 12px; color: #856404;">
                         <summary style="cursor: pointer; user-select: none;">查看重复明细</summary>
                         <div style="margin-top: 6px; max-height: 160px; overflow-y: auto;">
-                            ${duplicateList.map(d => `<div style="margin-bottom: 2px;">第${d.row}行：${escapeHtml(d.msg)}</div>`).join('')}
-                            ${duplicates.length > duplicateList.length ? `<div>还有 ${duplicates.length - duplicateList.length} 条未显示</div>` : ''}
+                            ${duplicates.slice(0, 200).map(d => `<div style="margin-bottom: 2px;">第${d.row}行：${escapeHtml(d.msg)}</div>`).join('')}
+                            ${duplicates.length > 200 ? `<div>还有 ${duplicates.length - 200} 条未显示</div>` : ''}
                         </div>
                     </details>
                 ` : ''}
@@ -764,13 +777,17 @@ function showImportPreCheck({
 
     let missingStudentSection = '';
     if (hasMissingStudents) {
+        const missingList = missingStudents.map(s => ({ row: s.row, msg: s.name }));
         missingStudentSection = `
             <div style="margin-top: 12px; padding: 10px; background: #fff7e6; border-radius: 6px; border: 1px solid #f39c12;">
                 <div style="font-weight: 600; color: #8a5a00; margin-bottom: 6px;">系统内无此学员（${missingStudents.length} 条）</div>
-                <div style="font-size: 12px; color: #8a5a00; margin-bottom: 8px;">
-                    ${missingStudents.slice(0, 5).map(s => `第${s.row}行：${escapeHtml(s.name)}`).join('<br>')}
-                    ${missingStudents.length > 5 ? `<br>还有 ${missingStudents.length - 5} 条未显示` : ''}
-                </div>
+                <details style="margin-bottom: 8px; font-size: 12px; color: #8a5a00;">
+                    <summary style="cursor: pointer; user-select: none;">查看无匹配明细</summary>
+                    <div style="margin-top: 6px; max-height: 160px; overflow-y: auto;">
+                        ${missingList.slice(0, 200).map(s => `<div style="margin-bottom: 2px;">第${s.row}行：${escapeHtml(s.msg)}</div>`).join('')}
+                        ${missingList.length > 200 ? `<div>还有 ${missingList.length - 200} 条未显示</div>` : ''}
+                    </div>
+                </details>
                 <div class="missing-strategy-label" style="margin-bottom: 8px; font-size: 13px; color: #8a5a00;">
                     当前策略：<strong>${missingStudentStrategy === 'create' ? '自动新建学员后导入' : missingStudentStrategy === 'skip' ? '跳过这些记录' : '未选择'}</strong>
                 </div>
@@ -782,25 +799,9 @@ function showImportPreCheck({
         `;
     }
 
-    let warningSection = '';
-    if (warningList.length > 0) {
-        warningSection = `
-            <div style="margin-top: 12px; max-height: 160px; overflow-y: auto;">
-                <div style="font-weight: 600; color: #b9770e; margin-bottom: 6px;">提示明细（前 ${warningList.length} 条）</div>
-                ${warningList.map(w => `<div style="font-size: 12px; color: #9a6308; margin-bottom: 2px;">第${w.row}行：${escapeHtml(w.msg)}</div>`).join('')}
-            </div>
-        `;
-    }
-
-    let errorSection = '';
-    if (errorList.length > 0) {
-        errorSection = `
-            <div style="margin-top: 12px; max-height: 180px; overflow-y: auto;">
-                <div style="font-weight: 600; color: #e74c3c; margin-bottom: 6px;">失败明细（前 ${errorList.length} 条）</div>
-                ${errorList.map(e => `<div style="font-size: 12px; color: #c0392b; margin-bottom: 2px;">第${e.row}行：${escapeHtml(e.msg)}</div>`).join('')}
-            </div>
-        `;
-    }
+    const warningSection = buildDetailsSection({ title: '提示明细', items: warnings, color: '#9a6308', bg: '#fff7e6', border: '#f5c16c' });
+    const errorSection = buildDetailsSection({ title: '失败明细', items: errors, color: '#c0392b', bg: '#fdecea', border: '#e74c3c' });
+    const skippedSection = buildDetailsSection({ title: '跳过明细', items: skippedDetails, color: '#666', bg: 'var(--hover-bg)', border: 'var(--border-color)' });
 
     const modal = document.getElementById('modal');
     document.getElementById('modalTitle').textContent = title;
@@ -822,6 +823,7 @@ function showImportPreCheck({
             ${missingStudentSection}
             ${warningSection}
             ${errorSection}
+            ${skippedSection}
             <div style="margin-top: 16px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 13px; color: #2980b9;">
                 ${hasDupe || hasMissingStudents ? '请先选择需要处理的策略，再确认导入。' : fail > 0 ? '失败记录不影响其他正常数据，可确认导入。' : '点击"确认"后将正式写入数据。'}
             </div>
