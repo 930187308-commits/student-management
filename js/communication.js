@@ -136,17 +136,22 @@ function openTopicManager() {
     document.getElementById('modal').classList.add('show');
 }
 
-function addTopic() {
+async function addTopic() {
     const name = document.getElementById('newTopicName').value.trim();
     const color = document.getElementById('newTopicColor').value;
     if (!name) { showToast('请输入主题名称'); return; }
     data.communicationTopics.push({ id: generateId(), name, color });
-    saveData();
+    try {
+        await saveCommunicationTopicsToApi(data.communicationTopics);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     openTopicManager();
     showToast('主题已添加');
 }
 
-function editTopic(id) {
+async function editTopic(id) {
     const topic = (data.communicationTopics || []).find(t => t.id === id);
     if (!topic) return;
     const newName = prompt('修改主题名称：', topic.name);
@@ -154,15 +159,25 @@ function editTopic(id) {
     const newColor = prompt('修改颜色(输入hex如 #3498db)：', topic.color);
     topic.name = newName.trim();
     if (newColor && /^#[0-9A-Fa-f]{6}$/.test(newColor)) topic.color = newColor;
-    saveData();
+    try {
+        await saveCommunicationTopicsToApi(data.communicationTopics);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     openTopicManager();
     showToast('主题已修改');
 }
 
-function deleteTopic(id) {
+async function deleteTopic(id) {
     if (!confirm('删除该主题？')) return;
     data.communicationTopics = (data.communicationTopics || []).filter(t => t.id !== id);
-    saveData();
+    try {
+        await saveCommunicationTopicsToApi(data.communicationTopics);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     openTopicManager();
     showToast('主题已删除');
 }

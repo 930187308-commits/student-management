@@ -548,6 +548,22 @@ async function saveCommunicationsToApi(communications) {
     return saveCollectionToApi('communications', communications);
 }
 
+async function saveCommunicationTopicsToApi(communicationTopics) {
+    return saveCollectionToApi('communicationTopics', communicationTopics);
+}
+
+async function saveProspectSourcesToApi(prospectSources) {
+    return saveCollectionToApi('prospectSources', prospectSources);
+}
+
+async function saveClassTypesToApi(classTypes) {
+    return saveCollectionToApi('classTypes', classTypes);
+}
+
+async function saveGradeOptionsToApi(gradeOptions) {
+    return saveCollectionToApi('gradeOptions', gradeOptions);
+}
+
 function cloneData(source) {
     return JSON.parse(JSON.stringify(source || {}));
 }

@@ -308,7 +308,12 @@
 - 后端新增 `/api/grades`、`/api/communications` 模块 API。
 - 已将成绩新增、编辑、删除、批量删除、导入保存路径切到 `/api/grades`。
 - 已将沟通记录新增、编辑、删除、批量删除保存路径切到 `/api/communications`。
-- 沟通主题管理仍保留整包保存，后续可单独拆 `communicationTopics`。
+- 后端新增配置类模块 API：
+  - `/api/communicationTopics`
+  - `/api/prospectSources`
+  - `/api/classTypes`
+  - `/api/gradeOptions`
+- 已将沟通主题、招生渠道、班型、年级管理切到对应配置 API。
 - 当前 UI 暂不改变，阶段 3 的常用业务模块已基本完成模块 API 拆分。
 
 ## 后续业务规则规划

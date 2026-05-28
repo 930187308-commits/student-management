@@ -499,21 +499,31 @@ function openSourceManager() {
     document.getElementById('modal').classList.add('show');
 }
 
-function addSource() {
+async function addSource() {
     const name = document.getElementById('newSourceName').value.trim();
     if (!name) { showToast('请输入渠道名称'); return; }
     if (!data.prospectSources) data.prospectSources = [];
     if (data.prospectSources.includes(name)) { showToast('该渠道已存在'); return; }
     data.prospectSources.push(name);
-    saveData();
+    try {
+        await saveProspectSourcesToApi(data.prospectSources);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     openSourceManager();
     showToast('渠道已添加');
 }
 
-function deleteSource(name) {
+async function deleteSource(name) {
     if (!confirm('删除该渠道？')) return;
     data.prospectSources = (data.prospectSources || []).filter(s => s !== name);
-    saveData();
+    try {
+        await saveProspectSourcesToApi(data.prospectSources);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     openSourceManager();
     showToast('渠道已删除');
 }

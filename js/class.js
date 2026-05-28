@@ -160,21 +160,31 @@ function openClassTypeManager() {
     document.getElementById('modal').classList.add('show');
 }
 
-function addClassType() {
+async function addClassType() {
     const name = document.getElementById('newClassTypeName').value.trim();
     if (!name) { showToast('请输入班型名称'); return; }
     if (!data.classTypes) data.classTypes = [];
     if (data.classTypes.includes(name)) { showToast('该班型已存在'); return; }
     data.classTypes.push(name);
-    saveData();
+    try {
+        await saveClassTypesToApi(data.classTypes);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     openClassTypeManager();
     showToast('班型已添加');
 }
 
-function deleteClassTypeByIdx(idx) {
+async function deleteClassTypeByIdx(idx) {
     if (!confirm('删除该班型？')) return;
     data.classTypes.splice(idx, 1);
-    saveData();
+    try {
+        await saveClassTypesToApi(data.classTypes);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     openClassTypeManager();
     showToast('班型已删除');
 }
@@ -200,21 +210,31 @@ function openGradeManager() {
     document.getElementById('modal').classList.add('show');
 }
 
-function addGrade() {
+async function addGrade() {
     const name = document.getElementById('newGradeName').value.trim();
     if (!name) { showToast('请输入年级名称'); return; }
     if (!data.gradeOptions) data.gradeOptions = ['五年级', '六年级', '初一', '初二', '初三', '新初一'];
     if (data.gradeOptions.includes(name)) { showToast('该年级已存在'); return; }
     data.gradeOptions.push(name);
-    saveData();
+    try {
+        await saveGradeOptionsToApi(data.gradeOptions);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     openGradeManager();
     showToast('年级已添加');
 }
 
-function deleteGradeByIdx(idx) {
+async function deleteGradeByIdx(idx) {
     if (!confirm('删除该年级？')) return;
     data.gradeOptions.splice(idx, 1);
-    saveData();
+    try {
+        await saveGradeOptionsToApi(data.gradeOptions);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     openGradeManager();
     showToast('年级已删除');
 }
