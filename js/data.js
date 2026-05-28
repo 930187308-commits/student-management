@@ -464,6 +464,9 @@ async function loadCollectionFromApi(collectionName) {
 }
 
 async function saveCollectionToApi(collectionName, items) {
+    if (lastSavedDataSnapshot) {
+        undoDataSnapshot = cloneData(lastSavedDataSnapshot);
+    }
     const response = await fetch(`${SERVER_URL}/api/${collectionName}`, {
         method: 'PUT',
         headers: {
@@ -479,7 +482,13 @@ async function saveCollectionToApi(collectionName, items) {
     const payload = await response.json();
     serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
     data[collectionName] = payload[collectionName] || items;
+    data.lastModified = payload.updatedAt || new Date().toISOString();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSavedDataSnapshot = cloneData(data);
+    lastSaveTime = new Date();
+    dataModified = false;
+    updateAutoSaveIndicator();
+    updateUndoButton();
     return data[collectionName];
 }
 

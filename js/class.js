@@ -272,7 +272,7 @@ function openClassModal(id = null) {
     document.getElementById('modal').classList.add('show');
 }
 
-function saveClass(e) {
+async function saveClass(e) {
     e.preventDefault();
     const form = e.target;
     const isNew = !currentEditId;
@@ -305,7 +305,16 @@ function saveClass(e) {
     } else {
         data.classes.push(classData);
     }
-    saveData();
+    try {
+        if (!isNew && oldStatus === 'forming' && newStatus !== 'forming') {
+            await saveData();
+        } else {
+            await saveClassesToApi(data.classes);
+        }
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     showToast('保存成功');
     render();
@@ -431,7 +440,7 @@ function precheckClassImport(rows) {
     return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, skippedDetails, validRows };
 }
 
-function executeClassImport(checkResult, strategies = {}) {
+async function executeClassImport(checkResult, strategies = {}) {
     const dupeStrategy = strategies.duplicateStrategy || 'skip';
     let imported = 0;
     let replaced = 0;
@@ -477,7 +486,12 @@ function executeClassImport(checkResult, strategies = {}) {
         imported++;
     }
 
-    saveData();
+    try {
+        await saveClassesToApi(data.classes);
+    } catch (error) {
+        showToast('导入保存失败：' + error.message);
+        return;
+    }
     render();
     const msg = `成功导入 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
     showToast(msg);
