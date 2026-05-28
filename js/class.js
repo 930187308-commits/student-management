@@ -3,6 +3,10 @@
 let expandedClassIds = new Set();
 let expandedArchivedClassIds = new Set();
 
+function isCurrentClassStudent(student) {
+    return student && (student.status === 'active' || student.status === 'renewalPending' || !student.status);
+}
+
 function renderClasses() {
     const container = document.getElementById('tab-classes');
     const visibleClasses = (data.classes || []).filter(c => !c.archived);
@@ -47,7 +51,7 @@ function renderClasses() {
                         }).map(c => {
                             const count = c.status === 'forming'
                                 ? (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length
-                                : data.students.filter(s => s.classId === c.id && s.status === 'active').length;
+                                : data.students.filter(s => s.classId === c.id && isCurrentClassStudent(s)).length;
                             const fillRate = Math.round((count / c.maxStudents) * 100);
                             const isExpanded = expandedClassIds.has(c.id);
                             return `
@@ -80,13 +84,14 @@ function renderClasses() {
                                                     ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="exportClassStudents('${c.id}')">导出学员</button>` : ''}
                                                 </div>
                                             </div>
-                                            ${count === 0 && c.status !== 'forming' ? '<div class="empty-state" style="padding: 20px;">该班级暂无在读学员</div>' : ''}
-                                            ${c.status === 'active' && data.students.filter(s => s.classId === c.id && s.status === 'active').length > 0 ? `
+                                            ${count === 0 && c.status !== 'forming' ? '<div class="empty-state" style="padding: 20px;">该班级暂无在读或待续费学员</div>' : ''}
+                                            ${c.status !== 'forming' && data.students.filter(s => s.classId === c.id && isCurrentClassStudent(s)).length > 0 ? `
                                                 <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                                    ${data.students.filter(s => s.classId === c.id && s.status === 'active').map(s => `
+                                                    ${data.students.filter(s => s.classId === c.id && isCurrentClassStudent(s)).map(s => `
                                                         <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-                                                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #27ae60;"></span>
+                                                            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${s.status === 'renewalPending' ? '#f39c12' : '#27ae60'};"></span>
                                                             ${escapeHtml(s.name)}
+                                                            ${s.status === 'renewalPending' ? '<span style="font-size: 11px; color: #f39c12;">待续费</span>' : ''}
                                                             ${s.school ? `<span style="font-size: 11px; color: #888;">(${escapeHtml(s.school)})</span>` : ''}
                                                         </span>
                                                     `).join('')}
@@ -128,10 +133,11 @@ function toggleClassExpand(classId) {
 
 function exportClassStudents(classId) {
     const cls = data.classes.find(c => c.id === classId);
-    const students = data.students.filter(s => s.classId === classId && s.status === 'active');
+    const students = data.students.filter(s => s.classId === classId && isCurrentClassStudent(s));
     if (students.length === 0) { showToast('该班级无学员'); return; }
     const headers = ['姓名', '性别', '年级', '授课老师', '联系电话', '就读学校', '状态', '备注'];
-    const rows = students.map(s => [s.name, s.gender, s.grade, s.teacher, s.phone || '', s.school || '', s.status === 'active' ? '在读' : s.status, s.remark || '']);
+    const statusMap = { active: '在读', renewalPending: '待续费' };
+    const rows = students.map(s => [s.name, s.gender, s.grade, s.teacher, s.phone || '', s.school || '', statusMap[s.status] || '在读', s.remark || '']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '班级学员');
@@ -786,8 +792,8 @@ function openClassMemberManager(classId) {
         `;
         document.getElementById('memberSearchInput').addEventListener('input', (e) => filterClassMemberList(classId, 'forming'));
     } else {
-        // 正常班级：从正式学员中拉入/移出，按年级分区
-        const inClass = data.students.filter(s => s.classId === classId && s.status === 'active');
+        // 正常/已结课班级：班内展示在读和待续费，拉入仍只从在读学员中选择
+        const inClass = data.students.filter(s => s.classId === classId && isCurrentClassStudent(s));
         const notInClass = data.students.filter(s => s.classId !== classId && s.status === 'active');
         const sameGrade = notInClass.filter(s => s.grade === cls.grade);
         const otherGrade = notInClass.filter(s => s.grade !== cls.grade);
@@ -800,7 +806,9 @@ function openClassMemberManager(classId) {
                 <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">
                     ${inClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无成员</div>' : inClass.map(s => `
                         <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${s.status === 'renewalPending' ? '#f39c12' : '#27ae60'};"></span>
                             ${escapeHtml(s.name)}
+                            ${s.status === 'renewalPending' ? '<span style="font-size: 11px; color: #f39c12;">待续费</span>' : ''}
                             <button onclick="removeStudentFromClass('${s.id}', '${classId}')" style="background: none; border: none; cursor: pointer; color: #e74c3c; font-size: 12px; padding: 0 2px;">×</button>
                         </span>
                     `).join('')}
