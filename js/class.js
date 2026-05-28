@@ -1,14 +1,14 @@
 // ==================== 班级管理 ====================
 
 let expandedClassIds = new Set();
+let expandedArchivedClassIds = new Set();
 
 function renderClasses() {
     const container = document.getElementById('tab-classes');
-    const visibleClasses = (data.classes || []).filter(c => c.status !== 'finished');
+    const visibleClasses = (data.classes || []).filter(c => !c.archived);
     const grades = [...new Set(visibleClasses.map(c => c.grade))];
     const currentGradeFilter = document.getElementById('classGradeFilter')?.value || '';
-    const rawStatusFilter = document.getElementById('classStatusFilter')?.value || '';
-    const currentStatusFilter = rawStatusFilter === 'finished' ? '' : rawStatusFilter;
+    const currentStatusFilter = document.getElementById('classStatusFilter')?.value || '';
 
     let html = `
         <div class="card">
@@ -22,6 +22,7 @@ function renderClasses() {
                         <option value="">全部状态</option>
                         <option value="active" ${currentStatusFilter === 'active' ? 'selected' : ''}>正常</option>
                         <option value="forming" ${currentStatusFilter === 'forming' ? 'selected' : ''}>组班中</option>
+                        <option value="finished" ${currentStatusFilter === 'finished' ? 'selected' : ''}>已结课</option>
                     </select>
                 </div>
                 <div class="toolbar">
@@ -65,7 +66,7 @@ function renderClasses() {
                                     <td><span class="badge ${c.status === 'active' ? 'badge-active' : c.status === 'forming' ? 'badge-trial' : 'badge-pending'}">${c.status === 'active' ? '正常' : c.status === 'forming' ? '组班中' : '已结课'}</span></td>
                                     <td>
                                         <button class="btn btn-secondary btn-xs" onclick="openClassModal('${c.id}')">编辑</button>
-                                        <button class="btn btn-danger btn-xs" onclick="deleteClass('${c.id}')">${c.status === 'finished' ? '已归档' : '归档'}</button>
+                                        <button class="btn btn-danger btn-xs" onclick="archiveClass('${c.id}')">归档</button>
                                     </td>
                                 </tr>
                                 ${isExpanded ? `
@@ -310,9 +311,10 @@ async function saveClass(e) {
         maxStudents: parseInt(form.maxStudents.value), status: newStatus,
         plannedSessions: parseInt(form.plannedSessions?.value || 16),
         summerSchedule: form.summerSchedule.value,
-        archivedAt: newStatus === 'finished' ? (oldClass?.archivedAt || new Date().toISOString()) : oldClass?.archivedAt
+        archived: oldClass?.archived || false,
+        archivedAt: oldClass?.archivedAt
     };
-    if (newStatus !== 'finished') delete classData.archivedAt;
+    if (!classData.archived) delete classData.archivedAt;
 
     // forming 班级转为 active/finished 时，未成交的意向学员自动出班
     if (!isNew && oldStatus === 'forming' && newStatus !== 'forming') {
@@ -351,23 +353,21 @@ async function saveClass(e) {
     render();
 }
 
-async function deleteClass(id) {
+async function archiveClass(id) {
     const cls = data.classes.find(c => c.id === id);
     if (!cls) return;
-    if (cls.status === 'finished') {
-        showToast('该班级已归档，可在“归档班级”中彻底删除测试数据');
+    if (cls.archived) {
+        showToast('该班级已归档');
         return;
     }
-    if (!confirm('确定将该班级归档为“已结课”吗？历史考勤会保留，不会物理删除班级。')) return;
-    cls.status = 'finished';
+    if (!confirm(`确定归档班级“${cls.name}”吗？\n\n归档后会从班级主列表移到“归档班级”，历史考勤和学员轨迹会保留。班级状态不会自动改为已结课。`)) return;
+    cls.archived = true;
     cls.archivedAt = new Date().toISOString();
     (data.prospects || []).forEach(p => {
         if (p.classId === id && p.dealStatus !== 'deal') p.classId = '';
     });
-    const studentsChanged = maybeMarkClassStudentsRenewalPending(id);
     try {
         const updates = { classes: data.classes, prospects: data.prospects };
-        if (studentsChanged) updates.students = data.students;
         await saveCollectionsToApi(updates);
     } catch (error) {
         showToast('归档失败：' + error.message);
@@ -395,7 +395,7 @@ function maybeMarkClassStudentsRenewalPending(classId) {
 
 function openArchivedClassManager() {
     const archivedClasses = (data.classes || [])
-        .filter(c => c.status === 'finished')
+        .filter(c => c.archived)
         .sort((a, b) => String(b.archivedAt || '').localeCompare(String(a.archivedAt || '')));
     document.getElementById('modalTitle').textContent = '归档班级管理';
     document.getElementById('modalBody').innerHTML = `
@@ -406,21 +406,35 @@ function openArchivedClassManager() {
             ${archivedClasses.length === 0 ? '<div class="empty-state">暂无已归档班级</div>' : `
                 <div class="table-wrapper" style="max-height:420px;overflow:auto;">
                     <table>
-                        <thead><tr><th>班级名称</th><th>年级</th><th>上课时间</th><th>历史考勤</th><th>关联学员</th><th>归档时间</th><th>操作</th></tr></thead>
+                        <thead><tr><th style="width:40px;"></th><th>班级名称</th><th>状态</th><th>年级</th><th>上课时间</th><th>历史考勤</th><th>关联学员</th><th>归档时间</th><th>操作</th></tr></thead>
                         <tbody>
                             ${archivedClasses.map(c => {
                                 const attendanceCount = (data.attendance || []).filter(a => a.classId === c.id).length;
-                                const studentCount = (data.students || []).filter(s => s.classId === c.id).length;
+                                const archivedStudents = getArchivedClassStudents(c.id);
+                                const isExpanded = expandedArchivedClassIds.has(c.id);
                                 return `
                                     <tr>
+                                        <td style="text-align:center;">
+                                            <button onclick="toggleArchivedClassExpand('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:#666;padding:4px;">
+                                                ${isExpanded ? '▼' : '▶'}
+                                            </button>
+                                        </td>
                                         <td>${escapeHtml(c.name || '')}</td>
+                                        <td><span class="badge ${c.status === 'active' ? 'badge-active' : c.status === 'forming' ? 'badge-trial' : 'badge-pending'}">${c.status === 'active' ? '正常' : c.status === 'forming' ? '组班中' : '已结课'}</span></td>
                                         <td>${escapeHtml(c.grade || '')}</td>
                                         <td>${escapeHtml(c.schedule || '')}</td>
                                         <td>${attendanceCount}</td>
-                                        <td>${studentCount}</td>
+                                        <td>${archivedStudents.length}</td>
                                         <td style="white-space:nowrap;">${c.archivedAt ? new Date(c.archivedAt).toLocaleString() : '-'}</td>
                                         <td><button class="btn btn-danger btn-xs" onclick="permanentlyDeleteArchivedClass('${c.id}')">彻底删除</button></td>
                                     </tr>
+                                    ${isExpanded ? `
+                                        <tr>
+                                            <td colspan="9" style="padding:14px;background:var(--bg-card);">
+                                                ${renderArchivedClassStudentList(c.id)}
+                                            </td>
+                                        </tr>
+                                    ` : ''}
                                 `;
                             }).join('')}
                         </tbody>
@@ -433,10 +447,65 @@ function openArchivedClassManager() {
     document.getElementById('modal').classList.add('show');
 }
 
+function toggleArchivedClassExpand(classId) {
+    if (expandedArchivedClassIds.has(classId)) {
+        expandedArchivedClassIds.delete(classId);
+    } else {
+        expandedArchivedClassIds.add(classId);
+    }
+    openArchivedClassManager();
+}
+
+function getArchivedClassStudents(classId) {
+    const ids = new Set();
+    (data.students || []).forEach(s => {
+        if (s.classId === classId) ids.add(s.id);
+    });
+    (data.attendance || []).filter(a => a.classId === classId).forEach(session => {
+        Object.keys(session.records || {}).forEach(studentId => ids.add(studentId));
+    });
+    return [...ids].map(id => {
+        const student = (data.students || []).find(s => s.id === id);
+        const attendanceCount = (data.attendance || []).filter(a => a.classId === classId && a.records && a.records[id] !== undefined).length;
+        const presentCount = (data.attendance || []).filter(a => a.classId === classId && a.records && a.records[id] === 1).length;
+        return {
+            id,
+            name: student?.name || `未知学员(${id})`,
+            grade: student?.grade || '',
+            school: student?.school || '',
+            status: student?.status || '',
+            attendanceCount,
+            presentCount
+        };
+    }).sort((a, b) => (b.attendanceCount - a.attendanceCount) || a.name.localeCompare(b.name, 'zh-Hans-CN'));
+}
+
+function renderArchivedClassStudentList(classId) {
+    const students = getArchivedClassStudents(classId);
+    if (students.length === 0) {
+        return '<div class="empty-state" style="padding:16px;">暂无关联学员或考勤记录</div>';
+    }
+    const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业' };
+    return `
+        <div style="font-weight:600;margin-bottom:10px;">历史学员 / 上课记录</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${students.map(s => `
+                <span style="padding:6px 12px;background:var(--hover-bg);border-radius:16px;font-size:13px;display:flex;align-items:center;gap:6px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:${s.status === 'active' ? '#27ae60' : s.status === 'renewalPending' ? '#f39c12' : '#95a5a6'};"></span>
+                    ${escapeHtml(s.name)}
+                    ${s.grade ? `<span style="font-size:11px;color:#888;">${escapeHtml(s.grade)}</span>` : ''}
+                    <span style="font-size:11px;color:#888;">${statusMap[s.status] || s.status || '未知状态'}</span>
+                    <span style="font-size:11px;color:#888;">记录 ${s.attendanceCount} / 出勤 ${s.presentCount}</span>
+                </span>
+            `).join('')}
+        </div>
+    `;
+}
+
 async function permanentlyDeleteArchivedClass(classId) {
     const cls = (data.classes || []).find(c => c.id === classId);
     if (!cls) return;
-    if (cls.status !== 'finished') {
+    if (!cls.archived) {
         showToast('只能彻底删除已归档班级');
         return;
     }
