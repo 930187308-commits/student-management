@@ -341,7 +341,7 @@ function openStudentModal(id = null) {
     document.getElementById('modal').classList.add('show');
 }
 
-function saveStudent(e) {
+async function saveStudent(e) {
     e.preventDefault();
     const form = e.target;
     const existingStudent = currentEditId ? data.students.find(s => s.id === currentEditId) : null;
@@ -389,7 +389,12 @@ function saveStudent(e) {
     } else {
         data.students.push(studentData);
     }
-    saveData();
+    try {
+        await saveStudentsToApi(data.students);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     showToast('保存成功');
     render();
@@ -415,7 +420,7 @@ function updateSchoolDatalist() {
     datalist.innerHTML = schools.map(s => `<option value="${escapeHtml(s)}">`).join('');
 }
 
-function deleteStudent(id) {
+async function deleteStudent(id) {
     const student = data.students.find(s => s.id === id);
     if (!student) return;
 
@@ -425,7 +430,12 @@ function deleteStudent(id) {
         student.status = 'inactive';
         student._archivedAt = new Date().toISOString();
         if (currentStudentId === id) currentStudentId = null;
-        saveData();
+        try {
+            await saveStudentsToApi(data.students);
+        } catch (error) {
+            showToast('保存失败：' + error.message);
+            return;
+        }
         showToast('已改为停课状态');
         render();
         return;
@@ -433,9 +443,15 @@ function deleteStudent(id) {
 
     // 非在读状态：允许物理删除
     if (!confirm('该学员已是非在读状态，确定彻底删除该学员记录吗？此操作不可恢复。')) return;
+    await createServerBackup('删除非在读学员前自动备份');
     data.students = data.students.filter(s => s.id !== id);
     if (currentStudentId === id) currentStudentId = null;
-    saveData();
+    try {
+        await saveStudentsToApi(data.students);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast('已删除学员');
     render();
 }
@@ -468,7 +484,12 @@ async function deleteSelectedStudents() {
     const deleteIds = new Set(inactiveLike.map(s => s.id));
     data.students = (data.students || []).filter(s => !deleteIds.has(s.id));
     if (ids.includes(currentStudentId)) currentStudentId = null;
-    await saveData();
+    try {
+        await saveStudentsToApi(data.students);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     showToast(`已处理 ${ids.length} 名学员`);
     render();
 }
@@ -597,7 +618,7 @@ function precheckStudentImport(rows) {
     return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, skippedDetails, validRows };
 }
 
-function executeStudentImport(checkResult, strategies = {}) {
+async function executeStudentImport(checkResult, strategies = {}) {
     const dupeStrategy = strategies.duplicateStrategy || 'skip';
     let imported = 0;
     let replaced = 0;
@@ -657,7 +678,12 @@ function executeStudentImport(checkResult, strategies = {}) {
         imported++;
     }
 
-    saveData();
+    try {
+        await saveStudentsToApi(data.students);
+    } catch (error) {
+        showToast('导入保存失败：' + error.message);
+        return;
+    }
     render();
     const msg = `成功导入 ${imported} 名${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
     showToast(msg);
