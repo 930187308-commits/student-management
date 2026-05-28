@@ -460,7 +460,7 @@ async function deleteSelectedStudents() {
         '此操作会立即保存。'
     ].filter(Boolean).join('\n');
     if (!confirm(message)) return;
-    await createServerBackup('before_batch_delete_students');
+    await createServerBackup('批量处理学员前自动备份');
     activeLike.forEach(s => {
         s.status = 'inactive';
         s._archivedAt = new Date().toISOString();

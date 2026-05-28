@@ -531,7 +531,7 @@ function importBackup(event) {
             const backup = JSON.parse(e.target.result);
             if (backup.data) {
                 if (confirm('导入将覆盖当前所有数据，确定继续？')) {
-                    await createServerBackup('before_local_backup_import');
+                    await createServerBackup('导入本地备份前自动备份');
                     data = backup.data;
                     dataModified = false;
                     saveData();

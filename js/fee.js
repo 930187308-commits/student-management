@@ -187,7 +187,7 @@ async function deleteSelectedFees() {
     const ids = getSelectedFeeIds();
     if (ids.length === 0) { showToast('请先勾选收费记录'); return; }
     if (!confirm(`确定删除选中的 ${ids.length} 条收费记录吗？此操作不可恢复。`)) return;
-    await createServerBackup('before_batch_delete_fees');
+    await createServerBackup('批量删除收费记录前自动备份');
     data.fees = (data.fees || []).filter(f => !ids.includes(f.id));
     await saveData();
     showToast(`已删除 ${ids.length} 条收费记录`);

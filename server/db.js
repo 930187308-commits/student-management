@@ -323,13 +323,13 @@ function restoreBackup(id) {
         throw error;
     }
 
-    const beforeRestore = createBackup(`before_restore_${id}`);
+    const beforeRestore = createBackup(`恢复备份 ${id} 前自动备份`);
     const parsed = JSON.parse(fs.readFileSync(backup.jsonBackupPath, 'utf8'));
     const restoredData = parsed.data || parsed;
     if (!restoredData || typeof restoredData !== 'object' || Array.isArray(restoredData)) {
         throw new Error('备份内容格式不正确');
     }
-    const saved = setData(restoredData, `restore_backup_${id}`);
+    const saved = setData(restoredData, `恢复备份 ${id}`);
     logAudit('restore_backup', 'app_state:data', JSON.stringify({ backupId: id, beforeRestore }));
     return {
         restoredBackup: backup,

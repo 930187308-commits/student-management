@@ -7,19 +7,9 @@ function openDataManager() {
 
     document.getElementById('modalTitle').textContent = '数据管理';
     document.getElementById('modalBody').innerHTML = `
-        <div style="margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span style="font-weight: 600;">JSON 数据预览</span>
-                <span style="font-size: 12px; color: #888;">数据大小：${sizeStr}</span>
-            </div>
-            <textarea id="dataJsonPreview" style="width: 100%; height: 200px; font-family: monospace; font-size: 12px; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; resize: vertical; background: var(--input-bg); color: var(--text-primary);" readonly>${jsonStr}</textarea>
-        </div>
         <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-	            <button class="btn btn-secondary" onclick="copyJsonData()">复制JSON</button>
-		            <button class="btn btn-success" onclick="saveJsonToFile()">保存JSON</button>
 		            <button class="btn btn-secondary" onclick="exportAllStudents()">一键导出所有学员</button>
 		            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
-		            <button class="btn btn-info" onclick="openDataHealthCheck()">数据体检</button>
 		            <button class="btn btn-secondary" onclick="openBackupManager()">备份列表</button>
 	        </div>
         <div style="margin-bottom: 16px;">
@@ -28,6 +18,17 @@ function openDataManager() {
         <div style="margin-bottom: 16px;">
             <button class="btn btn-warning" onclick="resetToSampleData()">重置为示例数据</button>
         </div>
+        <details style="margin-bottom: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px;">
+            <summary style="cursor: pointer; font-weight: 600;">高级 JSON 工具</summary>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
+                <span style="font-size: 13px; color: #888;">数据大小：${sizeStr}</span>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="copyJsonData()">复制JSON</button>
+                    <button class="btn btn-success btn-sm" onclick="saveJsonToFile()">保存JSON</button>
+                </div>
+            </div>
+            <textarea id="dataJsonPreview" style="width: 100%; height: 160px; font-family: monospace; font-size: 12px; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; resize: vertical; background: var(--input-bg); color: var(--text-primary);" readonly>${jsonStr}</textarea>
+        </details>
         <div style="padding: 16px; background: var(--hover-bg); border-radius: 8px; font-size: 13px;">
             <strong>说明：</strong>JSON 数据包含所有班级、学员、收费、考勤、成绩、沟通记录。
             <br>「一键导出所有Excel」会下载所有数据的 Excel 文件（收费、考勤、成绩、班级学员等）。
@@ -46,6 +47,7 @@ function getDataHealthReport() {
     const fees = data.fees || [];
     const classIds = new Set(classes.map(c => c.id));
     const studentIds = new Set(students.map(s => s.id));
+    const inactiveStudentIds = new Set(students.filter(s => s.status !== 'active' && s.status !== 'renewalPending').map(s => s.id));
     const paidHours = {};
     const pendingHours = {};
     const feeCounts = {};
@@ -86,6 +88,8 @@ function getDataHealthReport() {
     };
 
     const orphanAttendance = attendance.filter(a => a.classId && !classIds.has(a.classId));
+    const orphanFees = fees.filter(f => f.studentId && !studentIds.has(f.studentId));
+    const inactiveStudentFees = fees.filter(f => inactiveStudentIds.has(f.studentId));
     let unknownRecordRefs = 0;
     attendance.forEach(session => {
         Object.keys(session.records || {}).forEach(studentId => {
@@ -113,7 +117,20 @@ function getDataHealthReport() {
     const activeNoPaidDetails = activeNoPaid.map(getStudentDetail)
         .sort((a, b) => b.usedHours - a.usedHours || (a.name || '').localeCompare(b.name || '', 'zh-Hans-CN'));
 
-    return { orphanAttendance, unknownRecordRefs, emptySessions, negativeRemaining, missingDebtRecords, activeNoPaid, overCapacity, negativeRemainingDetails, missingDebtDetails, activeNoPaidDetails };
+    return {
+        orphanAttendance,
+        orphanFees,
+        unknownRecordRefs,
+        emptySessions,
+        negativeRemaining,
+        missingDebtRecords,
+        activeNoPaid,
+        overCapacity,
+        inactiveStudentFees,
+        negativeRemainingDetails,
+        missingDebtDetails,
+        activeNoPaidDetails
+    };
 }
 
 function openDataHealthCheck() {
@@ -126,6 +143,7 @@ function openDataHealthCheck() {
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;">
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">不存在班级的考勤<br><strong style="color:#e74c3c;">${report.orphanAttendance.length}</strong> 条</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">不存在学员的考勤记录<br><strong style="color:#e74c3c;">${report.unknownRecordRefs}</strong> 个</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已删除学员的收费<br><strong style="color:#e74c3c;">${report.orphanFees.length}</strong> 条</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已缴余额为负<br><strong style="color:#f39c12;">${report.negativeRemaining.length}</strong> 名</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">需补欠费记录<br><strong style="color:#e74c3c;">${report.missingDebtRecords.length}</strong> 名</div>
@@ -133,8 +151,9 @@ function openDataHealthCheck() {
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">超过容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
             </div>
             <div style="padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;">
-                安全清理只会删除“不存在班级的考勤”和考勤 records 里“不存在的学员 ID”。空课次、欠费、负课时、超容量只提示，不自动改。已登记欠费的学员会进入首页欠费提醒，不在“需补欠费记录”里重复提醒。
+                安全清理只会删除“不存在班级的考勤”、考勤 records 里“不存在的学员 ID”和“已删除学员的收费记录”。空课次、欠费、负课时、超容量只提示，不自动改。已登记欠费的学员会进入首页欠费提醒，不在“需补欠费记录”里重复提醒。
             </div>
+            ${renderFeeHealthDetails(report)}
             ${renderTuitionHealthDetails(report)}
             ${safeCleanCount > 0 ? `<button class="btn btn-danger" onclick="cleanSafeHealthIssues()">清理安全项（${safeCleanCount}）</button>` : '<div style="color:#27ae60;font-weight:600;">暂无需要安全清理的数据</div>'}
         </div>
@@ -146,6 +165,7 @@ function openDataHealthCheck() {
 function getActionableHealthCount(report = getDataHealthReport()) {
     return report.orphanAttendance.length
         + report.unknownRecordRefs
+        + report.orphanFees.length
         + report.missingDebtRecords.length
         + report.activeNoPaid.length;
 }
@@ -202,6 +222,52 @@ function renderTuitionHealthDetails(report) {
     `;
 }
 
+function renderFeeHealthDetails(report) {
+    const orphanRows = (report.orphanFees || []).map(f => `
+        <tr>
+            <td>${escapeHtml(f.studentName || '-')}</td>
+            <td>${f.status === 'paid' ? '已缴' : '欠费'}</td>
+            <td>¥${Number(f.amount || 0).toLocaleString()}</td>
+            <td>${f.hours || 0}</td>
+            <td>${escapeHtml(f.package || '-')}</td>
+        </tr>
+    `).join('');
+    const inactiveRows = (report.inactiveStudentFees || []).map(f => {
+        const student = (data.students || []).find(s => s.id === f.studentId);
+        const statusText = { inactive: '停课', withdrawn: '退费', graduated: '毕业' }[student?.status] || student?.status || '-';
+        return `
+            <tr>
+                <td>${escapeHtml(f.studentName || student?.name || '-')}</td>
+                <td>${escapeHtml(statusText)}</td>
+                <td>${f.status === 'paid' ? '已缴' : '欠费'}</td>
+                <td>¥${Number(f.amount || 0).toLocaleString()}</td>
+                <td>${f.hours || 0}</td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <details ${report.orphanFees.length > 0 ? 'open' : ''} style="margin:12px 0;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--card-bg);">
+            <summary style="cursor:pointer;font-weight:600;">已删除学员的收费记录（${report.orphanFees.length} 条）</summary>
+            <div style="color:#888;font-size:13px;margin:6px 0 10px;">这类记录已经找不到对应学员，会影响首页已收/欠费统计，建议通过“清理安全项”删除。</div>
+            ${report.orphanFees.length > 0 ? `
+                <div class="table-wrapper" style="max-height:220px;overflow:auto;">
+                    <table><thead><tr><th>学员</th><th>状态</th><th>金额</th><th>课时</th><th>套餐</th></tr></thead><tbody>${orphanRows}</tbody></table>
+                </div>
+            ` : '<div style="color:#27ae60;">暂无</div>'}
+        </details>
+        <details style="margin:12px 0;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--card-bg);">
+            <summary style="cursor:pointer;font-weight:600;">非在读学员收费记录参考（${report.inactiveStudentFees.length} 条）</summary>
+            <div style="color:#888;font-size:13px;margin:6px 0 10px;">停课/退费/毕业学员的收费记录通常属于历史财务记录，不自动清理；如果只是测试数据，可到收费记录里手动删除。</div>
+            ${report.inactiveStudentFees.length > 0 ? `
+                <div class="table-wrapper" style="max-height:220px;overflow:auto;">
+                    <table><thead><tr><th>学员</th><th>学员状态</th><th>收费状态</th><th>金额</th><th>课时</th></tr></thead><tbody>${inactiveRows}</tbody></table>
+                </div>
+            ` : '<div style="color:#27ae60;">暂无</div>'}
+        </details>
+    `;
+}
+
 function openPendingFeeFromHealth(studentId, suggestedHours = 1, type = 'negative') {
     const student = (data.students || []).find(s => s.id === studentId);
     if (!student) {
@@ -222,11 +288,14 @@ function openPendingFeeFromHealth(studentId, suggestedHours = 1, type = 'negativ
 async function cleanSafeHealthIssues() {
     const report = getDataHealthReport();
     const orphanIds = new Set(report.orphanAttendance.map(a => a.id));
+    const orphanFeeIds = new Set(report.orphanFees.map(f => f.id));
     const studentIds = new Set((data.students || []).map(s => s.id));
     const beforeAttendance = (data.attendance || []).length;
+    const beforeFees = (data.fees || []).length;
     let removedRecordRefs = 0;
 
     data.attendance = (data.attendance || []).filter(a => !orphanIds.has(a.id));
+    data.fees = (data.fees || []).filter(f => !orphanFeeIds.has(f.id));
     data.attendance.forEach(session => {
         Object.keys(session.records || {}).forEach(studentId => {
             if (!studentIds.has(studentId)) {
@@ -237,9 +306,10 @@ async function cleanSafeHealthIssues() {
     });
 
     const removedAttendance = beforeAttendance - data.attendance.length;
-    await createServerBackup('before_safe_health_cleanup');
+    const removedFees = beforeFees - data.fees.length;
+    await createServerBackup('数据体检清理前自动备份');
     await saveData();
-    showToast(`已清理考勤 ${removedAttendance} 条，无效学员记录 ${removedRecordRefs} 个`);
+    showToast(`已清理考勤 ${removedAttendance} 条，无效学员记录 ${removedRecordRefs} 个，收费 ${removedFees} 条`);
     openDataHealthCheck();
 }
 
@@ -267,7 +337,7 @@ async function openBackupManager() {
                                 ${backups.map(b => `
                                     <tr>
                                         <td style="white-space:nowrap;">${new Date(b.createdAt).toLocaleString()}</td>
-                                        <td>${escapeHtml(b.reason || '-')}</td>
+                                        <td>${escapeHtml(formatBackupReason(b.reason))}</td>
                                         <td style="font-size:12px;color:#888;">${escapeHtml((b.jsonBackupPath || '').split('/').pop() || '-')}</td>
                                         <td><button class="btn btn-warning btn-xs" onclick="restoreBackupFromList(${b.id})">恢复</button></td>
                                     </tr>
@@ -287,8 +357,37 @@ async function openBackupManager() {
     }
 }
 
+function formatBackupReason(reason) {
+    const reasonMap = {
+        api: '手动创建备份',
+        manual_ui: '手动创建备份',
+        manual_cli: '命令行手动备份',
+        before_safe_health_cleanup: '数据体检清理前自动备份',
+        before_clear_all_data: '一键清空所有数据前自动备份',
+        before_reset_sample_data: '重置示例数据前自动备份',
+        before_local_backup_import: '导入本地备份前自动备份',
+        before_batch_delete_fees: '批量删除收费记录前自动备份',
+        before_batch_delete_students: '批量处理学员前自动备份',
+        before_batch_delete_prospects: '批量删除意向学员前自动备份',
+        before_batch_delete_grades: '批量删除成绩记录前自动备份',
+        before_batch_delete_communications: '批量删除沟通记录前自动备份',
+        before_json_import: '导入 JSON 前自动备份',
+        before_reset_empty: '清空数据前自动备份',
+        before_health_cleanup: '数据清理前备份',
+        after_health_cleanup: '数据清理后备份',
+        verify_backup_api: '备份接口验证'
+    };
+    if (!reason) return '-';
+    if (reasonMap[reason]) return reasonMap[reason];
+    const beforeRestore = String(reason).match(/^before_restore_(\d+)$/);
+    if (beforeRestore) return `恢复备份 ${beforeRestore[1]} 前自动备份`;
+    const restoreBackup = String(reason).match(/^restore_backup_(\d+)$/);
+    if (restoreBackup) return `恢复备份 ${restoreBackup[1]}`;
+    return reason;
+}
+
 async function createManualServerBackup() {
-    const backup = await createServerBackup('manual_ui');
+    const backup = await createServerBackup('手动创建备份');
     if (!backup) {
         showToast('创建备份失败');
         return;
@@ -405,7 +504,7 @@ function exportAllExcel() {
 async function confirmClearAllData() {
     if (!confirm('确定清空所有数据？此操作不可恢复！\n\n请确认：\n1. 已导出所有重要数据\n2. 了解清空后无法找回\n\n点击确定继续。')) return;
     if (!confirm('最后一次确认：清空后所有学员、班级、收费、考勤、成绩、沟通记录都将被删除！')) return;
-    await createServerBackup('before_clear_all_data');
+    await createServerBackup('一键清空所有数据前自动备份');
 
     // 清空所有数据
     data = {
@@ -435,7 +534,7 @@ async function confirmClearAllData() {
 
 async function resetToSampleData() {
     if (!confirm('确定重置为示例数据？这将覆盖当前所有数据！')) return;
-    await createServerBackup('before_reset_sample_data');
+    await createServerBackup('重置示例数据前自动备份');
     data = getSampleData();
     dataModified = false; // 重置改动标记
     await saveData();

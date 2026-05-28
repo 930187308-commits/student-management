@@ -89,7 +89,7 @@ async function deleteSelectedCommunications() {
     const ids = getSelectedCommunicationIds();
     if (ids.length === 0) { showToast('请先勾选沟通记录'); return; }
     if (!confirm(`确定删除选中的 ${ids.length} 条沟通记录吗？此操作不可恢复。`)) return;
-    await createServerBackup('before_batch_delete_communications');
+    await createServerBackup('批量删除沟通记录前自动备份');
     data.communications = (data.communications || []).filter(c => !ids.includes(c.id));
     await saveData();
     showToast(`已删除 ${ids.length} 条沟通记录`);
