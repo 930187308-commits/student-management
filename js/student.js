@@ -443,6 +443,8 @@ async function deleteStudent(id) {
 
     // 非在读状态：允许物理删除
     if (!confirm('该学员已是非在读状态，确定彻底删除该学员记录吗？此操作不可恢复。')) return;
+    const pendingFeeSummary = getPendingFeeSummary([student]);
+    if (pendingFeeSummary.count > 0 && !confirm(`该学员还有欠费记录：\n\n${formatPendingFeeSummary(pendingFeeSummary)}\n\n确定仍然彻底删除学员吗？收费记录不会自动删除，后续会在数据体检中提示清理。`)) return;
     await createServerBackup('删除非在读学员前自动备份');
     data.students = data.students.filter(s => s.id !== id);
     if (currentStudentId === id) currentStudentId = null;
@@ -469,13 +471,16 @@ async function deleteSelectedStudents() {
     const selected = (data.students || []).filter(s => ids.includes(s.id));
     const activeLike = selected.filter(s => s.status === 'active' || s.status === 'renewalPending');
     const inactiveLike = selected.filter(s => s.status !== 'active' && s.status !== 'renewalPending');
+    const pendingFeeSummary = getPendingFeeSummary(inactiveLike);
     const message = [
         `确定处理选中的 ${ids.length} 名学员吗？`,
         activeLike.length ? `${activeLike.length} 名在读/待续费学员会改为停课。` : '',
         inactiveLike.length ? `${inactiveLike.length} 名非在读学员会被彻底删除。` : '',
+        pendingFeeSummary.count > 0 ? `其中 ${pendingFeeSummary.studentCount} 名待彻底删除学员仍有欠费记录：${pendingFeeSummary.count} 条，${pendingFeeSummary.hours} 课时，¥${pendingFeeSummary.amount.toLocaleString()}。` : '',
         '此操作会立即保存。'
     ].filter(Boolean).join('\n');
     if (!confirm(message)) return;
+    if (pendingFeeSummary.count > 0 && !confirm(`再次确认：待彻底删除的学员中仍有欠费记录。\n\n${formatPendingFeeSummary(pendingFeeSummary)}\n\n确定继续吗？`)) return;
     await createServerBackup('批量处理学员前自动备份');
     activeLike.forEach(s => {
         s.status = 'inactive';
@@ -492,6 +497,30 @@ async function deleteSelectedStudents() {
     }
     showToast(`已处理 ${ids.length} 名学员`);
     render();
+}
+
+function getPendingFeeSummary(students) {
+    const studentIds = new Set((students || []).map(s => s.id));
+    const pendingFees = (data.fees || []).filter(f => studentIds.has(f.studentId) && f.status === 'pending');
+    const studentNames = [...new Set(pendingFees.map(f => f.studentName || (students.find(s => s.id === f.studentId)?.name) || '未命名学员'))];
+    return {
+        count: pendingFees.length,
+        studentCount: studentNames.length,
+        studentNames,
+        amount: pendingFees.reduce((sum, f) => sum + Number(f.amount || 0), 0),
+        hours: pendingFees.reduce((sum, f) => sum + Number(f.hours || 0), 0)
+    };
+}
+
+function formatPendingFeeSummary(summary) {
+    const names = summary.studentNames.slice(0, 8).join('、');
+    const more = summary.studentNames.length > 8 ? `等 ${summary.studentNames.length} 人` : `${summary.studentNames.length} 人`;
+    return [
+        `涉及学员：${names || '-'}${summary.studentNames.length > 8 ? `（${more}）` : ''}`,
+        `欠费记录：${summary.count} 条`,
+        `欠费课时：${summary.hours}`,
+        `欠费金额：¥${summary.amount.toLocaleString()}`
+    ].join('\n');
 }
 
 function exportStudentRows(students, filename) {
