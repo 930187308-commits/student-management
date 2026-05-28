@@ -297,6 +297,47 @@ function createBackup(reason = 'manual') {
     };
 }
 
+function listBackups(limit = 50) {
+    return getDb().prepare(`
+        SELECT id, backup_path AS sqliteBackupPath, json_path AS jsonBackupPath, reason, created_at AS createdAt
+        FROM backup_log
+        ORDER BY id DESC
+        LIMIT ?
+    `).all(limit);
+}
+
+function restoreBackup(id) {
+    const backup = getDb().prepare(`
+        SELECT id, json_path AS jsonBackupPath, reason, created_at AS createdAt
+        FROM backup_log
+        WHERE id = ?
+    `).get(id);
+    if (!backup) {
+        const error = new Error('备份不存在');
+        error.statusCode = 404;
+        throw error;
+    }
+    if (!backup.jsonBackupPath || !fs.existsSync(backup.jsonBackupPath)) {
+        const error = new Error('备份 JSON 文件不存在');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const beforeRestore = createBackup(`before_restore_${id}`);
+    const parsed = JSON.parse(fs.readFileSync(backup.jsonBackupPath, 'utf8'));
+    const restoredData = parsed.data || parsed;
+    if (!restoredData || typeof restoredData !== 'object' || Array.isArray(restoredData)) {
+        throw new Error('备份内容格式不正确');
+    }
+    const saved = setData(restoredData, `restore_backup_${id}`);
+    logAudit('restore_backup', 'app_state:data', JSON.stringify({ backupId: id, beforeRestore }));
+    return {
+        restoredBackup: backup,
+        beforeRestore,
+        data: saved
+    };
+}
+
 function getMeta() {
     const state = getDb().prepare('SELECT updated_at FROM app_state WHERE key = ?').get('data');
     const counts = {
@@ -319,5 +360,7 @@ module.exports = {
     getDataUpdatedAt,
     setData,
     createBackup,
+    listBackups,
+    restoreBackup,
     getMeta
 };

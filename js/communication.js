@@ -85,12 +85,13 @@ function exportSelectedCommunications() {
     exportCommunicationRows(selected, `选中沟通记录_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-function deleteSelectedCommunications() {
+async function deleteSelectedCommunications() {
     const ids = getSelectedCommunicationIds();
     if (ids.length === 0) { showToast('请先勾选沟通记录'); return; }
     if (!confirm(`确定删除选中的 ${ids.length} 条沟通记录吗？此操作不可恢复。`)) return;
+    await createServerBackup('before_batch_delete_communications');
     data.communications = (data.communications || []).filter(c => !ids.includes(c.id));
-    saveData();
+    await saveData();
     showToast(`已删除 ${ids.length} 条沟通记录`);
     render();
 }

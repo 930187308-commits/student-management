@@ -407,6 +407,51 @@ async function saveData() {
     }
 }
 
+async function createServerBackup(reason = 'manual') {
+    try {
+        const response = await fetch(`${SERVER_URL}/api/backups`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        if (!response.ok) throw new Error(`备份失败：${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.log('创建服务器备份失败:', error);
+        return null;
+    }
+}
+
+async function loadServerBackups() {
+    const response = await fetch(`${SERVER_URL}/api/backups`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`读取备份列表失败：${response.status}`);
+    const payload = await response.json();
+    return payload.backups || [];
+}
+
+async function restoreServerBackup(id) {
+    const response = await fetch(`${SERVER_URL}/api/backups/${id}/restore`, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || `恢复备份失败：${response.status}`);
+    }
+    const payload = await response.json();
+    const restored = payload.data || payload;
+    data = restored;
+    serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || restored.lastModified || null;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSavedDataSnapshot = cloneData(data);
+    undoDataSnapshot = null;
+    updateUndoButton();
+    return payload;
+}
+
 function cloneData(source) {
     return JSON.parse(JSON.stringify(source || {}));
 }
@@ -481,11 +526,12 @@ function importBackup(event) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         try {
             const backup = JSON.parse(e.target.result);
             if (backup.data) {
                 if (confirm('导入将覆盖当前所有数据，确定继续？')) {
+                    await createServerBackup('before_local_backup_import');
                     data = backup.data;
                     dataModified = false;
                     saveData();

@@ -20,6 +20,7 @@ function openDataManager() {
 		            <button class="btn btn-secondary" onclick="exportAllStudents()">一键导出所有学员</button>
 		            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
 		            <button class="btn btn-info" onclick="openDataHealthCheck()">数据体检</button>
+		            <button class="btn btn-secondary" onclick="openBackupManager()">备份列表</button>
 	        </div>
         <div style="margin-bottom: 16px;">
             <button class="btn btn-danger" onclick="confirmClearAllData()">一键清空所有数据</button>
@@ -218,7 +219,7 @@ function openPendingFeeFromHealth(studentId, suggestedHours = 1, type = 'negativ
     });
 }
 
-function cleanSafeHealthIssues() {
+async function cleanSafeHealthIssues() {
     const report = getDataHealthReport();
     const orphanIds = new Set(report.orphanAttendance.map(a => a.id));
     const studentIds = new Set((data.students || []).map(s => s.id));
@@ -236,9 +237,77 @@ function cleanSafeHealthIssues() {
     });
 
     const removedAttendance = beforeAttendance - data.attendance.length;
-    saveData();
+    await createServerBackup('before_safe_health_cleanup');
+    await saveData();
     showToast(`已清理考勤 ${removedAttendance} 条，无效学员记录 ${removedRecordRefs} 个`);
     openDataHealthCheck();
+}
+
+async function openBackupManager() {
+    document.getElementById('modalTitle').textContent = '备份列表';
+    document.getElementById('modalBody').innerHTML = '<div style="padding:16px;color:#888;">正在读取备份列表...</div>';
+    document.getElementById('modal').classList.add('show');
+
+    try {
+        const backups = await loadServerBackups();
+        document.getElementById('modalBody').innerHTML = `
+            <div style="font-size:14px;line-height:1.7;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                    <button class="btn btn-success btn-sm" onclick="createManualServerBackup()">立即创建备份</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openBackupManager()">刷新</button>
+                </div>
+                <div style="padding:10px;background:#fff3cd;border-radius:8px;color:#856404;margin-bottom:12px;">
+                    恢复备份会覆盖当前系统数据。系统会在恢复前自动再创建一份“恢复前备份”，用于反悔回退。
+                </div>
+                ${backups.length === 0 ? '<div class="empty-state">暂无服务器备份</div>' : `
+                    <div class="table-wrapper" style="max-height:420px;overflow:auto;">
+                        <table>
+                            <thead><tr><th>时间</th><th>原因</th><th>JSON 文件</th><th>操作</th></tr></thead>
+                            <tbody>
+                                ${backups.map(b => `
+                                    <tr>
+                                        <td style="white-space:nowrap;">${new Date(b.createdAt).toLocaleString()}</td>
+                                        <td>${escapeHtml(b.reason || '-')}</td>
+                                        <td style="font-size:12px;color:#888;">${escapeHtml((b.jsonBackupPath || '').split('/').pop() || '-')}</td>
+                                        <td><button class="btn btn-warning btn-xs" onclick="restoreBackupFromList(${b.id})">恢复</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `}
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+        `;
+    } catch (error) {
+        document.getElementById('modalBody').innerHTML = `
+            <div style="padding:16px;color:#e74c3c;">读取备份列表失败：${escapeHtml(error.message)}</div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+        `;
+    }
+}
+
+async function createManualServerBackup() {
+    const backup = await createServerBackup('manual_ui');
+    if (!backup) {
+        showToast('创建备份失败');
+        return;
+    }
+    showToast('已创建服务器备份');
+    openBackupManager();
+}
+
+async function restoreBackupFromList(id) {
+    if (!confirm('确定恢复到这个备份吗？当前系统数据会被覆盖。恢复前会自动创建一份当前数据备份。')) return;
+    if (!confirm('最后确认：恢复后所有设备都应刷新页面再继续操作。确定恢复？')) return;
+    try {
+        await restoreServerBackup(id);
+        render();
+        showToast('已恢复备份');
+        openBackupManager();
+    } catch (error) {
+        showToast('恢复失败：' + error.message);
+    }
 }
 
 // 一键导出所有Excel文件
@@ -333,9 +402,10 @@ function exportAllExcel() {
 }
 
 // 确认清空所有数据
-function confirmClearAllData() {
+async function confirmClearAllData() {
     if (!confirm('确定清空所有数据？此操作不可恢复！\n\n请确认：\n1. 已导出所有重要数据\n2. 了解清空后无法找回\n\n点击确定继续。')) return;
     if (!confirm('最后一次确认：清空后所有学员、班级、收费、考勤、成绩、沟通记录都将被删除！')) return;
+    await createServerBackup('before_clear_all_data');
 
     // 清空所有数据
     data = {
@@ -357,17 +427,18 @@ function confirmClearAllData() {
         classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班']
     };
     dataModified = false; // 重置改动标记
-    saveData();
+    await saveData();
     closeModal();
     showToast('已清空所有数据');
     render();
 }
 
-function resetToSampleData() {
+async function resetToSampleData() {
     if (!confirm('确定重置为示例数据？这将覆盖当前所有数据！')) return;
+    await createServerBackup('before_reset_sample_data');
     data = getSampleData();
     dataModified = false; // 重置改动标记
-    saveData();
+    await saveData();
     closeModal();
     showToast('已重置为示例数据');
     render();

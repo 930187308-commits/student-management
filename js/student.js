@@ -447,7 +447,7 @@ function exportSelectedStudents() {
     exportStudentRows(selected, `选中学员_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-function deleteSelectedStudents() {
+async function deleteSelectedStudents() {
     const ids = getSelectedStudentIds();
     if (ids.length === 0) { showToast('请先勾选学员'); return; }
     const selected = (data.students || []).filter(s => ids.includes(s.id));
@@ -460,6 +460,7 @@ function deleteSelectedStudents() {
         '此操作会立即保存。'
     ].filter(Boolean).join('\n');
     if (!confirm(message)) return;
+    await createServerBackup('before_batch_delete_students');
     activeLike.forEach(s => {
         s.status = 'inactive';
         s._archivedAt = new Date().toISOString();
@@ -467,7 +468,7 @@ function deleteSelectedStudents() {
     const deleteIds = new Set(inactiveLike.map(s => s.id));
     data.students = (data.students || []).filter(s => !deleteIds.has(s.id));
     if (ids.includes(currentStudentId)) currentStudentId = null;
-    saveData();
+    await saveData();
     showToast(`已处理 ${ids.length} 名学员`);
     render();
 }

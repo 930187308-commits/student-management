@@ -114,12 +114,13 @@ function exportSelectedProspects() {
     showToast('导出成功');
 }
 
-function deleteSelectedProspects() {
+async function deleteSelectedProspects() {
     const ids = getSelectedProspectIds();
     if (ids.length === 0) { showToast('请先勾选意向学员'); return; }
     if (!confirm(`确定删除选中的 ${ids.length} 条意向学员记录吗？此操作不可恢复。`)) return;
+    await createServerBackup('before_batch_delete_prospects');
     data.prospects = (data.prospects || []).filter(p => !ids.includes(p.id));
-    saveData();
+    await saveData();
     showToast(`已删除 ${ids.length} 条意向记录`);
     render();
 }

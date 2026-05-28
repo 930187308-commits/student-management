@@ -366,12 +366,13 @@ function exportSelectedGrades() {
     exportGradeRows(selected, `选中成绩记录_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-function deleteSelectedGrades() {
+async function deleteSelectedGrades() {
     const ids = getSelectedGradeIds();
     if (ids.length === 0) { showToast('请先勾选成绩记录'); return; }
     if (!confirm(`确定删除选中的 ${ids.length} 条成绩记录吗？此操作不可恢复。`)) return;
+    await createServerBackup('before_batch_delete_grades');
     data.grades = (data.grades || []).filter(g => !ids.includes(g.id));
-    saveData();
+    await saveData();
     showToast(`已删除 ${ids.length} 条成绩记录`);
     render();
 }

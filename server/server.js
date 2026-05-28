@@ -3,7 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { URL } = require('node:url');
 const config = require('./config');
-const { openDatabase, getData, getDataUpdatedAt, setData, createBackup, getMeta } = require('./db');
+const { openDatabase, getData, getDataUpdatedAt, setData, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -138,9 +138,25 @@ async function handleApi(req, res, pathname) {
         return true;
     }
 
+    if (req.method === 'GET' && pathname === '/api/backups') {
+        sendJson(res, 200, { backups: listBackups(80) });
+        return true;
+    }
+
     if (req.method === 'POST' && pathname === '/api/backups') {
-        const backup = createBackup('api');
+        const rawBody = await readRequestBody(req).catch(() => '');
+        const parsed = rawBody ? JSON.parse(rawBody) : {};
+        const backup = createBackup(parsed.reason || 'api');
         sendJson(res, 201, backup);
+        return true;
+    }
+
+    const restoreMatch = pathname.match(/^\/api\/backups\/(\d+)\/restore$/);
+    if (req.method === 'POST' && restoreMatch) {
+        const result = restoreBackup(Number(restoreMatch[1]));
+        sendJson(res, 200, result, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
         return true;
     }
 
@@ -213,7 +229,7 @@ const server = http.createServer(async (req, res) => {
     } catch (error) {
         console.error(error);
         if (!res.headersSent) {
-            sendJson(res, 500, { error: error.message || 'Internal server error' });
+            sendJson(res, error.statusCode || 500, { error: error.message || 'Internal server error' });
         } else {
             res.end();
         }
