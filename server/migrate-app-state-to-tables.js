@@ -1,11 +1,15 @@
 const { DatabaseSync } = require('node:sqlite');
 const config = require('./config');
+const { createBackup } = require('./db');
 
-function requireDryRun() {
-    if (!process.argv.includes('--dry-run')) {
-        console.error('当前脚本只开放 dry-run。请使用：scripts/node.sh server/migrate-app-state-to-tables.js --dry-run');
+function getMode() {
+    const isDryRun = process.argv.includes('--dry-run');
+    const isApply = process.argv.includes('--apply');
+    if (isDryRun === isApply) {
+        console.error('请明确指定一种模式：--dry-run 或 --apply');
         process.exit(2);
     }
+    return isApply ? 'apply' : 'dry-run';
 }
 
 function readAppState(db) {
@@ -215,15 +219,116 @@ function summarizeRows(rows) {
     return Object.fromEntries(Object.entries(rows).map(([name, items]) => [name, items.length]));
 }
 
+function clearTargetTables(db) {
+    [
+        'attendance_records',
+        'attendance_sessions',
+        'communications',
+        'grades',
+        'fees',
+        'prospects',
+        'students',
+        'classes'
+    ].forEach(tableName => {
+        db.prepare(`DELETE FROM ${tableName}`).run();
+    });
+}
+
+function insertRows(db, rows) {
+    const stamp = new Date().toISOString();
+
+    const insertClass = db.prepare(`
+        INSERT INTO classes (id, name, grade, class_type, schedule, semester, max_students, status, summer_schedule, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.classes.forEach(row => insertClass.run(
+        row.id, row.name, row.grade, row.class_type, row.schedule, row.semester,
+        row.max_students, row.status, row.summer_schedule, row.raw_json, stamp
+    ));
+
+    const insertStudent = db.prepare(`
+        INSERT INTO students (id, name, gender, grade, school, phone, emergency_contact, class_id, teacher, status, enroll_date, remark, archived_at, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.students.forEach(row => insertStudent.run(
+        row.id, row.name, row.gender, row.grade, row.school, row.phone, row.emergency_contact,
+        row.class_id, row.teacher, row.status, row.enroll_date, row.remark, row.archived_at, row.raw_json, stamp
+    ));
+
+    const insertFee = db.prepare(`
+        INSERT INTO fees (id, student_id, amount, hours, price_per_hour, payment_date, payment_method, package_name, status, remark, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.fees.forEach(row => insertFee.run(
+        row.id, row.student_id, row.amount, row.hours, row.price_per_hour, row.payment_date,
+        row.payment_method, row.package_name, row.status, row.remark, row.raw_json, stamp
+    ));
+
+    const insertAttendanceSession = db.prepare(`
+        INSERT INTO attendance_sessions (id, class_id, date, session_name, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    rows.attendance_sessions.forEach(row => insertAttendanceSession.run(
+        row.id, row.class_id, row.date, row.session_name, row.raw_json, stamp
+    ));
+
+    const insertAttendanceRecord = db.prepare(`
+        INSERT INTO attendance_records (session_id, student_id, status, consumed_hours, note, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    rows.attendance_records.forEach(row => insertAttendanceRecord.run(
+        row.session_id, row.student_id, row.status, row.consumed_hours, row.note, stamp
+    ));
+
+    const insertGrade = db.prepare(`
+        INSERT INTO grades (id, student_id, class_id, test_name, test_date, exam_type, score, full_score, ranking, weak_points, remark, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.grades.forEach(row => insertGrade.run(
+        row.id, row.student_id, row.class_id, row.test_name, row.test_date, row.exam_type,
+        row.score, row.full_score, row.ranking, row.weak_points, row.remark, row.raw_json, stamp
+    ));
+
+    const insertCommunication = db.prepare(`
+        INSERT INTO communications (id, student_id, topic_id, contact_type, contact_person, contact_date, teacher, status, content, follow_up, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.communications.forEach(row => insertCommunication.run(
+        row.id, row.student_id, row.topic_id, row.contact_type, row.contact_person, row.contact_date,
+        row.teacher, row.status, row.content, row.follow_up, row.raw_json, stamp
+    ));
+
+    const insertProspect = db.prepare(`
+        INSERT INTO prospects (id, name, phone, source, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.prospects.forEach(row => insertProspect.run(
+        row.id, row.name, row.phone, row.source, row.intent, row.trial_date, row.trial_status,
+        row.deal_status, row.remark, row.create_date, row.converted_student_id, row.raw_json, stamp
+    ));
+}
+
+function applyMigration(db, plan) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+        clearTargetTables(db);
+        insertRows(db, plan.rows);
+        db.exec('COMMIT');
+    } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+    }
+}
+
 function main() {
-    requireDryRun();
+    const mode = getMode();
     const db = new DatabaseSync(config.dbPath);
     const { data, updatedAt } = readAppState(db);
     const plan = buildMigrationPlan(data);
     const errors = plan.issues.filter(issue => issue.level === 'error');
     const warnings = plan.issues.filter(issue => issue.level !== 'error');
     const report = {
-        mode: 'dry-run',
+        mode,
         dbPath: config.dbPath,
         appStateUpdatedAt: updatedAt,
         plannedRows: summarizeRows(plan.rows),
@@ -234,8 +339,22 @@ function main() {
         issues: plan.issues.slice(0, 80),
         nextStep: errors.length > 0
             ? '存在错误，不能执行真实迁移。'
-            : 'dry-run 未发现阻断错误。下一步可设计真实写入脚本，但执行前必须先创建服务器备份。'
+            : mode === 'dry-run'
+                ? 'dry-run 未发现阻断错误。可执行 --apply；脚本会先创建服务器备份，再写入实体表。'
+                : '实体表已从 app_state 快照写入。下一步运行 reconcile，并继续保持前端读 app_state，不切换读路径。'
     };
+
+    if (mode === 'apply') {
+        if (errors.length > 0) {
+            console.log(JSON.stringify(report, null, 2));
+            process.exit(1);
+        }
+        const backup = createBackup('sqlite_split_apply_before');
+        applyMigration(db, plan);
+        report.backup = backup;
+        report.applied = true;
+    }
+
     console.log(JSON.stringify(report, null, 2));
 }
 

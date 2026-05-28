@@ -355,11 +355,18 @@
 - 新增 dry-run 迁移脚本：`server/migrate-app-state-to-tables.js --dry-run`。
 - 新增命令：`npm run sqlite:migrate:dry-run`。
 - dry-run 只模拟 JSON 快照到实体表的行转换、引用检查和重复 ID 检查，不写入数据库。
+- 迁移脚本已支持 `--apply`，执行前会自动创建服务器备份，并把 `app_state.data` 写入实体表。
+- 新增命令：`npm run sqlite:migrate:apply`。
+- 已执行一次真实写入，写入前自动备份：
+  - `/Users/bzx/Data/student-ai-console/backups/student-console-2026-05-28T14-41-31-121Z.sqlite`
+  - `/Users/bzx/Data/student-ai-console/backups/student-console-2026-05-28T14-41-31-121Z.json`
+- 写入后 `reconcile` 显示实体表数量已与 `app_state` 快照一致。
+- 对账脚本已增强为同时比较统计口径：课消、已缴/欠费记录数、已缴/欠费金额、孤儿引用。
 
 下一步：
 
-- 设计真实写入逻辑，但默认仍不开启。
-- 真实写入前必须先创建服务器备份，并再次运行 reconcile + dry-run。
+- 继续保持前端读 `app_state.data`，暂不切换 API 读路径。
+- 下一步设计双写：模块 API 保存时同时更新 `app_state` 和对应实体表。
 
 ## 后续业务规则规划
 

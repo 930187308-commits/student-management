@@ -105,6 +105,70 @@ function compareCounts(snapshotCounts, tableCounts) {
     });
 }
 
+function analyzeSqliteTables(db) {
+    const tableCounts = buildTableCounts(db);
+    if (Object.values(tableCounts).some(count => count === null || count === 0)) {
+        return null;
+    }
+    return {
+        orphanAttendance: db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM attendance_sessions a
+            LEFT JOIN classes c ON c.id = a.class_id
+            WHERE a.class_id IS NOT NULL AND c.id IS NULL
+        `).get().count,
+        unknownRecordRefs: db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM attendance_records r
+            LEFT JOIN students s ON s.id = r.student_id
+            WHERE s.id IS NULL
+        `).get().count,
+        orphanFees: db.prepare(`
+            SELECT COUNT(*) AS count
+            FROM fees f
+            LEFT JOIN students s ON s.id = f.student_id
+            WHERE f.student_id IS NOT NULL AND s.id IS NULL
+        `).get().count,
+        usedHours: db.prepare(`
+            SELECT COALESCE(SUM(consumed_hours), 0) AS value
+            FROM attendance_records
+            WHERE status = 1
+        `).get().value,
+        paidFees: db.prepare(`SELECT COUNT(*) AS count FROM fees WHERE status = 'paid'`).get().count,
+        pendingFees: db.prepare(`SELECT COUNT(*) AS count FROM fees WHERE status = 'pending'`).get().count,
+        paidAmount: db.prepare(`
+            SELECT COALESCE(SUM(amount), 0) AS value
+            FROM fees
+            WHERE status = 'paid'
+        `).get().value,
+        pendingAmount: db.prepare(`
+            SELECT COALESCE(SUM(amount), 0) AS value
+            FROM fees
+            WHERE status = 'pending'
+        `).get().value
+    };
+}
+
+function compareHealth(snapshotHealth, sqliteHealth) {
+    if (!sqliteHealth) return [];
+    const keys = [
+        'orphanAttendance',
+        'unknownRecordRefs',
+        'orphanFees',
+        'usedHours',
+        'paidFees',
+        'pendingFees',
+        'paidAmount',
+        'pendingAmount'
+    ];
+    return keys.map(key => ({
+        metric: key,
+        snapshot: snapshotHealth[key],
+        sqlite: sqliteHealth[key],
+        status: Number(snapshotHealth[key]) === Number(sqliteHealth[key]) ? 'match' : 'mismatch'
+    }));
+}
+
 function main() {
     const db = new DatabaseSync(config.dbPath);
     const { data, updatedAt } = readAppState(db);
@@ -112,20 +176,29 @@ function main() {
     const tableCounts = buildTableCounts(db);
     const comparison = compareCounts(snapshotCounts, tableCounts);
     const health = analyzeSnapshot(data);
+    const sqliteHealth = analyzeSqliteTables(db);
+    const healthComparison = compareHealth(health, sqliteHealth);
 
     const migratedTables = comparison.filter(row => row.status === 'match').length;
     const mismatchedTables = comparison.filter(row => row.status === 'mismatch');
+    const mismatchedHealth = healthComparison.filter(row => row.status === 'mismatch');
 
     const report = {
         dbPath: config.dbPath,
         appStateUpdatedAt: updatedAt,
         migrationStatus: migratedTables === TABLES.length
-            ? 'all_tables_match_snapshot'
+            ? mismatchedHealth.length === 0
+                ? 'all_tables_match_snapshot'
+                : 'table_counts_match_but_health_mismatch'
             : 'tables_not_yet_matching_snapshot',
         counts: comparison,
         snapshotHealth: health,
+        sqliteHealth,
+        healthComparison,
         nextStep: mismatchedTables.length > 0
             ? '当前实体表尚未与 app_state 快照一致。下一步应先写 dry-run 迁移脚本，不要切换读路径。'
+            : mismatchedHealth.length > 0
+                ? '实体表数量一致，但统计口径不一致。需要先修复迁移映射。'
             : '实体表数量已与快照一致，可以继续做字段级和统计口径对账。'
     };
 
