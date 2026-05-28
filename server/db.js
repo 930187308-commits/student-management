@@ -263,6 +263,27 @@ function setData(nextData, reason = 'save') {
     return dataWithTimestamp;
 }
 
+function getCollection(collectionName) {
+    const data = getData();
+    const value = data[collectionName];
+    return Array.isArray(value) ? value : [];
+}
+
+function setCollection(collectionName, items, reason = 'module_save') {
+    if (!Array.isArray(items)) {
+        const error = new Error(`${collectionName} 必须是数组`);
+        error.statusCode = 400;
+        throw error;
+    }
+    const data = getData();
+    const nextData = {
+        ...data,
+        [collectionName]: items,
+        lastModified: nowIso()
+    };
+    return setData(nextData, reason);
+}
+
 function logAudit(action, target, detail) {
     getDb().prepare(`
         INSERT INTO audit_log (action, target, detail, created_at)
@@ -359,6 +380,8 @@ module.exports = {
     getData,
     getDataUpdatedAt,
     setData,
+    getCollection,
+    setCollection,
     createBackup,
     listBackups,
     restoreBackup,

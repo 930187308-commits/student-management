@@ -452,6 +452,53 @@ async function restoreServerBackup(id) {
     return payload;
 }
 
+async function loadCollectionFromApi(collectionName) {
+    const response = await fetch(`${SERVER_URL}/api/${collectionName}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`读取 ${collectionName} 失败：${response.status}`);
+    const payload = await response.json();
+    serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
+    return payload[collectionName] || [];
+}
+
+async function saveCollectionToApi(collectionName, items) {
+    const response = await fetch(`${SERVER_URL}/api/${collectionName}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Base-Data-Updated-At': serverDataUpdatedAt || ''
+        },
+        body: JSON.stringify({ [collectionName]: items })
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || `保存 ${collectionName} 失败：${response.status}`);
+    }
+    const payload = await response.json();
+    serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
+    data[collectionName] = payload[collectionName] || items;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return data[collectionName];
+}
+
+async function loadClassesFromApi() {
+    return loadCollectionFromApi('classes');
+}
+
+async function saveClassesToApi(classes) {
+    return saveCollectionToApi('classes', classes);
+}
+
+async function loadStudentsFromApi() {
+    return loadCollectionFromApi('students');
+}
+
+async function saveStudentsToApi(students) {
+    return saveCollectionToApi('students', students);
+}
+
 function cloneData(source) {
     return JSON.parse(JSON.stringify(source || {}));
 }

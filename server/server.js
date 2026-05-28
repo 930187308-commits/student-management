@@ -3,7 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { URL } = require('node:url');
 const config = require('./config');
-const { openDatabase, getData, getDataUpdatedAt, setData, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
+const { openDatabase, getData, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -158,6 +158,62 @@ async function handleApi(req, res, pathname) {
             'X-Data-Updated-At': getDataUpdatedAt() || ''
         });
         return true;
+    }
+
+    const collectionMatch = pathname.match(/^\/api\/(classes|students)$/);
+    if (collectionMatch) {
+        const collectionName = collectionMatch[1];
+        if (req.method === 'GET') {
+            sendJson(res, 200, {
+                [collectionName]: getCollection(collectionName),
+                updatedAt: getDataUpdatedAt() || null
+            }, {
+                'X-Data-Updated-At': getDataUpdatedAt() || ''
+            });
+            return true;
+        }
+
+        if (req.method === 'PUT') {
+            const currentUpdatedAt = getDataUpdatedAt();
+            const baseUpdatedAt = req.headers['x-base-data-updated-at'];
+            if (currentUpdatedAt && !baseUpdatedAt) {
+                sendJson(res, 428, {
+                    error: '缺少数据版本号，已拒绝覆盖服务器数据',
+                    hint: '请刷新页面后重试。'
+                }, {
+                    'X-Data-Updated-At': currentUpdatedAt
+                });
+                return true;
+            }
+            if (currentUpdatedAt && baseUpdatedAt !== currentUpdatedAt) {
+                sendJson(res, 409, {
+                    error: '服务器数据已被其他设备更新，已拒绝覆盖',
+                    hint: '请刷新页面加载最新数据后，再重新修改。',
+                    serverUpdatedAt: currentUpdatedAt,
+                    clientBaseUpdatedAt: baseUpdatedAt
+                }, {
+                    'X-Data-Updated-At': currentUpdatedAt
+                });
+                return true;
+            }
+
+            const rawBody = await readRequestBody(req);
+            const parsed = JSON.parse(rawBody || '{}');
+            const items = Array.isArray(parsed) ? parsed : parsed[collectionName];
+            if (!Array.isArray(items)) {
+                sendJson(res, 400, { error: `${collectionName} 必须是数组` });
+                return true;
+            }
+
+            const saved = setCollection(collectionName, items, `api_put_${collectionName}`);
+            sendJson(res, 200, {
+                [collectionName]: saved[collectionName],
+                updatedAt: getDataUpdatedAt() || null
+            }, {
+                'X-Data-Updated-At': getDataUpdatedAt() || ''
+            });
+            return true;
+        }
     }
 
     if (pathname === '/data' || pathname === '/api/data') {

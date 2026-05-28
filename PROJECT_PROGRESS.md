@@ -258,7 +258,7 @@
 
 ## 阶段 3：前端逐步接 API
 
-状态：准备开始
+状态：进行中
 
 计划：
 
@@ -279,6 +279,22 @@
 - 每迁移一个模块就做增删改查验证。
 - 迁移前必须确认备份与恢复策略。
 - 已录入真实数据后，任何数据结构调整都必须先备份。
+
+阶段 3A 已开始：
+
+- 后端新增模块级整表 API：
+  - `GET /api/classes`
+  - `PUT /api/classes`
+  - `GET /api/students`
+  - `PUT /api/students`
+- 模块 API 仍以当前整包数据为底层来源，只替换指定数组，保留 `/data` 兜底。
+- 模块 API 沿用数据版本号校验，避免旧页面覆盖新数据。
+- 前端新增模块访问函数：
+  - `loadClassesFromApi()`
+  - `saveClassesToApi(classes)`
+  - `loadStudentsFromApi()`
+  - `saveStudentsToApi(students)`
+- 当前 UI 暂不改变，下一步逐步把班级/学员读写切到模块 API。
 
 ## 后续业务规则规划
 
