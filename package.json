@@ -15,7 +15,8 @@
     "data:reset-empty": "scripts/node.sh server/reset-empty-data.js",
     "import:json": "scripts/node.sh server/import-json.js",
     "sqlite:reconcile": "scripts/node.sh server/reconcile-sqlite-split.js",
-    "check": "scripts/node.sh --check server/server.js && scripts/node.sh --check server/db.js && scripts/node.sh --check server/config.js && scripts/node.sh --check server/create-backup.js && scripts/node.sh --check server/import-json.js && scripts/node.sh --check server/generate-test-data.js && scripts/node.sh --check server/reset-empty-data.js && scripts/node.sh --check server/reconcile-sqlite-split.js"
+    "sqlite:migrate:dry-run": "scripts/node.sh server/migrate-app-state-to-tables.js --dry-run",
+    "check": "scripts/node.sh --check server/server.js && scripts/node.sh --check server/db.js && scripts/node.sh --check server/config.js && scripts/node.sh --check server/create-backup.js && scripts/node.sh --check server/import-json.js && scripts/node.sh --check server/generate-test-data.js && scripts/node.sh --check server/reset-empty-data.js && scripts/node.sh --check server/reconcile-sqlite-split.js && scripts/node.sh --check server/migrate-app-state-to-tables.js"
   },
   "engines": {
     "node": ">=24.0.0"

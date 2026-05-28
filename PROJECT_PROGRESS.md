@@ -352,11 +352,14 @@
 - 新增只读对账脚本：`server/reconcile-sqlite-split.js`。
 - 新增命令：`npm run sqlite:reconcile`。
 - 当前对账脚本只读取 `app_state.data` 和 SQLite 表数量，不写入数据库。
+- 新增 dry-run 迁移脚本：`server/migrate-app-state-to-tables.js --dry-run`。
+- 新增命令：`npm run sqlite:migrate:dry-run`。
+- dry-run 只模拟 JSON 快照到实体表的行转换、引用检查和重复 ID 检查，不写入数据库。
 
 下一步：
 
-- 写 `server/migrate-app-state-to-tables.js --dry-run`。
-- dry-run 只计算将迁移的数据量、引用问题和字段缺失，不落库。
+- 设计真实写入逻辑，但默认仍不开启。
+- 真实写入前必须先创建服务器备份，并再次运行 reconcile + dry-run。
 
 ## 后续业务规则规划
 
