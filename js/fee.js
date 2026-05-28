@@ -132,7 +132,7 @@ function selectFeeStudent(select) {
     select.style.display = 'none';
 }
 
-function saveFee(e) {
+async function saveFee(e) {
     e.preventDefault();
     const form = e.target;
     const studentId = document.getElementById('feeStudentId').value || form.studentId?.value;
@@ -150,16 +150,26 @@ function saveFee(e) {
     } else {
         data.fees.push(feeData);
     }
-    saveData();
+    try {
+        await saveFeesToApi(data.fees);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     showToast('保存成功');
     render();
 }
 
-function deleteFee(id) {
+async function deleteFee(id) {
     if (!confirm('确定删除该缴费记录？')) return;
     data.fees = data.fees.filter(f => f.id !== id);
-    saveData();
+    try {
+        await saveFeesToApi(data.fees);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast('删除成功');
     render();
 }
@@ -189,7 +199,12 @@ async function deleteSelectedFees() {
     if (!confirm(`确定删除选中的 ${ids.length} 条收费记录吗？此操作不可恢复。`)) return;
     await createServerBackup('批量删除收费记录前自动备份');
     data.fees = (data.fees || []).filter(f => !ids.includes(f.id));
-    await saveData();
+    try {
+        await saveFeesToApi(data.fees);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast(`已删除 ${ids.length} 条收费记录`);
     render();
 }
@@ -349,7 +364,7 @@ function precheckFeeImport(rows) {
 }
 
 // 确认导入后实际执行写入
-function executeFeeImport(checkResult, strategies = {}) {
+async function executeFeeImport(checkResult, strategies = {}) {
     const { validRows, errors } = checkResult;
     const dupeStrategy = strategies.duplicateStrategy || 'skip';
     const missingStudentStrategy = strategies.missingStudentStrategy || 'skip';
@@ -423,7 +438,16 @@ function executeFeeImport(checkResult, strategies = {}) {
         imported++;
     }
 
-    saveData();
+    try {
+        if (newStudents > 0) {
+            await saveData();
+        } else {
+            await saveFeesToApi(data.fees);
+        }
+    } catch (error) {
+        showToast('导入保存失败：' + error.message);
+        return;
+    }
     render();
     const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${newStudents > 0 ? `，新建学员 ${newStudents} 名` : ''}`;
     showToast(msg);

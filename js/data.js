@@ -516,6 +516,14 @@ async function saveProspectsToApi(prospects) {
     return saveCollectionToApi('prospects', prospects);
 }
 
+async function loadFeesFromApi() {
+    return loadCollectionFromApi('fees');
+}
+
+async function saveFeesToApi(fees) {
+    return saveCollectionToApi('fees', fees);
+}
+
 function cloneData(source) {
     return JSON.parse(JSON.stringify(source || {}));
 }
