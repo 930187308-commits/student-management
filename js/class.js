@@ -371,6 +371,7 @@ async function archiveClass(id) {
         return;
     }
     if (!confirm(`确定归档班级“${cls.name}”吗？\n\n归档后会从班级主列表移到“归档班级”，历史考勤和学员轨迹会保留。班级状态不会自动改为已结课。`)) return;
+    cls.archivedStudentSnapshot = createArchivedClassStudentSnapshot(id);
     cls.archived = true;
     cls.archivedAt = new Date().toISOString();
     (data.prospects || []).forEach(p => {
@@ -485,24 +486,59 @@ function toggleArchivedClassExpand(classId) {
     openArchivedClassManager();
 }
 
-function getArchivedClassStudents(classId) {
+function createArchivedClassStudentSnapshot(classId) {
     const ids = new Set();
     (data.students || []).forEach(s => {
-        if (s.classId === classId) ids.add(s.id);
+        if ((s.classId === classId && isCurrentClassStudent(s)) || studentHasClassHistory(s, classId)) ids.add(String(s.id));
     });
     (data.attendance || []).filter(a => a.classId === classId).forEach(session => {
         Object.keys(session.records || {}).forEach(studentId => ids.add(studentId));
     });
     return [...ids].map(id => {
         const student = (data.students || []).find(s => s.id === id);
-        const attendanceCount = (data.attendance || []).filter(a => a.classId === classId && a.records && a.records[id] !== undefined).length;
-        const presentCount = (data.attendance || []).filter(a => a.classId === classId && a.records && a.records[id] === 1).length;
         return {
             id,
             name: student?.name || `未知学员(${id})`,
             grade: student?.grade || '',
             school: student?.school || '',
-            status: student?.status || '',
+            status: student?.status || ''
+        };
+    });
+}
+
+function studentHasClassHistory(student, classId) {
+    return Boolean(
+        student &&
+        (
+            student.classJoinSessions?.[classId] !== undefined ||
+            student.classLeaveSessions?.[classId] !== undefined
+        )
+    );
+}
+
+function getArchivedClassStudents(classId) {
+    const cls = (data.classes || []).find(c => c.id === classId);
+    const snapshot = Array.isArray(cls?.archivedStudentSnapshot) ? cls.archivedStudentSnapshot : [];
+    const snapshotById = new Map(snapshot.map(s => [String(s.id), s]));
+    const ids = new Set(snapshot.map(s => String(s.id)));
+    (data.students || []).forEach(s => {
+        if (s.classId === classId || studentHasClassHistory(s, classId)) ids.add(String(s.id));
+    });
+    (data.attendance || []).filter(a => a.classId === classId).forEach(session => {
+        Object.keys(session.records || {}).forEach(studentId => ids.add(String(studentId)));
+    });
+    return [...ids].map(id => {
+        const snap = snapshotById.get(id);
+        const student = (data.students || []).find(s => String(s.id) === id);
+        const attendanceCount = (data.attendance || []).filter(a => a.classId === classId && a.records && a.records[id] !== undefined).length;
+        const presentCount = (data.attendance || []).filter(a => a.classId === classId && a.records && a.records[id] === 1).length;
+        return {
+            id,
+            name: snap?.name || student?.name || `未知学员(${id})`,
+            grade: snap?.grade || student?.grade || '',
+            school: snap?.school || student?.school || '',
+            status: snap?.status || student?.status || '',
+            currentStatus: student?.status || '',
             attendanceCount,
             presentCount
         };
