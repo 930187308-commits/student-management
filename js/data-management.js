@@ -15,9 +15,10 @@ function openDataManager() {
             <textarea id="dataJsonPreview" style="width: 100%; height: 200px; font-family: monospace; font-size: 12px; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; resize: vertical; background: var(--input-bg); color: var(--text-primary);" readonly>${jsonStr}</textarea>
         </div>
         <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="btn btn-secondary" onclick="copyJsonData()">复制JSON</button>
-            <button class="btn btn-success" onclick="saveJsonToFile()">保存JSON</button>
-            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
+	            <button class="btn btn-secondary" onclick="copyJsonData()">复制JSON</button>
+	            <button class="btn btn-success" onclick="saveJsonToFile()">保存JSON</button>
+	            <button class="btn btn-secondary" onclick="exportAllStudents()">一键导出所有学员</button>
+	            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
         </div>
         <div style="margin-bottom: 16px;">
             <button class="btn btn-danger" onclick="confirmClearAllData()">一键清空所有数据</button>
@@ -37,6 +38,34 @@ function openDataManager() {
 }
 
 // 一键导出所有Excel文件
+function exportAllStudents() {
+    const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业', forming: '组班中（旧）' };
+    const headers = ['姓名', '性别', '年级', '所在班级', '授课老师', '入班时间', '首次入学', '联系电话', '紧急联系人', '就读学校', '状态', '跟进状态', '备注'];
+    const rows = (data.students || []).map(s => {
+        const cls = (data.classes || []).find(c => c.id === s.classId);
+        return [
+            s.name || '',
+            s.gender || '',
+            s.grade || '',
+            cls?.name || '未分班',
+            s.teacher || '',
+            s.enrollDate || '',
+            s.firstEnrollDate || '',
+            s.phone || '',
+            s.emergencyContact || '',
+            s.school || '',
+            statusMap[s.status] || s.status || '',
+            s.followUpStatus || '',
+            s.remark || ''
+        ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '所有学员');
+    XLSX.writeFile(wb, `所有学员_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast('所有学员已导出');
+}
+
 function exportAllExcel() {
     // 导出收费记录
     if (data.fees && data.fees.length > 0) {
@@ -88,8 +117,8 @@ function exportAllExcel() {
 
     // 导出意向学员
     if (data.prospects && data.prospects.length > 0) {
-        const proHeaders = ['姓名', '电话', '来源', '咨询意向', '试课日期', '试课状态', '成交状态', '备注', '录入日期'];
-        const proRows = data.prospects.map(p => [p.name, p.phone || '', p.source || '', p.intent || '', p.trialDate || '', { pending: '待跟进', contacted: '已联系', trial: '试课中', deal: '已成交', lost: '已流失' }[p.trialStatus] || '', p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交', p.remark || '', p.createDate || '']);
+        const proHeaders = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '录入日期'];
+        const proRows = data.prospects.map(p => [p.name, p.grade || '', p.phone || '', p.wechat || '', p.source || '', p.intent || '', p.trialDate || '', { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' }[p.trialStatus] || '', p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交', p.remark || '', p.createDate || '']);
         const proWs = XLSX.utils.aoa_to_sheet([proHeaders, ...proRows]);
         const proWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(proWb, proWs, '意向学员');

@@ -35,6 +35,8 @@ let lastSaveTime = null;
 let lastCloudSaveTime = null; // 记录上次云端保存时间，用于节流
 let dataModified = false; // 追踪数据是否有改动
 let serverDataUpdatedAt = null; // 服务器端数据版本号，防止旧设备整包覆盖新数据
+let lastSavedDataSnapshot = null; // 最近一次保存前的数据，用于一步撤回
+let undoDataSnapshot = null;
 
 // 存储键名
 const STORAGE_KEY = 'studentManagementSystem_v3';
@@ -352,6 +354,8 @@ async function loadData() {
         const serverData = await loadFromServer();
         if (serverData) {
             data = serverData;
+            lastSavedDataSnapshot = cloneData(data);
+            updateUndoButton();
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             showToast('已加载服务器数据');
             return;
@@ -364,6 +368,8 @@ async function loadData() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
         data = JSON.parse(stored);
+        lastSavedDataSnapshot = cloneData(data);
+        updateUndoButton();
         showToast('使用本地缓存数据');
     }
 }
@@ -373,15 +379,22 @@ function loadDataFromLocal() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
         data = JSON.parse(stored);
+        lastSavedDataSnapshot = cloneData(data);
+        updateUndoButton();
     }
 }
 
 // 保存数据（同时保存到服务器和本地）
 async function saveData() {
+    if (lastSavedDataSnapshot) {
+        undoDataSnapshot = cloneData(lastSavedDataSnapshot);
+    }
     data.lastModified = new Date().toISOString();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSavedDataSnapshot = cloneData(data);
     lastSaveTime = new Date();
     updateAutoSaveIndicator();
+    updateUndoButton();
 
     // 保存到本地服务器
     try {
@@ -392,6 +405,39 @@ async function saveData() {
     } catch (e) {
         console.log('保存到服务器失败:', e);
     }
+}
+
+function cloneData(source) {
+    return JSON.parse(JSON.stringify(source || {}));
+}
+
+function updateUndoButton() {
+    const btn = document.getElementById('undoBtn');
+    if (btn) btn.disabled = !undoDataSnapshot;
+}
+
+async function undoLastChange() {
+    if (!undoDataSnapshot) {
+        showToast('暂无可撤回的修改');
+        return;
+    }
+    if (!confirm('确定撤回最近一次保存的修改吗？')) return;
+    const currentSnapshot = cloneData(data);
+    data = cloneData(undoDataSnapshot);
+    undoDataSnapshot = currentSnapshot;
+    data.lastModified = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSavedDataSnapshot = cloneData(data);
+    lastSaveTime = new Date();
+    updateAutoSaveIndicator();
+    updateUndoButton();
+    try {
+        await saveToServer(data);
+    } catch (e) {
+        console.log('撤回后保存到服务器失败:', e);
+    }
+    render();
+    showToast('已撤回上一步');
 }
 
 // 自动保存

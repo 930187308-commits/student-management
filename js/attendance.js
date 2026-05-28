@@ -96,8 +96,11 @@ function loadAttendanceClass(classId) {
                         let present = 0, absent = 0;
                         const joinSession = getStudentJoinSessionForClass(s, classId);
                         const leaveSession = getStudentLeaveSessionForClass(s, classId);
-                        const isHistorical = s.classId !== classId && recordStudentIds.has(s.id);
+                        const inactiveStatusMap = { inactive: '停课', withdrawn: '退费', graduated: '毕业' };
+                        const inactiveLabel = inactiveStatusMap[s.status] || '';
+                        const isTransferredOut = s.classId !== classId && recordStudentIds.has(s.id);
                         const isTransferredIn = s.classId === classId && joinSession > 1;
+                        const studentMarker = inactiveLabel || (isTransferredOut ? '转出' : '') || (isTransferredIn ? '转入' : '');
                         allDates.forEach(date => {
                             const session = sessions.find(sess => sess.date === date);
                             const status = session?.records?.[s.id];
@@ -106,7 +109,7 @@ function loadAttendanceClass(classId) {
                         });
                         return `
                             <tr>
-                                <td>${escapeHtml(s.name)}${isHistorical ? '<br><span style="font-size:10px;color:#888;">历史</span>' : ''}${isTransferredIn ? '<br><span style="font-size:10px;color:#888;">转入</span>' : ''}</td>
+                                <td>${escapeHtml(s.name)}${studentMarker ? `<br><span style="font-size:10px;color:#888;">${studentMarker}</span>` : ''}</td>
                                 ${allDates.map((date, i) => {
                                     const session = sessions.find(sess => sess.date === date);
                                     const status = session?.records?.[s.id];

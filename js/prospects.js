@@ -9,7 +9,7 @@ function renderProspects() {
         <div class="card">
             <div class="card-header">
                 <div class="search-bar">
-                    <input type="text" id="prospectSearch" placeholder="搜索姓名/电话..." oninput="renderProspectList()">
+                    <input type="text" id="prospectSearch" placeholder="搜索姓名/微信/电话..." oninput="renderProspectList()">
                     <select id="prospectStatusFilter" onchange="renderProspectList()">
                         <option value="">全部状态</option>
                         <option value="forming">组班中</option>
@@ -29,7 +29,7 @@ function renderProspects() {
             <div id="prospectCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>姓名</th><th>年级</th><th>电话</th><th>来源</th><th>咨询意向</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>所属组班</th><th>录入日期</th><th>操作</th></tr></thead>
+                    <thead><tr><th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
                     <tbody id="prospectTableBody"></tbody>
                 </table>
             </div>
@@ -60,17 +60,18 @@ function renderProspectList() {
     document.getElementById('prospectTableBody').innerHTML = filtered.map(p => {
         const trialBadge = p.trialStatus === 'trial' ? 'badge-active' : p.trialStatus === 'forming' ? 'badge-trial' : p.trialStatus === 'deal' ? 'badge-success' : 'badge-normal';
         const dealBadge = p.dealStatus === 'deal' ? 'badge-active' : p.dealStatus === 'lost' ? 'badge-danger' : 'badge-normal';
-        const cls = p.classId ? data.classes.find(c => c.id === p.classId) : null;
+        const remark = p.remark || '';
+        const shortRemark = remark.length > 16 ? `${remark.slice(0, 16)}...` : remark;
         return `<tr>
             <td><strong>${escapeHtml(p.name)}</strong></td>
             <td>${escapeHtml(p.grade || '-')}</td>
-            <td>${escapeHtml(p.phone || '-')}</td>
+            <td>${escapeHtml(p.wechat || '-')}</td>
             <td>${escapeHtml(sourceMap[p.source] || p.source || '-')}</td>
             <td>${escapeHtml(p.intent || '-')}</td>
             <td>${p.trialDate || '-'}</td>
             <td><span class="badge ${trialBadge}">${statusMap[p.trialStatus] || '待跟进'}</span></td>
             <td><span class="badge ${dealBadge}">${p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交'}</span></td>
-            <td>${cls ? escapeHtml(cls.name) : '-'}</td>
+            <td title="${escapeHtml(remark)}" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(shortRemark || '-')}</td>
             <td>${p.createDate || '-'}</td>
             <td>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
@@ -85,7 +86,6 @@ function openProspectModal(id = null) {
     currentEditId = id;
     const prospect = id ? (data.prospects || []).find(p => p.id === id) : null;
     const sources = data.prospectSources || ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'];
-    const intentOptions = ['补习数学', '提升成绩', '竞赛培训', '小升初', '中考备考', '其他'];
     const statusOptions = ['待跟进', '已联系', '试课中', '组班中', '已成交', '已流失'];
     const statusValues = ['pending', 'contacted', 'trial', 'forming', 'deal', 'lost'];
     const formingClasses = data.classes.filter(c => c.status === 'forming');
@@ -106,7 +106,7 @@ function openProspectModal(id = null) {
                 <div class="form-group"><label>电话</label><input type="tel" name="phone" value="${escapeHtml(prospect?.phone || '')}"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>微信号</label><input type="text" name="wechat" value="${escapeHtml(prospect?.wechat || '')}" placeholder="如：ZhaoSan_2025"></div>
+                <div class="form-group"><label>微信</label><input type="text" name="wechat" value="${escapeHtml(prospect?.wechat || '')}" placeholder="微信号或微信昵称"></div>
                 <div class="form-group">
                     <label>来源渠道</label>
                     <select name="source">
@@ -115,11 +115,8 @@ function openProspectModal(id = null) {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>咨询意向</label>
-                    <select name="intent">
-                        <option value="">请选择</option>
-                        ${intentOptions.map(o => `<option value="${escapeHtml(o)}" ${prospect?.intent === o ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('')}
-                    </select>
+                    <label>目前成绩</label>
+                    <input type="text" name="intent" value="${escapeHtml(prospect?.intent || '')}" placeholder="如：校内80左右、计算薄弱">
                 </div>
             </div>
             <div class="form-row">
@@ -216,10 +213,10 @@ function convertProspect(id) {
     if (!prospect) return;
     if (!confirm(`确定将"${escapeHtml(prospect.name)}"转为正式学员？`)) return;
 
-    // 构建备注：微信+来源+意向
+    // 构建备注：微信+来源+目前成绩
     const wechatNote = prospect.wechat ? `微信：${escapeHtml(prospect.wechat)}；` : '';
     const sourceNote = prospect.source ? `来源：${escapeHtml(prospect.source)}；` : '';
-    const intentNote = prospect.intent ? `意向：${escapeHtml(prospect.intent)}` : '';
+    const intentNote = prospect.intent ? `目前成绩：${escapeHtml(prospect.intent)}` : '';
     const remark = wechatNote + sourceNote + intentNote;
 
     // 级别推断：优先用 grade，否则从 intent 推断
@@ -258,8 +255,8 @@ function convertProspect(id) {
 
 function downloadProspectTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([
-        ['姓名', '年级', '电话', '微信号', '来源', '咨询意向', '试课日期', '试课状态', '成交状态', '备注'],
-        ['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '提升成绩', '2025-10-01', '试课中', '未成交', '数学基础一般'],
+        ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注'],
+        ['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '校内80左右', '2025-10-01', '试课中', '未成交', '计算薄弱'],
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '意向数据');
@@ -270,9 +267,9 @@ function downloadProspectTemplate() {
         ['姓名', '意向学员姓名', '是', '如：张三'],
         ['年级', '在读年级', '选填', '五年级 / 六年级 / 初一 等'],
         ['电话', '联系电话', '选填', '如：13800138001'],
-        ['微信号', '微信号', '选填', '如：ZhaoSan_2025'],
+        ['微信', '微信号或微信昵称', '选填', '如：ZhaoSan_2025'],
         ['来源', '来源渠道', '选填', '家长推荐 / 朋友圈 / 抖音 / 小红书 / 百度 / 地推 / 其他'],
-        ['咨询意向', '咨询意向', '选填', '补习数学 / 提升成绩 / 竞赛培训 / 小升初 / 中考备考 / 其他'],
+        ['目前成绩', '当前成绩情况', '选填', '如：校内80左右、计算薄弱'],
         ['试课日期', '计划试课日期', '选填', 'yyyy-mm-dd，如 2025-10-01'],
         ['试课状态', '当前状态', '选填', '待跟进 / 已联系 / 试课中 / 组班中 / 已成交 / 已流失'],
         ['成交状态', '成交状态', '选填', '未成交 / 已成交 / 已流失'],
