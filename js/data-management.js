@@ -46,10 +46,18 @@ function getDataHealthReport() {
     const classIds = new Set(classes.map(c => c.id));
     const studentIds = new Set(students.map(s => s.id));
     const paidHours = {};
+    const pendingHours = {};
+    const feeCounts = {};
     const usedHours = {};
 
     fees.filter(f => f.status === 'paid').forEach(f => {
         paidHours[f.studentId] = (paidHours[f.studentId] || 0) + Number(f.hours || 0);
+    });
+    fees.forEach(f => {
+        feeCounts[f.studentId] = (feeCounts[f.studentId] || 0) + 1;
+        if (f.status === 'pending') {
+            pendingHours[f.studentId] = (pendingHours[f.studentId] || 0) + Number(f.hours || 0);
+        }
     });
     attendance.forEach(session => {
         Object.entries(session.records || {}).forEach(([studentId, status]) => {
@@ -58,16 +66,21 @@ function getDataHealthReport() {
     });
     const getStudentDetail = (student) => {
         const paid = paidHours[student.id] || 0;
+        const pending = pendingHours[student.id] || 0;
         const used = usedHours[student.id] || 0;
         const remaining = paid - used;
+        const coveredRemaining = paid + pending - used;
         const cls = classes.find(c => c.id === student.classId);
         return {
             ...student,
             paidHours: paid,
+            pendingHours: pending,
             usedHours: used,
             remainingHours: remaining,
+            coveredRemainingHours: coveredRemaining,
             className: cls?.name || '未分班',
-            suggestedHours: Math.max(used - paid, 1)
+            feeCount: feeCounts[student.id] || 0,
+            suggestedHours: Math.max(used - paid - pending, 1)
         };
     };
 
@@ -80,7 +93,13 @@ function getDataHealthReport() {
     });
     const emptySessions = attendance.filter(a => Object.keys(a.records || {}).length === 0);
     const negativeRemaining = students.filter(s => (paidHours[s.id] || 0) - (usedHours[s.id] || 0) < 0);
-    const activeNoPaid = students.filter(s => s.status === 'active' && (paidHours[s.id] || 0) === 0);
+    const missingDebtRecords = students.filter(s => {
+        const paid = paidHours[s.id] || 0;
+        const pending = pendingHours[s.id] || 0;
+        const used = usedHours[s.id] || 0;
+        return s.status === 'active' && used > 0 && paid + pending < used;
+    });
+    const activeNoPaid = students.filter(s => s.status === 'active' && (usedHours[s.id] || 0) > 0 && (feeCounts[s.id] || 0) === 0);
     const overCapacity = classes.filter(c => {
         if (c.status !== 'active') return false;
         const count = students.filter(s => s.classId === c.id && s.status === 'active').length;
@@ -88,10 +107,12 @@ function getDataHealthReport() {
     });
     const negativeRemainingDetails = negativeRemaining.map(getStudentDetail)
         .sort((a, b) => a.remainingHours - b.remainingHours);
+    const missingDebtDetails = missingDebtRecords.map(getStudentDetail)
+        .sort((a, b) => a.coveredRemainingHours - b.coveredRemainingHours);
     const activeNoPaidDetails = activeNoPaid.map(getStudentDetail)
         .sort((a, b) => b.usedHours - a.usedHours || (a.name || '').localeCompare(b.name || '', 'zh-Hans-CN'));
 
-    return { orphanAttendance, unknownRecordRefs, emptySessions, negativeRemaining, activeNoPaid, overCapacity, negativeRemainingDetails, activeNoPaidDetails };
+    return { orphanAttendance, unknownRecordRefs, emptySessions, negativeRemaining, missingDebtRecords, activeNoPaid, overCapacity, negativeRemainingDetails, missingDebtDetails, activeNoPaidDetails };
 }
 
 function openDataHealthCheck() {
@@ -104,12 +125,13 @@ function openDataHealthCheck() {
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">不存在班级的考勤<br><strong style="color:#e74c3c;">${report.orphanAttendance.length}</strong> 条</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">不存在学员的考勤记录<br><strong style="color:#e74c3c;">${report.unknownRecordRefs}</strong> 个</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">课时余额为负<br><strong style="color:#f39c12;">${report.negativeRemaining.length}</strong> 名</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">在读无已缴课时<br><strong style="color:#f39c12;">${report.activeNoPaid.length}</strong> 名</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已缴余额为负<br><strong style="color:#f39c12;">${report.negativeRemaining.length}</strong> 名</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">需补欠费记录<br><strong style="color:#e74c3c;">${report.missingDebtRecords.length}</strong> 名</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">上课无收费记录<br><strong style="color:#f39c12;">${report.activeNoPaid.length}</strong> 名</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">超过容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
             </div>
             <div style="padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;">
-                安全清理只会删除“不存在班级的考勤”和考勤 records 里“不存在的学员 ID”。空课次、欠费、负课时、超容量只提示，不自动改。
+                安全清理只会删除“不存在班级的考勤”和考勤 records 里“不存在的学员 ID”。空课次、欠费、负课时、超容量只提示，不自动改。已登记欠费的学员会进入首页欠费提醒，不在“需补欠费记录”里重复提醒。
             </div>
             ${renderTuitionHealthDetails(report)}
             ${safeCleanCount > 0 ? `<button class="btn btn-danger" onclick="cleanSafeHealthIssues()">清理安全项（${safeCleanCount}）</button>` : '<div style="color:#27ae60;font-weight:600;">暂无需要安全清理的数据</div>'}
@@ -120,27 +142,28 @@ function openDataHealthCheck() {
 }
 
 function renderTuitionHealthDetails(report) {
-    const renderRows = (items, type) => items.map(s => `
+    const renderRows = (items, type, showAction = true) => items.map(s => `
         <tr>
             <td>${escapeHtml(s.name || '')}</td>
             <td>${escapeHtml(s.grade || '-')}</td>
             <td>${escapeHtml(s.className || '-')}</td>
             <td>${s.paidHours}</td>
+            <td>${s.pendingHours}</td>
             <td>${s.usedHours}</td>
-            <td><strong style="color:${s.remainingHours < 0 ? '#e74c3c' : '#f39c12'};">${s.remainingHours}</strong></td>
-            <td><button class="btn btn-warning btn-xs" onclick="openPendingFeeFromHealth('${s.id}', ${s.suggestedHours}, '${type}')">补录欠费</button></td>
+            <td><strong style="color:${s.coveredRemainingHours < 0 ? '#e74c3c' : '#f39c12'};">${s.coveredRemainingHours}</strong></td>
+            ${showAction ? `<td><button class="btn btn-warning btn-xs" onclick="openPendingFeeFromHealth('${s.id}', ${s.suggestedHours}, '${type}')">补录欠费</button></td>` : ''}
         </tr>
     `).join('');
 
-    const section = (title, items, note, type) => `
+    const section = (title, items, note, type, showAction = true) => `
         <details ${items.length > 0 ? 'open' : ''} style="margin:12px 0;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--card-bg);">
             <summary style="cursor:pointer;font-weight:600;">${title}（${items.length} 名）</summary>
             <div style="color:#888;font-size:13px;margin:6px 0 10px;">${note}</div>
             ${items.length > 0 ? `
                 <div class="table-wrapper" style="max-height:260px;overflow:auto;">
                     <table>
-                        <thead><tr><th>学员</th><th>年级</th><th>班级</th><th>已缴课时</th><th>已消课时</th><th>余额</th><th>操作</th></tr></thead>
-                        <tbody>${renderRows(items, type)}</tbody>
+                        <thead><tr><th>学员</th><th>年级</th><th>班级</th><th>已缴课时</th><th>欠费课时</th><th>已消课时</th><th>覆盖后余额</th>${showAction ? '<th>操作</th>' : ''}</tr></thead>
+                        <tbody>${renderRows(items, type, showAction)}</tbody>
                     </table>
                 </div>
             ` : '<div style="color:#27ae60;">暂无</div>'}
@@ -148,8 +171,9 @@ function renderTuitionHealthDetails(report) {
     `;
 
     return `
-        ${section('课时余额为负明细', report.negativeRemainingDetails, '通常表示已经有出勤课消，但收费/欠费记录还没补齐。', 'negative')}
-        ${section('在读无已缴课时明细', report.activeNoPaidDetails, '适合检查是否漏录收费，或是否需要先登记欠费记录。', 'noPaid')}
+        ${section('需补欠费记录明细', report.missingDebtDetails, '只显示已经出勤、但已缴课时 + 已登记欠费课时仍不足覆盖已消课时的在读学员。', 'missingDebt')}
+        ${section('上课无收费记录明细', report.activeNoPaidDetails, '只显示已经有出勤记录、但收费记录里完全没有已缴或欠费记录的在读学员。', 'noFee')}
+        ${section('已缴余额为负参考', report.negativeRemainingDetails, '这是纯“已缴课时 - 已消课时”的参考口径。若已登记欠费，首页欠费提醒会继续跟进，这里不建议重复补录。', 'negative', false)}
     `;
 }
 
@@ -165,7 +189,7 @@ function openPendingFeeFromHealth(studentId, suggestedHours = 1, type = 'negativ
         hours: suggestedHours,
         amount: 0,
         paymentDate: '',
-        package: type === 'noPaid' ? '待补录欠费' : `欠费补录${suggestedHours}课时`,
+        package: type === 'noFee' ? '待补录欠费' : `欠费补录${suggestedHours}课时`,
         remark: '由数据体检提示生成，请确认金额和课时后保存'
     });
 }
