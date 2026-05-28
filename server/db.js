@@ -32,6 +32,7 @@ const ENTITY_COLLECTIONS = new Set([
     'communications',
     'prospects'
 ]);
+const ENTITY_READ_COLLECTIONS = new Set(['classes', 'prospects']);
 
 let db;
 
@@ -289,9 +290,27 @@ function setData(nextData, reason = 'save') {
 }
 
 function getCollection(collectionName) {
+    if (ENTITY_READ_COLLECTIONS.has(collectionName)) {
+        return getCollectionFromEntityTable(collectionName);
+    }
     const data = getData();
     const value = data[collectionName];
     return Array.isArray(value) ? value : [];
+}
+
+function getCollectionFromEntityTable(collectionName) {
+    const tableMap = {
+        classes: 'classes',
+        prospects: 'prospects'
+    };
+    const tableName = tableMap[collectionName];
+    if (!tableName) {
+        const data = getData();
+        const value = data[collectionName];
+        return Array.isArray(value) ? value : [];
+    }
+    const rows = getDb().prepare(`SELECT raw_json FROM ${tableName} ORDER BY rowid`).all();
+    return rows.map(row => JSON.parse(row.raw_json || '{}'));
 }
 
 function setCollection(collectionName, items, reason = 'module_save') {

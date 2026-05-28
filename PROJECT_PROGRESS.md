@@ -364,11 +364,15 @@
 - 对账脚本已增强为同时比较统计口径：课消、已缴/欠费记录数、已缴/欠费金额、孤儿引用。
 - 后端 `setData()` 已改为双写：保存 `app_state.data` 的同时，在同一个事务内同步 SQLite 实体表。
 - 双写阶段仍然保持 API 读路径来自 `app_state.data`，实体表用于对账和后续切读准备。
+- 已试切低风险读路径：
+  - `GET /api/classes` 从 SQLite `classes.raw_json` 读取。
+  - `GET /api/prospects` 从 SQLite `prospects.raw_json` 读取。
+- `/data` 和其他模块 API 仍继续从 `app_state.data` 读取。
 
 下一步：
 
 - 继续保持前端读 `app_state.data`，暂不切换 API 读路径。
-- 观察双写稳定性，再选择一个低风险模块试切 `GET /api/...` 到实体表读取。
+- 观察 `classes` / `prospects` 实体表读路径稳定性，再选择下一个模块。
 
 ## 后续业务规则规划
 
