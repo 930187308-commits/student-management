@@ -524,6 +524,14 @@ async function saveFeesToApi(fees) {
     return saveCollectionToApi('fees', fees);
 }
 
+async function loadAttendanceFromApi() {
+    return loadCollectionFromApi('attendance');
+}
+
+async function saveAttendanceToApi(attendance) {
+    return saveCollectionToApi('attendance', attendance);
+}
+
 function cloneData(source) {
     return JSON.parse(JSON.stringify(source || {}));
 }

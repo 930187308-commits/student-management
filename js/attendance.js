@@ -58,7 +58,7 @@ function loadAttendanceClass(classId) {
             patchedSessionIds = true;
         }
     });
-    if (patchedSessionIds) saveData();
+    if (patchedSessionIds) saveAttendanceToApi(data.attendance).catch(error => showToast('考勤保存失败：' + error.message));
 
     // 获取所有有记录的日期
     const allDates = [...new Set(sessions.map(s => s.date))].sort();
@@ -343,7 +343,7 @@ function selectTempStudent(select) {
     }
 }
 
-function saveTempStudent(e) {
+async function saveTempStudent(e) {
     e.preventDefault();
     const form = e.target;
     const studentId = document.getElementById('tempStudentId').value;
@@ -379,13 +379,18 @@ function saveTempStudent(e) {
         note: note
     });
 
-    saveData();
+    try {
+        await saveAttendanceToApi(data.attendance);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     loadAttendanceClass(currentAttendanceClassId);
     showToast('已添加临时学员');
 }
 
-function removeTemporaryStudent(studentId, date) {
+async function removeTemporaryStudent(studentId, date) {
     if (!confirm('确定从本次课移除该临时学员？')) return;
 
     const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
@@ -396,7 +401,12 @@ function removeTemporaryStudent(studentId, date) {
     }
     delete session.records?.[studentId];
 
-    saveData();
+    try {
+        await saveAttendanceToApi(data.attendance);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     loadAttendanceClass(currentAttendanceClassId);
     showToast('已移除临时学员');
 }
@@ -428,7 +438,7 @@ function addAttendanceSession() {
     document.getElementById('modal').classList.add('show');
 }
 
-function saveAttendanceSession(e) {
+async function saveAttendanceSession(e) {
     e.preventDefault();
     const form = e.target;
     const date = form.date.value;
@@ -449,7 +459,12 @@ function saveAttendanceSession(e) {
         records: records
     });
 
-    saveData();
+    try {
+        await saveAttendanceToApi(data.attendance);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     loadAttendanceClass(currentAttendanceClassId);
     const count = data.attendance.filter(a => a.classId === currentAttendanceClassId).length;
@@ -484,7 +499,7 @@ function openEditAttendanceSession(sessionId) {
     document.getElementById('modal').classList.add('show');
 }
 
-function saveEditAttendanceSession(e, sessionId) {
+async function saveEditAttendanceSession(e, sessionId) {
     e.preventDefault();
     const form = e.target;
     const newDate = form.date.value;
@@ -501,24 +516,35 @@ function saveEditAttendanceSession(e, sessionId) {
 
     session.date = newDate;
     session.sessionName = newSessionName;
-    saveData();
+    try {
+        await saveAttendanceToApi(data.attendance);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     loadAttendanceClass(currentAttendanceClassId);
     showToast('已保存');
 }
 
-function deleteAttendanceSession(sessionId) {
+async function deleteAttendanceSession(sessionId) {
     if (!confirm('确定删除本次考勤记录吗？此操作不可恢复。')) return;
     const session = data.attendance.find(a => a.id === sessionId);
     if (!session) return;
 
     data.attendance = data.attendance.filter(a => a.id !== sessionId);
-    saveData();
+    await createServerBackup('删除考勤课次前自动备份');
+    try {
+        await saveAttendanceToApi(data.attendance);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     loadAttendanceClass(currentAttendanceClassId);
     showToast('已删除本次考勤');
 }
 
-function updateAttendance(input) {
+async function updateAttendance(input) {
     const date = input.dataset.date;
     const studentId = input.dataset.student;
     const rawValue = input.value.trim();
@@ -543,7 +569,11 @@ function updateAttendance(input) {
         } else {
             delete session.records[studentId];
         }
-        saveData();
+        try {
+            await saveAttendanceToApi(data.attendance);
+        } catch (error) {
+            showToast('保存失败：' + error.message);
+        }
     }
 }
 
@@ -739,7 +769,7 @@ function precheckAttendanceImport(rows) {
     return { total: readCount, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, skippedDetails, validRows };
 }
 
-function executeAttendanceImport(checkResult, strategies = {}) {
+async function executeAttendanceImport(checkResult, strategies = {}) {
     const dupeStrategy = strategies.duplicateStrategy || 'skip';
     let imported = 0;
     let replaced = 0;
@@ -768,7 +798,12 @@ function executeAttendanceImport(checkResult, strategies = {}) {
         imported++;
     }
 
-    saveData();
+    try {
+        await saveAttendanceToApi(data.attendance);
+    } catch (error) {
+        showToast('导入保存失败：' + error.message);
+        return;
+    }
     loadAttendanceClass(currentAttendanceClassId);
     const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
     showToast(msg);
