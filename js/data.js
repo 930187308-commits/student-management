@@ -532,6 +532,22 @@ async function saveAttendanceToApi(attendance) {
     return saveCollectionToApi('attendance', attendance);
 }
 
+async function loadGradesFromApi() {
+    return loadCollectionFromApi('grades');
+}
+
+async function saveGradesToApi(grades) {
+    return saveCollectionToApi('grades', grades);
+}
+
+async function loadCommunicationsFromApi() {
+    return loadCollectionFromApi('communications');
+}
+
+async function saveCommunicationsToApi(communications) {
+    return saveCollectionToApi('communications', communications);
+}
+
 function cloneData(source) {
     return JSON.parse(JSON.stringify(source || {}));
 }

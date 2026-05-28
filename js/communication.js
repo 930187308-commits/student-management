@@ -91,7 +91,12 @@ async function deleteSelectedCommunications() {
     if (!confirm(`确定删除选中的 ${ids.length} 条沟通记录吗？此操作不可恢复。`)) return;
     await createServerBackup('批量删除沟通记录前自动备份');
     data.communications = (data.communications || []).filter(c => !ids.includes(c.id));
-    await saveData();
+    try {
+        await saveCommunicationsToApi(data.communications);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast(`已删除 ${ids.length} 条沟通记录`);
     render();
 }
@@ -230,7 +235,7 @@ function selectCommStudent(select) {
     select.style.display = 'none';
 }
 
-function saveComm(e) {
+async function saveComm(e) {
     e.preventDefault();
     const form = e.target;
     const studentId = document.getElementById('commStudentId').value || form.studentId?.value;
@@ -249,7 +254,12 @@ function saveComm(e) {
     } else {
         data.communications.push(commData);
     }
-    saveData();
+    try {
+        await saveCommunicationsToApi(data.communications);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     showToast('保存成功');
     render();
@@ -274,10 +284,15 @@ function openCommDetail(id) {
     document.getElementById('modal').classList.add('show');
 }
 
-function deleteComm(id) {
+async function deleteComm(id) {
     if (!confirm('确定删除该沟通记录？')) return;
     data.communications = data.communications.filter(c => c.id !== id);
-    saveData();
+    try {
+        await saveCommunicationsToApi(data.communications);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast('删除成功');
     render();
 }

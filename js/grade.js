@@ -152,7 +152,7 @@ function selectGradeStudent(select) {
     select.style.display = 'none';
 }
 
-function saveGrade(e) {
+async function saveGrade(e) {
     e.preventDefault();
     const form = e.target;
     const studentId = document.getElementById('gradeStudentId').value || form.studentId?.value;
@@ -173,16 +173,26 @@ function saveGrade(e) {
     } else {
         data.grades.push(gradeData);
     }
-    saveData();
+    try {
+        await saveGradesToApi(data.grades);
+    } catch (error) {
+        showToast('保存失败：' + error.message);
+        return;
+    }
     closeModal();
     showToast('保存成功');
     render();
 }
 
-function deleteGrade(id) {
+async function deleteGrade(id) {
     if (!confirm('确定删除该成绩记录？')) return;
     data.grades = data.grades.filter(g => g.id !== id);
-    saveData();
+    try {
+        await saveGradesToApi(data.grades);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast('删除成功');
     render();
 }
@@ -316,7 +326,7 @@ function buildGradeFromImportRow(v, id) {
     };
 }
 
-function executeGradeImport(checkResult, strategies = {}) {
+async function executeGradeImport(checkResult, strategies = {}) {
     const dupeStrategy = strategies.duplicateStrategy || 'skip';
     let imported = 0;
     let replaced = 0;
@@ -341,7 +351,12 @@ function executeGradeImport(checkResult, strategies = {}) {
         imported++;
     }
 
-    saveData();
+    try {
+        await saveGradesToApi(data.grades);
+    } catch (error) {
+        showToast('导入保存失败：' + error.message);
+        return;
+    }
     render();
     const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
     showToast(msg);
@@ -372,7 +387,12 @@ async function deleteSelectedGrades() {
     if (!confirm(`确定删除选中的 ${ids.length} 条成绩记录吗？此操作不可恢复。`)) return;
     await createServerBackup('批量删除成绩记录前自动备份');
     data.grades = (data.grades || []).filter(g => !ids.includes(g.id));
-    await saveData();
+    try {
+        await saveGradesToApi(data.grades);
+    } catch (error) {
+        showToast('删除失败：' + error.message);
+        return;
+    }
     showToast(`已删除 ${ids.length} 条成绩记录`);
     render();
 }
