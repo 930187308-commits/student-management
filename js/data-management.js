@@ -102,7 +102,7 @@ function getDataHealthReport() {
         const paid = paidHours[s.id] || 0;
         const pending = pendingHours[s.id] || 0;
         const used = usedHours[s.id] || 0;
-        return s.status === 'active' && used > 0 && paid + pending < used;
+        return s.status === 'active' && used > 0 && (feeCounts[s.id] || 0) > 0 && paid + pending < used;
     });
     const activeNoPaid = students.filter(s => s.status === 'active' && (usedHours[s.id] || 0) > 0 && (feeCounts[s.id] || 0) === 0);
     const overCapacity = classes.filter(c => {
@@ -146,12 +146,12 @@ function openDataHealthCheck() {
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已删除学员的收费<br><strong style="color:#e74c3c;">${report.orphanFees.length}</strong> 条</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已缴余额为负<br><strong style="color:#f39c12;">${report.negativeRemaining.length}</strong> 名</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">需补欠费记录<br><strong style="color:#e74c3c;">${report.missingDebtRecords.length}</strong> 名</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已有收费但课时不足<br><strong style="color:#e74c3c;">${report.missingDebtRecords.length}</strong> 名</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">上课无收费记录<br><strong style="color:#f39c12;">${report.activeNoPaid.length}</strong> 名</div>
                 <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">超过容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
             </div>
             <div style="padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;">
-                安全清理只会删除“不存在班级的考勤”、考勤 records 里“不存在的学员 ID”和“已删除学员的收费记录”。空课次、欠费、负课时、超容量只提示，不自动改。已登记欠费的学员会进入首页欠费提醒，不在“需补欠费记录”里重复提醒。
+                安全清理只会删除“不存在班级的考勤”、考勤 records 里“不存在的学员 ID”和“已删除学员的收费记录”。空课次、欠费、负课时、超容量只提示，不自动改。“已有收费但课时不足”和“上课无收费记录”不重叠，前者适合补欠费/续费，后者适合先补建收费记录。
             </div>
             ${renderFeeHealthDetails(report)}
             ${renderTuitionHealthDetails(report)}
@@ -216,7 +216,7 @@ function renderTuitionHealthDetails(report) {
     `;
 
     return `
-        ${section('需补欠费记录明细', report.missingDebtDetails, '只显示已经出勤、但已缴课时 + 已登记欠费课时仍不足覆盖已消课时的在读学员。', 'missingDebt')}
+        ${section('已有收费但课时不足明细', report.missingDebtDetails, '只显示已经出勤、收费记录不为空，但已缴课时 + 已登记欠费课时仍不足覆盖已消课时的在读学员。', 'missingDebt')}
         ${section('上课无收费记录明细', report.activeNoPaidDetails, '只显示已经有出勤记录、但收费记录里完全没有已缴或欠费记录的在读学员。', 'noFee')}
         ${section('已缴余额为负参考', report.negativeRemainingDetails, '这是纯“已缴课时 - 已消课时”的参考口径。若已登记欠费，首页欠费提醒会继续跟进，这里不建议重复补录。', 'negative', false)}
     `;

@@ -4,9 +4,11 @@ let expandedClassIds = new Set();
 
 function renderClasses() {
     const container = document.getElementById('tab-classes');
-    const grades = [...new Set(data.classes.map(c => c.grade))];
+    const visibleClasses = (data.classes || []).filter(c => c.status !== 'finished');
+    const grades = [...new Set(visibleClasses.map(c => c.grade))];
     const currentGradeFilter = document.getElementById('classGradeFilter')?.value || '';
-    const currentStatusFilter = document.getElementById('classStatusFilter')?.value || '';
+    const rawStatusFilter = document.getElementById('classStatusFilter')?.value || '';
+    const currentStatusFilter = rawStatusFilter === 'finished' ? '' : rawStatusFilter;
 
     let html = `
         <div class="card">
@@ -20,7 +22,6 @@ function renderClasses() {
                         <option value="">全部状态</option>
                         <option value="active" ${currentStatusFilter === 'active' ? 'selected' : ''}>正常</option>
                         <option value="forming" ${currentStatusFilter === 'forming' ? 'selected' : ''}>组班中</option>
-                        <option value="finished" ${currentStatusFilter === 'finished' ? 'selected' : ''}>已结课</option>
                     </select>
                 </div>
                 <div class="toolbar">
@@ -40,7 +41,7 @@ function renderClasses() {
                 <table>
                     <thead><tr><th style="width: 40px;"></th><th>班级名称</th><th>年级</th><th>班型</th><th>上课时间</th><th>人数/满班</th><th>满班率</th><th>状态</th><th>操作</th></tr></thead>
                     <tbody>
-                        ${data.classes.filter(c => {
+                        ${visibleClasses.filter(c => {
                             return (!currentGradeFilter || c.grade === currentGradeFilter) && (!currentStatusFilter || c.status === currentStatusFilter);
                         }).map(c => {
                             const count = c.status === 'forming'
@@ -330,7 +331,7 @@ async function saveClass(e) {
         data.classes.push(classData);
     }
 
-    const studentsChanged = statusChangedToFinished ? maybeMarkClassStudentsInactive(currentEditId) : false;
+    const studentsChanged = statusChangedToFinished ? maybeMarkClassStudentsRenewalPending(currentEditId) : false;
 
     try {
         if ((!isNew && oldStatus === 'forming' && newStatus !== 'forming') || studentsChanged) {
@@ -363,7 +364,7 @@ async function deleteClass(id) {
     (data.prospects || []).forEach(p => {
         if (p.classId === id && p.dealStatus !== 'deal') p.classId = '';
     });
-    const studentsChanged = maybeMarkClassStudentsInactive(id);
+    const studentsChanged = maybeMarkClassStudentsRenewalPending(id);
     try {
         const updates = { classes: data.classes, prospects: data.prospects };
         if (studentsChanged) updates.students = data.students;
@@ -376,19 +377,18 @@ async function deleteClass(id) {
     render();
 }
 
-function maybeMarkClassStudentsInactive(classId) {
+function maybeMarkClassStudentsRenewalPending(classId) {
     const activeStudents = (data.students || []).filter(s =>
         s.classId === classId && (s.status === 'active' || s.status === 'renewalPending' || !s.status)
     );
     if (activeStudents.length === 0) return false;
     const names = activeStudents.slice(0, 8).map(s => s.name).join('、');
     const more = activeStudents.length > 8 ? `等 ${activeStudents.length} 人` : `${activeStudents.length} 人`;
-    if (!confirm(`这个班级还有 ${more} 在读/待续费学员：${names}\n\n是否同步把他们改为“停课”？\n\n选择“确定”：批量改为停课，保留所在班级用于历史追踪。\n选择“取消”：只归档班级，学员状态不变。`)) {
+    if (!confirm(`这个班级还有 ${more} 在读/待续费学员：${names}\n\n是否同步把他们改为“待续费”？\n\n选择“确定”：批量改为待续费，方便后续续班和续费沟通。\n选择“取消”：保持当前学员状态不变。`)) {
         return false;
     }
     activeStudents.forEach(s => {
-        s.status = 'inactive';
-        s.archivedAt = s.archivedAt || new Date().toISOString();
+        s.status = 'renewalPending';
     });
     return true;
 }
