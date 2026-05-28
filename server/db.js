@@ -32,7 +32,7 @@ const ENTITY_COLLECTIONS = new Set([
     'communications',
     'prospects'
 ]);
-const ENTITY_READ_COLLECTIONS = new Set(['classes', 'prospects']);
+const ENTITY_READ_COLLECTIONS = new Set(['classes', 'prospects', 'grades', 'communications']);
 
 let db;
 
@@ -301,7 +301,9 @@ function getCollection(collectionName) {
 function getCollectionFromEntityTable(collectionName) {
     const tableMap = {
         classes: 'classes',
-        prospects: 'prospects'
+        prospects: 'prospects',
+        grades: 'grades',
+        communications: 'communications'
     };
     const tableName = tableMap[collectionName];
     if (!tableName) {

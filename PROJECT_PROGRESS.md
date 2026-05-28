@@ -367,6 +367,8 @@
 - 已试切低风险读路径：
   - `GET /api/classes` 从 SQLite `classes.raw_json` 读取。
   - `GET /api/prospects` 从 SQLite `prospects.raw_json` 读取。
+  - `GET /api/grades` 从 SQLite `grades.raw_json` 读取。
+  - `GET /api/communications` 从 SQLite `communications.raw_json` 读取。
 - `/data` 和其他模块 API 仍继续从 `app_state.data` 读取。
 
 下一步：
