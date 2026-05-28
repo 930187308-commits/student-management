@@ -63,10 +63,12 @@ function toggleFeeBatchMode() {
     renderFees();
 }
 
-function openFeeModal(id = null) {
+function openFeeModal(id = null, defaults = {}) {
     currentEditId = id;
     const fee = id ? data.fees.find(f => f.id === id) : null;
-    const existingStudent = fee ? data.students.find(s => s.id === fee.studentId) : null;
+    const selectedStudentId = fee?.studentId || defaults.studentId || '';
+    const existingStudent = selectedStudentId ? data.students.find(s => s.id === selectedStudentId) : null;
+    const defaultStatus = fee?.status || defaults.status || 'paid';
 
     document.getElementById('modalTitle').textContent = id ? '编辑缴费记录' : '新增缴费';
     document.getElementById('modalBody').innerHTML = `
@@ -76,21 +78,21 @@ function openFeeModal(id = null) {
                     <label>学员 *</label>
                     <input type="text" id="feeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterFeeStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
                     <select id="feeStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectFeeStudent(this)"></select>
-                    <input type="hidden" name="studentId" id="feeStudentId" value="${fee?.studentId || ''}">
+                    <input type="hidden" name="studentId" id="feeStudentId" value="${selectedStudentId}">
                 </div>
-                <div class="form-group"><label>缴费金额 *</label><input type="number" name="amount" value="${fee?.amount || ''}" required min="0"></div>
-                <div class="form-group"><label>课时单价</label><input type="number" name="pricePerHour" value="${fee?.pricePerHour || 200}" min="0"></div>
+                <div class="form-group"><label>缴费金额 *</label><input type="number" name="amount" value="${fee?.amount ?? defaults.amount ?? ''}" required min="0"></div>
+                <div class="form-group"><label>课时单价</label><input type="number" name="pricePerHour" value="${fee?.pricePerHour ?? defaults.pricePerHour ?? 200}" min="0"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>购买课时</label><input type="number" name="hours" value="${fee?.hours || ''}" min="0"></div>
-                <div class="form-group"><label>缴费日期</label><input type="date" name="paymentDate" value="${fee?.paymentDate || new Date().toISOString().split('T')[0]}"></div>
-                <div class="form-group"><label>状态</label><select name="status"><option value="paid" ${(!fee || fee?.status === 'paid') ? 'selected' : ''}>已缴</option><option value="pending" ${fee?.status === 'pending' ? 'selected' : ''}>欠费</option></select></div>
+                <div class="form-group"><label>购买课时</label><input type="number" name="hours" value="${fee?.hours ?? defaults.hours ?? ''}" min="0"></div>
+                <div class="form-group"><label>缴费日期</label><input type="date" name="paymentDate" value="${fee?.paymentDate ?? defaults.paymentDate ?? new Date().toISOString().split('T')[0]}"></div>
+                <div class="form-group"><label>状态</label><select name="status"><option value="paid" ${defaultStatus === 'paid' ? 'selected' : ''}>已缴</option><option value="pending" ${defaultStatus === 'pending' ? 'selected' : ''}>欠费</option></select></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>套餐名称</label><input type="text" name="package" value="${escapeHtml(fee?.package || '')}" placeholder="如：秋季班40课时"></div>
-                <div class="form-group"><label>付款方式</label><select name="paymentMethod"><option value="微信转账" ${(!fee || fee?.paymentMethod === '微信转账') ? 'selected' : ''}>微信转账</option><option value="支付宝" ${fee?.paymentMethod === '支付宝' ? 'selected' : ''}>支付宝</option><option value="银行转账" ${fee?.paymentMethod === '银行转账' ? 'selected' : ''}>银行转账</option><option value="现金" ${fee?.paymentMethod === '现金' ? 'selected' : ''}>现金</option></select></div>
+                <div class="form-group"><label>套餐名称</label><input type="text" name="package" value="${escapeHtml(fee?.package ?? defaults.package ?? '')}" placeholder="如：秋季班40课时"></div>
+                <div class="form-group"><label>付款方式</label><select name="paymentMethod"><option value="微信转账" ${(!fee && !defaults.paymentMethod) || fee?.paymentMethod === '微信转账' || defaults.paymentMethod === '微信转账' ? 'selected' : ''}>微信转账</option><option value="支付宝" ${fee?.paymentMethod === '支付宝' || defaults.paymentMethod === '支付宝' ? 'selected' : ''}>支付宝</option><option value="银行转账" ${fee?.paymentMethod === '银行转账' || defaults.paymentMethod === '银行转账' ? 'selected' : ''}>银行转账</option><option value="现金" ${fee?.paymentMethod === '现金' || defaults.paymentMethod === '现金' ? 'selected' : ''}>现金</option></select></div>
             </div>
-            <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${escapeHtml(fee?.remark || '')}</textarea></div>
+            <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${escapeHtml(fee?.remark ?? defaults.remark ?? '')}</textarea></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
         </form>
     `;

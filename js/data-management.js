@@ -56,6 +56,20 @@ function getDataHealthReport() {
             if (status === 1) usedHours[studentId] = (usedHours[studentId] || 0) + 1;
         });
     });
+    const getStudentDetail = (student) => {
+        const paid = paidHours[student.id] || 0;
+        const used = usedHours[student.id] || 0;
+        const remaining = paid - used;
+        const cls = classes.find(c => c.id === student.classId);
+        return {
+            ...student,
+            paidHours: paid,
+            usedHours: used,
+            remainingHours: remaining,
+            className: cls?.name || '未分班',
+            suggestedHours: Math.max(used - paid, 1)
+        };
+    };
 
     const orphanAttendance = attendance.filter(a => a.classId && !classIds.has(a.classId));
     let unknownRecordRefs = 0;
@@ -72,8 +86,12 @@ function getDataHealthReport() {
         const count = students.filter(s => s.classId === c.id && s.status === 'active').length;
         return count > Number(c.maxStudents || c.capacity || 10);
     });
+    const negativeRemainingDetails = negativeRemaining.map(getStudentDetail)
+        .sort((a, b) => a.remainingHours - b.remainingHours);
+    const activeNoPaidDetails = activeNoPaid.map(getStudentDetail)
+        .sort((a, b) => b.usedHours - a.usedHours || (a.name || '').localeCompare(b.name || '', 'zh-Hans-CN'));
 
-    return { orphanAttendance, unknownRecordRefs, emptySessions, negativeRemaining, activeNoPaid, overCapacity };
+    return { orphanAttendance, unknownRecordRefs, emptySessions, negativeRemaining, activeNoPaid, overCapacity, negativeRemainingDetails, activeNoPaidDetails };
 }
 
 function openDataHealthCheck() {
@@ -93,11 +111,63 @@ function openDataHealthCheck() {
             <div style="padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;">
                 安全清理只会删除“不存在班级的考勤”和考勤 records 里“不存在的学员 ID”。空课次、欠费、负课时、超容量只提示，不自动改。
             </div>
+            ${renderTuitionHealthDetails(report)}
             ${safeCleanCount > 0 ? `<button class="btn btn-danger" onclick="cleanSafeHealthIssues()">清理安全项（${safeCleanCount}）</button>` : '<div style="color:#27ae60;font-weight:600;">暂无需要安全清理的数据</div>'}
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');
+}
+
+function renderTuitionHealthDetails(report) {
+    const renderRows = (items, type) => items.map(s => `
+        <tr>
+            <td>${escapeHtml(s.name || '')}</td>
+            <td>${escapeHtml(s.grade || '-')}</td>
+            <td>${escapeHtml(s.className || '-')}</td>
+            <td>${s.paidHours}</td>
+            <td>${s.usedHours}</td>
+            <td><strong style="color:${s.remainingHours < 0 ? '#e74c3c' : '#f39c12'};">${s.remainingHours}</strong></td>
+            <td><button class="btn btn-warning btn-xs" onclick="openPendingFeeFromHealth('${s.id}', ${s.suggestedHours}, '${type}')">补录欠费</button></td>
+        </tr>
+    `).join('');
+
+    const section = (title, items, note, type) => `
+        <details ${items.length > 0 ? 'open' : ''} style="margin:12px 0;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--card-bg);">
+            <summary style="cursor:pointer;font-weight:600;">${title}（${items.length} 名）</summary>
+            <div style="color:#888;font-size:13px;margin:6px 0 10px;">${note}</div>
+            ${items.length > 0 ? `
+                <div class="table-wrapper" style="max-height:260px;overflow:auto;">
+                    <table>
+                        <thead><tr><th>学员</th><th>年级</th><th>班级</th><th>已缴课时</th><th>已消课时</th><th>余额</th><th>操作</th></tr></thead>
+                        <tbody>${renderRows(items, type)}</tbody>
+                    </table>
+                </div>
+            ` : '<div style="color:#27ae60;">暂无</div>'}
+        </details>
+    `;
+
+    return `
+        ${section('课时余额为负明细', report.negativeRemainingDetails, '通常表示已经有出勤课消，但收费/欠费记录还没补齐。', 'negative')}
+        ${section('在读无已缴课时明细', report.activeNoPaidDetails, '适合检查是否漏录收费，或是否需要先登记欠费记录。', 'noPaid')}
+    `;
+}
+
+function openPendingFeeFromHealth(studentId, suggestedHours = 1, type = 'negative') {
+    const student = (data.students || []).find(s => s.id === studentId);
+    if (!student) {
+        showToast('未找到学员');
+        return;
+    }
+    openFeeModal(null, {
+        studentId,
+        status: 'pending',
+        hours: suggestedHours,
+        amount: 0,
+        paymentDate: '',
+        package: type === 'noPaid' ? '待补录欠费' : `欠费补录${suggestedHours}课时`,
+        remark: '由数据体检提示生成，请确认金额和课时后保存'
+    });
 }
 
 function cleanSafeHealthIssues() {
