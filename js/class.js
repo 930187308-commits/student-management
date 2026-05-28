@@ -63,7 +63,7 @@ function renderClasses() {
                                     <td><span class="badge ${c.status === 'active' ? 'badge-active' : c.status === 'forming' ? 'badge-trial' : 'badge-pending'}">${c.status === 'active' ? '正常' : c.status === 'forming' ? '组班中' : '已结课'}</span></td>
                                     <td>
                                         <button class="btn btn-secondary btn-xs" onclick="openClassModal('${c.id}')">编辑</button>
-                                        <button class="btn btn-danger btn-xs" onclick="deleteClass('${c.id}')">删除</button>
+                                        <button class="btn btn-danger btn-xs" onclick="deleteClass('${c.id}')">${c.status === 'finished' ? '已归档' : '归档'}</button>
                                     </td>
                                 </tr>
                                 ${isExpanded ? `
@@ -312,11 +312,20 @@ function saveClass(e) {
 }
 
 function deleteClass(id) {
-    if (!confirm('删除班级后，班级下学员将变为"未分班"状态。确定删除？')) return;
-    data.classes = data.classes.filter(c => c.id !== id);
-    data.students.forEach(s => { if (s.classId === id) s.classId = ''; });
+    const cls = data.classes.find(c => c.id === id);
+    if (!cls) return;
+    if (cls.status === 'finished') {
+        showToast('该班级已归档');
+        return;
+    }
+    if (!confirm('确定将该班级归档为“已结课”吗？历史考勤会保留，不会物理删除班级。')) return;
+    cls.status = 'finished';
+    cls.archivedAt = new Date().toISOString();
+    (data.prospects || []).forEach(p => {
+        if (p.classId === id && p.dealStatus !== 'deal') p.classId = '';
+    });
     saveData();
-    showToast('删除成功');
+    showToast('班级已归档');
     render();
 }
 

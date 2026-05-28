@@ -16,10 +16,11 @@ function openDataManager() {
         </div>
         <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
 	            <button class="btn btn-secondary" onclick="copyJsonData()">复制JSON</button>
-	            <button class="btn btn-success" onclick="saveJsonToFile()">保存JSON</button>
-	            <button class="btn btn-secondary" onclick="exportAllStudents()">一键导出所有学员</button>
-	            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
-        </div>
+		            <button class="btn btn-success" onclick="saveJsonToFile()">保存JSON</button>
+		            <button class="btn btn-secondary" onclick="exportAllStudents()">一键导出所有学员</button>
+		            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
+		            <button class="btn btn-info" onclick="openDataHealthCheck()">数据体检</button>
+	        </div>
         <div style="margin-bottom: 16px;">
             <button class="btn btn-danger" onclick="confirmClearAllData()">一键清空所有数据</button>
         </div>
@@ -35,6 +36,91 @@ function openDataManager() {
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');
+}
+
+function getDataHealthReport() {
+    const classes = data.classes || [];
+    const students = data.students || [];
+    const attendance = data.attendance || [];
+    const fees = data.fees || [];
+    const classIds = new Set(classes.map(c => c.id));
+    const studentIds = new Set(students.map(s => s.id));
+    const paidHours = {};
+    const usedHours = {};
+
+    fees.filter(f => f.status === 'paid').forEach(f => {
+        paidHours[f.studentId] = (paidHours[f.studentId] || 0) + Number(f.hours || 0);
+    });
+    attendance.forEach(session => {
+        Object.entries(session.records || {}).forEach(([studentId, status]) => {
+            if (status === 1) usedHours[studentId] = (usedHours[studentId] || 0) + 1;
+        });
+    });
+
+    const orphanAttendance = attendance.filter(a => a.classId && !classIds.has(a.classId));
+    let unknownRecordRefs = 0;
+    attendance.forEach(session => {
+        Object.keys(session.records || {}).forEach(studentId => {
+            if (!studentIds.has(studentId)) unknownRecordRefs++;
+        });
+    });
+    const emptySessions = attendance.filter(a => Object.keys(a.records || {}).length === 0);
+    const negativeRemaining = students.filter(s => (paidHours[s.id] || 0) - (usedHours[s.id] || 0) < 0);
+    const activeNoPaid = students.filter(s => s.status === 'active' && (paidHours[s.id] || 0) === 0);
+    const overCapacity = classes.filter(c => {
+        if (c.status !== 'active') return false;
+        const count = students.filter(s => s.classId === c.id && s.status === 'active').length;
+        return count > Number(c.maxStudents || c.capacity || 10);
+    });
+
+    return { orphanAttendance, unknownRecordRefs, emptySessions, negativeRemaining, activeNoPaid, overCapacity };
+}
+
+function openDataHealthCheck() {
+    const report = getDataHealthReport();
+    const safeCleanCount = report.orphanAttendance.length + report.unknownRecordRefs;
+    document.getElementById('modalTitle').textContent = '数据体检';
+    document.getElementById('modalBody').innerHTML = `
+        <div style="font-size: 14px; line-height: 1.8;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;">
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">不存在班级的考勤<br><strong style="color:#e74c3c;">${report.orphanAttendance.length}</strong> 条</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">不存在学员的考勤记录<br><strong style="color:#e74c3c;">${report.unknownRecordRefs}</strong> 个</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">课时余额为负<br><strong style="color:#f39c12;">${report.negativeRemaining.length}</strong> 名</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">在读无已缴课时<br><strong style="color:#f39c12;">${report.activeNoPaid.length}</strong> 名</div>
+                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">超过容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
+            </div>
+            <div style="padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;">
+                安全清理只会删除“不存在班级的考勤”和考勤 records 里“不存在的学员 ID”。空课次、欠费、负课时、超容量只提示，不自动改。
+            </div>
+            ${safeCleanCount > 0 ? `<button class="btn btn-danger" onclick="cleanSafeHealthIssues()">清理安全项（${safeCleanCount}）</button>` : '<div style="color:#27ae60;font-weight:600;">暂无需要安全清理的数据</div>'}
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+    `;
+    document.getElementById('modal').classList.add('show');
+}
+
+function cleanSafeHealthIssues() {
+    const report = getDataHealthReport();
+    const orphanIds = new Set(report.orphanAttendance.map(a => a.id));
+    const studentIds = new Set((data.students || []).map(s => s.id));
+    const beforeAttendance = (data.attendance || []).length;
+    let removedRecordRefs = 0;
+
+    data.attendance = (data.attendance || []).filter(a => !orphanIds.has(a.id));
+    data.attendance.forEach(session => {
+        Object.keys(session.records || {}).forEach(studentId => {
+            if (!studentIds.has(studentId)) {
+                delete session.records[studentId];
+                removedRecordRefs++;
+            }
+        });
+    });
+
+    const removedAttendance = beforeAttendance - data.attendance.length;
+    saveData();
+    showToast(`已清理考勤 ${removedAttendance} 条，无效学员记录 ${removedRecordRefs} 个`);
+    openDataHealthCheck();
 }
 
 // 一键导出所有Excel文件
