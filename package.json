@@ -14,7 +14,8 @@
     "test-data:generate": "scripts/node.sh server/generate-test-data.js",
     "data:reset-empty": "scripts/node.sh server/reset-empty-data.js",
     "import:json": "scripts/node.sh server/import-json.js",
-    "check": "scripts/node.sh --check server/server.js && scripts/node.sh --check server/db.js && scripts/node.sh --check server/config.js && scripts/node.sh --check server/create-backup.js && scripts/node.sh --check server/import-json.js && scripts/node.sh --check server/generate-test-data.js && scripts/node.sh --check server/reset-empty-data.js"
+    "sqlite:reconcile": "scripts/node.sh server/reconcile-sqlite-split.js",
+    "check": "scripts/node.sh --check server/server.js && scripts/node.sh --check server/db.js && scripts/node.sh --check server/config.js && scripts/node.sh --check server/create-backup.js && scripts/node.sh --check server/import-json.js && scripts/node.sh --check server/generate-test-data.js && scripts/node.sh --check server/reset-empty-data.js && scripts/node.sh --check server/reconcile-sqlite-split.js"
   },
   "engines": {
     "node": ">=24.0.0"

@@ -329,7 +329,7 @@
 
 ## 阶段 3B：SQLite 真实拆表规划
 
-状态：准备开始
+状态：已开始
 
 原则：
 
@@ -345,6 +345,18 @@
   7. communications
 - 先做只读校验和双写/对账，再切换读路径。
 - 每拆一个模块，都要验证数量、引用关系、课消统计、欠费统计和导出结果。
+
+已完成：
+
+- 新增拆表规划文档：`docs/STAGE_3B_SQLITE_SPLIT_PLAN.md`。
+- 新增只读对账脚本：`server/reconcile-sqlite-split.js`。
+- 新增命令：`npm run sqlite:reconcile`。
+- 当前对账脚本只读取 `app_state.data` 和 SQLite 表数量，不写入数据库。
+
+下一步：
+
+- 写 `server/migrate-app-state-to-tables.js --dry-run`。
+- dry-run 只计算将迁移的数据量、引用问题和字段缺失，不落库。
 
 ## 后续业务规则规划
 
