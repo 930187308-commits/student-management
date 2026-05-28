@@ -23,6 +23,16 @@ const DEFAULT_DATA = {
     gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '新初一']
 };
 
+const ENTITY_COLLECTIONS = new Set([
+    'classes',
+    'students',
+    'fees',
+    'attendance',
+    'grades',
+    'communications',
+    'prospects'
+]);
+
 let db;
 
 function ensureRuntimeDirs() {
@@ -254,12 +264,27 @@ function setData(nextData, reason = 'save') {
         ...nextData,
         lastModified: nextData.lastModified || stamp
     };
-    getDb().prepare(`
-        INSERT INTO app_state (key, value, updated_at)
-        VALUES ('data', ?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-    `).run(JSON.stringify(dataWithTimestamp), stamp);
-    logAudit('save_data', 'app_state:data', reason);
+    const database = getDb();
+    database.exec('PRAGMA foreign_keys = OFF');
+    database.exec('BEGIN IMMEDIATE');
+    try {
+        database.prepare(`
+            INSERT INTO app_state (key, value, updated_at)
+            VALUES ('data', ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+        `).run(JSON.stringify(dataWithTimestamp), stamp);
+        replaceEntityTables(database, dataWithTimestamp, stamp);
+        database.prepare(`
+            INSERT INTO audit_log (action, target, detail, created_at)
+            VALUES (?, ?, ?, ?)
+        `).run('save_data', 'app_state:data', reason || null, stamp);
+        database.exec('COMMIT');
+    } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+    } finally {
+        database.exec('PRAGMA foreign_keys = ON');
+    }
     return dataWithTimestamp;
 }
 
@@ -281,7 +306,234 @@ function setCollection(collectionName, items, reason = 'module_save') {
         [collectionName]: items,
         lastModified: nowIso()
     };
-    return setData(nextData, reason);
+    const saved = setData(nextData, reason);
+    return saved;
+}
+
+function json(value) {
+    return JSON.stringify(value || {});
+}
+
+function normalizeId(prefix, index, id) {
+    return id ? String(id) : `${prefix}_${index + 1}`;
+}
+
+function buildEntityRows(data) {
+    const classes = data.classes || [];
+    const students = data.students || [];
+    const fees = data.fees || [];
+    const attendance = data.attendance || [];
+    const grades = data.grades || [];
+    const communications = data.communications || [];
+    const prospects = data.prospects || [];
+
+    const classRows = classes.map((c, index) => ({
+        id: normalizeId('class', index, c.id),
+        name: c.name || '',
+        grade: c.grade || '',
+        class_type: c.classType || '',
+        schedule: c.schedule || '',
+        semester: c.semester || '',
+        max_students: Number(c.maxStudents || c.capacity || 0),
+        status: c.status || 'active',
+        summer_schedule: c.summerSchedule || '',
+        raw_json: json(c)
+    }));
+
+    const studentRows = students.map((s, index) => ({
+        id: normalizeId('student', index, s.id),
+        name: s.name || '',
+        gender: s.gender || '',
+        grade: s.grade || '',
+        school: s.school || '',
+        phone: s.phone || '',
+        emergency_contact: s.emergencyContact || '',
+        class_id: s.classId || null,
+        teacher: s.teacher || '',
+        status: s.status || 'active',
+        enroll_date: s.enrollDate || '',
+        remark: s.remark || '',
+        archived_at: s._archivedAt || s.archivedAt || '',
+        raw_json: json(s)
+    }));
+
+    const feeRows = fees.map((f, index) => ({
+        id: normalizeId('fee', index, f.id),
+        student_id: f.studentId || null,
+        amount: Number(f.amount || 0),
+        hours: Number(f.hours || 0),
+        price_per_hour: Number(f.pricePerHour || 0),
+        payment_date: f.paymentDate || '',
+        payment_method: f.paymentMethod || '',
+        package_name: f.package || '',
+        status: f.status || 'pending',
+        remark: f.remark || '',
+        raw_json: json(f)
+    }));
+
+    const attendanceSessionRows = [];
+    const attendanceRecordRows = [];
+    attendance.forEach((session, sessionIndex) => {
+        const sessionId = normalizeId('attendance', sessionIndex, session.id || `${session.classId || 'class'}_${session.date || sessionIndex + 1}`);
+        attendanceSessionRows.push({
+            id: sessionId,
+            class_id: session.classId || null,
+            date: session.date || '',
+            session_name: session.sessionName || session.name || '',
+            raw_json: json(session)
+        });
+        Object.entries(session.records || {}).forEach(([studentId, status]) => {
+            attendanceRecordRows.push({
+                session_id: sessionId,
+                student_id: String(studentId),
+                status: status === '' || status === undefined ? null : Number(status),
+                consumed_hours: status === 1 ? 1 : 0,
+                note: ''
+            });
+        });
+    });
+
+    const gradeRows = grades.map((g, index) => ({
+        id: normalizeId('grade', index, g.id),
+        student_id: g.studentId || null,
+        class_id: g.classId || null,
+        test_name: g.testName || '',
+        test_date: g.testDate || '',
+        exam_type: g.examType || '',
+        score: Number(g.score || 0),
+        full_score: Number(g.fullScore || 0),
+        ranking: g.ranking === null || g.ranking === '' || g.ranking === undefined ? null : Number(g.ranking),
+        weak_points: g.weakPoints || '',
+        remark: g.remark || '',
+        raw_json: json(g)
+    }));
+
+    const communicationRows = communications.map((c, index) => ({
+        id: normalizeId('communication', index, c.id),
+        student_id: c.studentId || null,
+        topic_id: c.topicId || '',
+        contact_type: c.contactType || '',
+        contact_person: c.contactPerson || '',
+        contact_date: c.contactDate || '',
+        teacher: c.teacher || '',
+        status: c.status || '',
+        content: c.content || '',
+        follow_up: c.followUp || '',
+        raw_json: json(c)
+    }));
+
+    const prospectRows = prospects.map((p, index) => ({
+        id: normalizeId('prospect', index, p.id),
+        name: p.name || '',
+        phone: p.phone || '',
+        source: p.source || '',
+        intent: p.intent || '',
+        trial_date: p.trialDate || '',
+        trial_status: p.trialStatus || '',
+        deal_status: p.dealStatus || '',
+        remark: p.remark || '',
+        create_date: p.createDate || '',
+        converted_student_id: p.convertedStudentId || null,
+        raw_json: json(p)
+    }));
+
+    return {
+        classes: classRows,
+        students: studentRows,
+        fees: feeRows,
+        attendance_sessions: attendanceSessionRows,
+        attendance_records: attendanceRecordRows,
+        grades: gradeRows,
+        communications: communicationRows,
+        prospects: prospectRows
+    };
+}
+
+function clearEntityTables(database) {
+    [
+        'attendance_records',
+        'attendance_sessions',
+        'communications',
+        'grades',
+        'fees',
+        'prospects',
+        'students',
+        'classes'
+    ].forEach(tableName => {
+        database.prepare(`DELETE FROM ${tableName}`).run();
+    });
+}
+
+function insertEntityRows(database, rows, stamp) {
+    const insertClass = database.prepare(`
+        INSERT INTO classes (id, name, grade, class_type, schedule, semester, max_students, status, summer_schedule, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.classes.forEach(row => insertClass.run(row.id, row.name, row.grade, row.class_type, row.schedule, row.semester, row.max_students, row.status, row.summer_schedule, row.raw_json, stamp));
+
+    const insertStudent = database.prepare(`
+        INSERT INTO students (id, name, gender, grade, school, phone, emergency_contact, class_id, teacher, status, enroll_date, remark, archived_at, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.students.forEach(row => insertStudent.run(row.id, row.name, row.gender, row.grade, row.school, row.phone, row.emergency_contact, row.class_id, row.teacher, row.status, row.enroll_date, row.remark, row.archived_at, row.raw_json, stamp));
+
+    const insertFee = database.prepare(`
+        INSERT INTO fees (id, student_id, amount, hours, price_per_hour, payment_date, payment_method, package_name, status, remark, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.fees.forEach(row => insertFee.run(row.id, row.student_id, row.amount, row.hours, row.price_per_hour, row.payment_date, row.payment_method, row.package_name, row.status, row.remark, row.raw_json, stamp));
+
+    const insertAttendanceSession = database.prepare(`
+        INSERT INTO attendance_sessions (id, class_id, date, session_name, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    rows.attendance_sessions.forEach(row => insertAttendanceSession.run(row.id, row.class_id, row.date, row.session_name, row.raw_json, stamp));
+
+    const insertAttendanceRecord = database.prepare(`
+        INSERT INTO attendance_records (session_id, student_id, status, consumed_hours, note, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    rows.attendance_records.forEach(row => insertAttendanceRecord.run(row.session_id, row.student_id, row.status, row.consumed_hours, row.note, stamp));
+
+    const insertGrade = database.prepare(`
+        INSERT INTO grades (id, student_id, class_id, test_name, test_date, exam_type, score, full_score, ranking, weak_points, remark, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.grades.forEach(row => insertGrade.run(row.id, row.student_id, row.class_id, row.test_name, row.test_date, row.exam_type, row.score, row.full_score, row.ranking, row.weak_points, row.remark, row.raw_json, stamp));
+
+    const insertCommunication = database.prepare(`
+        INSERT INTO communications (id, student_id, topic_id, contact_type, contact_person, contact_date, teacher, status, content, follow_up, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.communications.forEach(row => insertCommunication.run(row.id, row.student_id, row.topic_id, row.contact_type, row.contact_person, row.contact_date, row.teacher, row.status, row.content, row.follow_up, row.raw_json, stamp));
+
+    const insertProspect = database.prepare(`
+        INSERT INTO prospects (id, name, phone, source, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.prospects.forEach(row => insertProspect.run(row.id, row.name, row.phone, row.source, row.intent, row.trial_date, row.trial_status, row.deal_status, row.remark, row.create_date, row.converted_student_id, row.raw_json, stamp));
+}
+
+function syncEntityTables(data) {
+    const database = getDb();
+    const stamp = nowIso();
+    database.exec('PRAGMA foreign_keys = OFF');
+    database.exec('BEGIN IMMEDIATE');
+    try {
+        replaceEntityTables(database, data, stamp);
+        database.exec('COMMIT');
+    } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+    } finally {
+        database.exec('PRAGMA foreign_keys = ON');
+    }
+}
+
+function replaceEntityTables(database, data, stamp) {
+    const rows = buildEntityRows(data);
+    clearEntityTables(database);
+    insertEntityRows(database, rows, stamp);
 }
 
 function logAudit(action, target, detail) {

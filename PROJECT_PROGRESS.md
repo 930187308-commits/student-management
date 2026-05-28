@@ -362,11 +362,13 @@
   - `/Users/bzx/Data/student-ai-console/backups/student-console-2026-05-28T14-41-31-121Z.json`
 - 写入后 `reconcile` 显示实体表数量已与 `app_state` 快照一致。
 - 对账脚本已增强为同时比较统计口径：课消、已缴/欠费记录数、已缴/欠费金额、孤儿引用。
+- 后端 `setData()` 已改为双写：保存 `app_state.data` 的同时，在同一个事务内同步 SQLite 实体表。
+- 双写阶段仍然保持 API 读路径来自 `app_state.data`，实体表用于对账和后续切读准备。
 
 下一步：
 
 - 继续保持前端读 `app_state.data`，暂不切换 API 读路径。
-- 下一步设计双写：模块 API 保存时同时更新 `app_state` 和对应实体表。
+- 观察双写稳定性，再选择一个低风险模块试切 `GET /api/...` 到实体表读取。
 
 ## 后续业务规则规划
 
