@@ -1,5 +1,7 @@
 // ==================== 意向学员 ====================
 
+let prospectBatchMode = false;
+
 function renderProspects() {
     const container = document.getElementById('tab-prospects');
 
@@ -24,14 +26,14 @@ function renderProspects() {
                     </div>
                     <button class="btn btn-primary" onclick="openProspectModal()">+ 新增意向</button>
                     <button class="btn btn-secondary btn-sm" onclick="openSourceManager()">渠道管理</button>
-                    <button class="btn btn-secondary btn-sm" onclick="exportSelectedProspects()">导出选中</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteSelectedProspects()">删除选中</button>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleProspectBatchMode()">${prospectBatchMode ? '退出多选' : '多选'}</button>
+                    ${prospectBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedProspects()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedProspects()">删除选中</button>' : ''}
                 </div>
             </div>
             <div id="prospectCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th><th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
+                    <thead><tr>${prospectBatchMode ? '<th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th>' : ''}<th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
                     <tbody id="prospectTableBody"></tbody>
                 </table>
             </div>
@@ -65,7 +67,7 @@ function renderProspectList() {
         const remark = p.remark || '';
         const shortRemark = remark.length > 16 ? `${remark.slice(0, 16)}...` : remark;
         return `<tr>
-            <td><input type="checkbox" class="prospect-select" value="${p.id}"></td>
+            ${prospectBatchMode ? `<td><input type="checkbox" class="prospect-select" value="${p.id}"></td>` : ''}
             <td><strong>${escapeHtml(p.name)}</strong></td>
             <td>${escapeHtml(p.grade || '-')}</td>
             <td>${escapeHtml(p.wechat || '-')}</td>
@@ -82,7 +84,12 @@ function renderProspectList() {
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="12" style="text-align:center;color:#888;">暂无意向学员</td></tr>';
+    }).join('') || `<tr><td colspan="${prospectBatchMode ? 12 : 11}" style="text-align:center;color:#888;">暂无意向学员</td></tr>`;
+}
+
+function toggleProspectBatchMode() {
+    prospectBatchMode = !prospectBatchMode;
+    renderProspects();
 }
 
 function getSelectedProspectIds() {

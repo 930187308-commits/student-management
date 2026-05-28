@@ -1,5 +1,7 @@
 // ==================== 沟通记录 ====================
 
+let communicationBatchMode = false;
+
 function renderCommunications() {
     const container = document.getElementById('tab-communications');
 
@@ -17,11 +19,13 @@ function renderCommunications() {
                 <div class="toolbar">
                     <button class="btn btn-secondary btn-sm" onclick="openTopicManager()">管理主题</button>
                     <button class="btn btn-primary" onclick="openCommModal()">+ 新增沟通</button>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleCommunicationBatchMode()">${communicationBatchMode ? '退出多选' : '多选'}</button>
+                    ${communicationBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedCommunications()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedCommunications()">删除选中</button>' : ''}
                 </div>
             </div>
             <div id="commCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div class="table-wrapper">
-                <table><thead><tr><th>主题</th><th>学员</th><th>日期</th><th>方式</th><th>状态</th><th>沟通对象</th><th>操作</th></tr></thead><tbody id="commTableBody"></tbody></table>
+                <table><thead><tr>${communicationBatchMode ? '<th><input type="checkbox" onchange="toggleAllCommunicationSelection(this)"></th>' : ''}<th>主题</th><th>学员</th><th>日期</th><th>方式</th><th>状态</th><th>沟通对象</th><th>操作</th></tr></thead><tbody id="commTableBody"></tbody></table>
             </div>
         </div>
     `;
@@ -49,6 +53,7 @@ function renderCommTable() {
         const statusBadge = c.status === 'pending' ? 'badge-pending' : 'badge-active';
         const statusText = c.status === 'pending' ? '待沟通' : '已完成';
         return `<tr>
+            ${communicationBatchMode ? `<td><input type="checkbox" class="communication-select" value="${c.id}"></td>` : ''}
             <td>${topic ? `<span class="badge" style="background:${escapeHtml(topic.color)};color:white;">${escapeHtml(topic.name)}</span>` : '-'}</td>
             <td>${escapeHtml(c.studentName)}</td>
             <td>${c.contactDate}</td>
@@ -58,6 +63,49 @@ function renderCommTable() {
             <td><button class="btn btn-secondary btn-xs" onclick="openCommModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
         </tr>`;
     }).join('');
+}
+
+function toggleCommunicationBatchMode() {
+    communicationBatchMode = !communicationBatchMode;
+    renderCommunications();
+}
+
+function getSelectedCommunicationIds() {
+    return Array.from(document.querySelectorAll('.communication-select:checked')).map(el => el.value);
+}
+
+function toggleAllCommunicationSelection(checkbox) {
+    document.querySelectorAll('.communication-select').forEach(el => { el.checked = checkbox.checked; });
+}
+
+function exportSelectedCommunications() {
+    const ids = getSelectedCommunicationIds();
+    if (ids.length === 0) { showToast('请先勾选沟通记录'); return; }
+    const selected = (data.communications || []).filter(c => ids.includes(c.id));
+    exportCommunicationRows(selected, `选中沟通记录_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function deleteSelectedCommunications() {
+    const ids = getSelectedCommunicationIds();
+    if (ids.length === 0) { showToast('请先勾选沟通记录'); return; }
+    if (!confirm(`确定删除选中的 ${ids.length} 条沟通记录吗？此操作不可恢复。`)) return;
+    data.communications = (data.communications || []).filter(c => !ids.includes(c.id));
+    saveData();
+    showToast(`已删除 ${ids.length} 条沟通记录`);
+    render();
+}
+
+function exportCommunicationRows(comms, filename) {
+    const headers = ['学员', '主题', '日期', '方式', '沟通对象', '状态', '内容', '后续跟进'];
+    const rows = comms.map(c => {
+        const topic = (data.communicationTopics || []).find(t => t.id === c.topicId);
+        return [c.studentName, topic?.name || '', c.contactDate, c.contactType, c.contactPerson, c.status === 'pending' ? '待沟通' : '已完成', c.content, c.followUp || ''];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '沟通记录');
+    XLSX.writeFile(wb, filename);
+    showToast('导出成功');
 }
 
 function openTopicManager() {

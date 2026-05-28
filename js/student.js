@@ -1,6 +1,7 @@
 // ==================== 学员管理 ====================
 
 let currentStudentTab = 'active'; // active / renewalPending / inactive
+let studentBatchMode = false;
 
 function renderStudents() {
     const container = document.getElementById('tab-students');
@@ -37,9 +38,12 @@ function renderStudents() {
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="toggleStudentBatchMode()">${studentBatchMode ? '退出多选' : '多选'}</button>
+                </div>
+                ${studentBatchMode ? `<div style="display: flex; gap: 8px; margin-top: 8px;">
                     <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="exportSelectedStudents()">导出选中</button>
                     <button class="btn btn-danger btn-sm" style="flex:1;" onclick="deleteSelectedStudents()">删除选中</button>
-                </div>
+                </div>` : ''}
                 <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="openStudentModal()">+ 新增学员</button>
             </div>
             <div class="right-panel" id="studentDetail">
@@ -98,7 +102,7 @@ function renderStudentList() {
         return `<div class="student-item ${currentStudentId === s.id ? 'active' : ''}" onclick="selectStudent('${s.id}')" ${statusClass}>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <input type="checkbox" class="student-select" value="${s.id}" onclick="event.stopPropagation()">
+                    ${studentBatchMode ? `<input type="checkbox" class="student-select" value="${s.id}" onclick="event.stopPropagation()">` : ''}
                     <div class="name" style="font-weight: 600; font-size: 14px;">${escapeHtml(s.name)}</div>
                 </div>
                 <span class="badge" style="${badgeColor} font-size: 10px;">${statusText}</span>
@@ -106,6 +110,11 @@ function renderStudentList() {
             <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(s.grade)} · ${escapeHtml(cls?.name) || '未分班'}</div>
         </div>`;
     }).join('');
+}
+
+function toggleStudentBatchMode() {
+    studentBatchMode = !studentBatchMode;
+    renderStudents();
 }
 
 function getSelectedStudentIds() {

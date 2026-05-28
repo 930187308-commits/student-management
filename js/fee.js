@@ -1,5 +1,7 @@
 // ==================== 收费记录 ====================
 
+let feeBatchMode = false;
+
 function renderFees() {
     const container = document.getElementById('tab-fees');
     const totalPaid = data.fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
@@ -15,26 +17,26 @@ function renderFees() {
                 <div class="toolbar">
                     <button class="btn btn-success" onclick="openFeeModal()">+ 新增缴费</button>
                     <div class="divider"></div>
-                    <button class="btn btn-secondary btn-sm" onclick="downloadFeeTemplate()">下载模板</button>
+	                    <button class="btn btn-secondary btn-sm" onclick="downloadFeeTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
                         <button class="btn btn-warning btn-sm">导入</button>
-                        <input type="file" accept=".xlsx,.xls" onchange="importFees(event)">
-                    </div>
-                </div>
-            </div>
+	                        <input type="file" accept=".xlsx,.xls" onchange="importFees(event)">
+	                    </div>
+	                    <button class="btn btn-secondary btn-sm" onclick="toggleFeeBatchMode()">${feeBatchMode ? '退出多选' : '多选'}</button>
+	                </div>
+	            </div>
             <div id="feeCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div style="display: flex; gap: 24px; margin-bottom: 16px; flex-wrap: wrap;">
                 <div><span style="color: #888;">已缴合计：</span><strong style="color: #27ae60;">¥${totalPaid.toLocaleString()}</strong></div>
                 <div><span style="color: #888;">欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
             </div>
             <div class="table-wrapper">
-                <table><thead><tr><th><input type="checkbox" onchange="toggleAllFeeSelection(this)"></th><th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
-            </div>
-            <div style="margin-top: 16px; display: flex; gap: 12px;">
-                <button class="btn btn-secondary" onclick="exportFees()">导出Excel</button>
-                <button class="btn btn-secondary" onclick="exportSelectedFees()">导出选中</button>
-                <button class="btn btn-danger" onclick="deleteSelectedFees()">删除选中</button>
-            </div>
+	                <table><thead><tr>${feeBatchMode ? '<th><input type="checkbox" onchange="toggleAllFeeSelection(this)"></th>' : ''}<th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
+	            </div>
+	            <div style="margin-top: 16px; display: flex; gap: 12px;">
+	                <button class="btn btn-secondary" onclick="exportFees()">导出Excel</button>
+	                ${feeBatchMode ? '<button class="btn btn-secondary" onclick="exportSelectedFees()">导出选中</button><button class="btn btn-danger" onclick="deleteSelectedFees()">删除选中</button>' : ''}
+	            </div>
         </div>
     `;
     container.innerHTML = html;
@@ -53,7 +55,12 @@ function renderFeeTable() {
     const countBar = document.getElementById('feeCountBar');
     if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
     const tbody = document.getElementById('feeTableBody');
-    tbody.innerHTML = filtered.map(f => `<tr><td><input type="checkbox" class="fee-select" value="${f.id}"></td><td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.map(f => `<tr>${feeBatchMode ? `<td><input type="checkbox" class="fee-select" value="${f.id}"></td>` : ''}<td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
+}
+
+function toggleFeeBatchMode() {
+    feeBatchMode = !feeBatchMode;
+    renderFees();
 }
 
 function openFeeModal(id = null) {

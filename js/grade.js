@@ -1,13 +1,20 @@
 // ==================== 成绩记录 ====================
 
+let gradeBatchMode = false;
+
 function renderGrades() {
     const container = document.getElementById('tab-grades');
+    const gradeOptions = data.gradeOptions || [...new Set((data.students || []).map(s => s.grade).filter(Boolean))];
 
     let html = `
         <div class="card">
             <div class="card-header">
                 <div class="search-bar">
                     <input type="text" id="gradeSearch" placeholder="搜索学员姓名...">
+                    <select id="gradeGradeFilter">
+                        <option value="">全部年级</option>
+                        ${gradeOptions.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('')}
+                    </select>
                     <select id="gradeClassFilter">
                         <option value="">全部班级</option>
                         ${data.classes.filter(c => c.status === 'active').map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
@@ -21,35 +28,55 @@ function renderGrades() {
                         <button class="btn btn-warning">导入Excel</button>
                         <input type="file" accept=".xlsx,.xls" onchange="importGrades(event)">
                     </div>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleGradeBatchMode()">${gradeBatchMode ? '退出多选' : '多选'}</button>
                 </div>
             </div>
             <div id="gradeCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
             <div class="table-wrapper">
-                <table><thead><tr><th>学员</th><th>测试名称</th><th style="white-space:nowrap;">日期</th><th>类型</th><th>得分</th><th>排名</th><th>备注</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
+                <table><thead><tr>${gradeBatchMode ? '<th><input type="checkbox" onchange="toggleAllGradeSelection(this)"></th>' : ''}<th>学员</th><th>测试名称</th><th style="white-space:nowrap;">日期</th><th>类型</th><th>得分</th><th>排名</th><th>备注</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
             </div>
-            <div style="margin-top: 16px;">
+            <div style="margin-top: 16px; display: flex; gap: 12px;">
                 <button class="btn btn-secondary" onclick="exportGrades()">导出Excel</button>
+                ${gradeBatchMode ? '<button class="btn btn-secondary" onclick="exportSelectedGrades()">导出选中</button><button class="btn btn-danger" onclick="deleteSelectedGrades()">删除选中</button>' : ''}
             </div>
         </div>
     `;
     container.innerHTML = html;
     document.getElementById('gradeSearch').addEventListener('input', renderGradeTable);
+    document.getElementById('gradeGradeFilter').addEventListener('change', renderGradeTable);
     document.getElementById('gradeClassFilter').addEventListener('change', renderGradeTable);
     renderGradeTable();
 }
 
 function renderGradeTable() {
     const search = document.getElementById('gradeSearch')?.value?.toLowerCase() || '';
+    const gradeFilter = document.getElementById('gradeGradeFilter')?.value || '';
     const classId = document.getElementById('gradeClassFilter')?.value || '';
     const allData = data.grades || [];
-    const filtered = allData.filter(g => (!search || g.studentName.toLowerCase().includes(search)) && (!classId || g.classId === classId)).sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
+    const filtered = allData.filter(g => {
+        const student = getGradeRecordStudent(g);
+        if (search && !g.studentName.toLowerCase().includes(search)) return false;
+        if (gradeFilter && student?.grade !== gradeFilter) return false;
+        if (classId && g.classId !== classId) return false;
+        return true;
+    }).sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
     const total = allData.length;
     const current = filtered.length;
     const countBar = document.getElementById('gradeCountBar');
     if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
 
     const tbody = document.getElementById('gradeTableBody');
-    tbody.innerHTML = filtered.map(g => `<tr><td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.remark || '-')}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.map(g => `<tr>${gradeBatchMode ? `<td><input type="checkbox" class="grade-select" value="${g.id}"></td>` : ''}<td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.remark || '-')}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('');
+}
+
+function getGradeRecordStudent(gradeRecord) {
+    return (data.students || []).find(s => s.id === gradeRecord.studentId) ||
+        (data.students || []).find(s => normalizeNameForMatch(s.name) === normalizeNameForMatch(gradeRecord.studentName));
+}
+
+function toggleGradeBatchMode() {
+    gradeBatchMode = !gradeBatchMode;
+    renderGrades();
 }
 
 function openGradeModal(id = null) {
@@ -321,11 +348,40 @@ function executeGradeImport(checkResult, strategies = {}) {
 }
 
 function exportGrades() {
+    exportGradeRows(data.grades || [], '成绩记录.xlsx');
+}
+
+function getSelectedGradeIds() {
+    return Array.from(document.querySelectorAll('.grade-select:checked')).map(el => el.value);
+}
+
+function toggleAllGradeSelection(checkbox) {
+    document.querySelectorAll('.grade-select').forEach(el => { el.checked = checkbox.checked; });
+}
+
+function exportSelectedGrades() {
+    const ids = getSelectedGradeIds();
+    if (ids.length === 0) { showToast('请先勾选成绩记录'); return; }
+    const selected = (data.grades || []).filter(g => ids.includes(g.id));
+    exportGradeRows(selected, `选中成绩记录_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function deleteSelectedGrades() {
+    const ids = getSelectedGradeIds();
+    if (ids.length === 0) { showToast('请先勾选成绩记录'); return; }
+    if (!confirm(`确定删除选中的 ${ids.length} 条成绩记录吗？此操作不可恢复。`)) return;
+    data.grades = (data.grades || []).filter(g => !ids.includes(g.id));
+    saveData();
+    showToast(`已删除 ${ids.length} 条成绩记录`);
+    render();
+}
+
+function exportGradeRows(grades, filename) {
     const headers = ['学员', '测试名称', '测试日期', '得分', '满分', '班级排名', '备注', '薄弱点'];
-    const rows = data.grades.map(g => [g.studentName, g.testName, g.testDate, g.score, g.fullScore, g.ranking != null && g.ranking !== '' ? `第${g.ranking}名` : '未知', g.remark || '', g.weakPoints || '']);
+    const rows = grades.map(g => [g.studentName, g.testName, g.testDate, g.score, g.fullScore, g.ranking != null && g.ranking !== '' ? `第${g.ranking}名` : '未知', g.remark || '', g.weakPoints || '']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '成绩记录');
-    XLSX.writeFile(wb, '成绩记录.xlsx');
+    XLSX.writeFile(wb, filename);
     showToast('导出成功');
 }
