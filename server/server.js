@@ -3,7 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { URL } = require('node:url');
 const config = require('./config');
-const { openDatabase, getData, getDataFromEntityTables, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
+const { openDatabase, getData, getDataFromEntityTables, getDataFromEntityColumns, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
 const { createReconciliationReport } = require('./reconcile-sqlite-split');
 
 const MIME_TYPES = {
@@ -166,6 +166,13 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === 'GET' && pathname === '/api/data-sqlite') {
         sendJson(res, 200, getDataFromEntityTables(), {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/data-sqlite-columns') {
+        sendJson(res, 200, getDataFromEntityColumns(), {
             'X-Data-Updated-At': getDataUpdatedAt() || ''
         });
         return true;

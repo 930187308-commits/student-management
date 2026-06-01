@@ -379,6 +379,172 @@ function getCollectionFromEntityTable(collectionName) {
     return rows.map(row => JSON.parse(row.raw_json || '{}'));
 }
 
+function parseRawJson(value, fallback = {}) {
+    if (!value) return fallback;
+    try {
+        return JSON.parse(value);
+    } catch {
+        return fallback;
+    }
+}
+
+function parseJsonObject(value) {
+    const parsed = parseRawJson(value, {});
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+}
+
+function parseJsonArray(value) {
+    const parsed = parseRawJson(value, []);
+    return Array.isArray(parsed) ? parsed : [];
+}
+
+function assignIfPresent(target, key, value) {
+    if (Object.prototype.hasOwnProperty.call(target, key)) {
+        target[key] = value;
+    }
+}
+
+function getCollectionFromEntityColumns(collectionName) {
+    const database = getDb();
+    if (collectionName === 'classes') {
+        return database.prepare('SELECT * FROM classes ORDER BY rowid').all().map(row => {
+            const item = parseRawJson(row.raw_json);
+            assignIfPresent(item, 'id', row.id || '');
+            assignIfPresent(item, 'name', row.name || '');
+            assignIfPresent(item, 'grade', row.grade || '');
+            assignIfPresent(item, 'classType', row.class_type || '');
+            assignIfPresent(item, 'schedule', row.schedule || '');
+            assignIfPresent(item, 'semester', row.semester || '');
+            assignIfPresent(item, 'maxStudents', Number(row.max_students || 0));
+            assignIfPresent(item, 'status', row.status || '');
+            assignIfPresent(item, 'summerSchedule', row.summer_schedule || '');
+            assignIfPresent(item, 'plannedSessions', Number(row.planned_sessions || 0));
+            assignIfPresent(item, 'archived', Boolean(row.archived));
+            assignIfPresent(item, 'archivedAt', row.archived_at || '');
+            assignIfPresent(item, 'archivedStudentSnapshot', parseJsonArray(row.archived_snapshot_json));
+            return item;
+        });
+    }
+
+    if (collectionName === 'students') {
+        return database.prepare('SELECT * FROM students ORDER BY rowid').all().map(row => {
+            const item = parseRawJson(row.raw_json);
+            assignIfPresent(item, 'id', row.id || '');
+            assignIfPresent(item, 'name', row.name || '');
+            assignIfPresent(item, 'gender', row.gender || '');
+            assignIfPresent(item, 'grade', row.grade || '');
+            assignIfPresent(item, 'school', row.school || '');
+            assignIfPresent(item, 'phone', row.phone || '');
+            assignIfPresent(item, 'emergencyContact', row.emergency_contact || '');
+            assignIfPresent(item, 'classId', row.class_id || '');
+            assignIfPresent(item, 'teacher', row.teacher || '');
+            assignIfPresent(item, 'status', row.status || '');
+            assignIfPresent(item, 'enrollDate', row.enroll_date || '');
+            assignIfPresent(item, 'firstEnrollDate', row.first_enroll_date || '');
+            assignIfPresent(item, 'followUpStatus', row.follow_up_status || '');
+            assignIfPresent(item, 'createdAt', row.created_at || '');
+            assignIfPresent(item, 'classJoinSessions', parseJsonObject(row.class_join_sessions_json));
+            assignIfPresent(item, 'classLeaveSessions', parseJsonObject(row.class_leave_sessions_json));
+            assignIfPresent(item, 'remark', row.remark || '');
+            assignIfPresent(item, 'archivedAt', row.archived_at || '');
+            assignIfPresent(item, '_archivedAt', row.archived_at || '');
+            return item;
+        });
+    }
+
+    if (collectionName === 'prospects') {
+        return database.prepare('SELECT * FROM prospects ORDER BY rowid').all().map(row => {
+            const item = parseRawJson(row.raw_json);
+            assignIfPresent(item, 'id', row.id || '');
+            assignIfPresent(item, 'name', row.name || '');
+            assignIfPresent(item, 'phone', row.phone || '');
+            assignIfPresent(item, 'source', row.source || '');
+            assignIfPresent(item, 'grade', row.grade || '');
+            assignIfPresent(item, 'wechat', row.wechat || '');
+            assignIfPresent(item, 'classId', row.class_id || '');
+            assignIfPresent(item, 'intent', row.intent || '');
+            assignIfPresent(item, 'trialDate', row.trial_date || '');
+            assignIfPresent(item, 'trialStatus', row.trial_status || '');
+            assignIfPresent(item, 'dealStatus', row.deal_status || '');
+            assignIfPresent(item, 'remark', row.remark || '');
+            assignIfPresent(item, 'createDate', row.create_date || '');
+            assignIfPresent(item, 'convertedStudentId', row.converted_student_id || '');
+            return item;
+        });
+    }
+
+    if (collectionName === 'fees') {
+        return database.prepare('SELECT * FROM fees ORDER BY rowid').all().map(row => {
+            const item = parseRawJson(row.raw_json);
+            assignIfPresent(item, 'id', row.id || '');
+            assignIfPresent(item, 'studentId', row.student_id || '');
+            assignIfPresent(item, 'studentName', row.student_name || '');
+            assignIfPresent(item, 'amount', Number(row.amount || 0));
+            assignIfPresent(item, 'hours', Number(row.hours || 0));
+            assignIfPresent(item, 'pricePerHour', Number(row.price_per_hour || 0));
+            assignIfPresent(item, 'paymentDate', row.payment_date || '');
+            assignIfPresent(item, 'paymentMethod', row.payment_method || '');
+            assignIfPresent(item, 'package', row.package_name || '');
+            assignIfPresent(item, 'status', row.status || '');
+            assignIfPresent(item, 'remark', row.remark || '');
+            return item;
+        });
+    }
+
+    if (collectionName === 'grades') {
+        return database.prepare('SELECT * FROM grades ORDER BY rowid').all().map(row => {
+            const item = parseRawJson(row.raw_json);
+            assignIfPresent(item, 'id', row.id || '');
+            assignIfPresent(item, 'studentId', row.student_id || '');
+            assignIfPresent(item, 'studentName', row.student_name || '');
+            assignIfPresent(item, 'classId', row.class_id || '');
+            assignIfPresent(item, 'testName', row.test_name || '');
+            assignIfPresent(item, 'testDate', row.test_date || '');
+            assignIfPresent(item, 'examType', row.exam_type || '');
+            assignIfPresent(item, 'score', Number(row.score || 0));
+            assignIfPresent(item, 'fullScore', Number(row.full_score || 0));
+            assignIfPresent(item, 'ranking', row.ranking === null || row.ranking === undefined ? null : Number(row.ranking));
+            assignIfPresent(item, 'weakPoints', row.weak_points || '');
+            assignIfPresent(item, 'remark', row.remark || '');
+            return item;
+        });
+    }
+
+    if (collectionName === 'communications') {
+        return database.prepare('SELECT * FROM communications ORDER BY rowid').all().map(row => {
+            const item = parseRawJson(row.raw_json);
+            assignIfPresent(item, 'id', row.id || '');
+            assignIfPresent(item, 'studentId', row.student_id || '');
+            assignIfPresent(item, 'studentName', row.student_name || '');
+            assignIfPresent(item, 'topicId', row.topic_id || '');
+            assignIfPresent(item, 'contactType', row.contact_type || '');
+            assignIfPresent(item, 'contactPerson', row.contact_person || '');
+            assignIfPresent(item, 'contactDate', row.contact_date || '');
+            assignIfPresent(item, 'teacher', row.teacher || '');
+            assignIfPresent(item, 'status', row.status || '');
+            assignIfPresent(item, 'content', row.content || '');
+            assignIfPresent(item, 'followUp', row.follow_up || '');
+            return item;
+        });
+    }
+
+    return getCollectionFromEntityTable(collectionName);
+}
+
+function getDataFromEntityColumns() {
+    const snapshot = getData();
+    return {
+        ...snapshot,
+        classes: getCollectionFromEntityColumns('classes'),
+        students: getCollectionFromEntityColumns('students'),
+        prospects: getCollectionFromEntityColumns('prospects'),
+        fees: getCollectionFromEntityColumns('fees'),
+        attendance: getCollectionFromEntityTable('attendance'),
+        grades: getCollectionFromEntityColumns('grades'),
+        communications: getCollectionFromEntityColumns('communications')
+    };
+}
+
 function setCollection(collectionName, items, reason = 'module_save') {
     if (!Array.isArray(items)) {
         const error = new Error(`${collectionName} 必须是数组`);
@@ -735,6 +901,7 @@ module.exports = {
     getDb,
     getData,
     getDataFromEntityTables,
+    getDataFromEntityColumns,
     getDataUpdatedAt,
     setData,
     getCollection,

@@ -419,6 +419,10 @@
 - 新增字段化读取一致性检查脚本：`server/check-sqlite-field-read-parity.js`。
 - 新增命令：`npm run sqlite:field-read-parity`。
 - 该脚本只比较实体列与 `raw_json` 中同名业务字段是否一致，不输出真实字段值。
+- 新增字段化读路径旁路接口：`GET /api/data-sqlite-columns`。
+- 新增字段化读路径运行时检查：`server/check-sqlite-column-read-runtime.js`。
+- 新增命令：`npm run sqlite:column-read-check`。
+- 当前正式 `/data` 不直接切换到字段化读路径，先通过旁路接口与 `GET /api/data-sqlite` 做全量 JSON 对比。
 - 运行时验证仍通过：
   - 实体表数量与快照一致。
   - 课消、已缴/欠费数量和金额统计一致。
