@@ -428,7 +428,11 @@
   - `npm run sqlite:column-read:on`
   - `npm run sqlite:column-read:off`
   - `npm run sqlite:column-read:status`
-- 默认不开启字段化正式读路径；需要验证时再开启，异常时可立即关闭。
+- 字段化正式读路径已开启：
+  - 当前 `SQLite /data read: ON`
+  - 当前 `SQLite column /data read: ON`
+  - 字段化读路径与 `raw_json` 读路径全量 JSON 对比一致。
+  - 如发现异常，可执行 `scripts/set-sqlite-column-read.sh off` 回退到 SQLite `raw_json` 读路径。
 - 运行时验证仍通过：
   - 实体表数量与快照一致。
   - 课消、已缴/欠费数量和金额统计一致。
