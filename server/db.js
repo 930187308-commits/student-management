@@ -585,6 +585,10 @@ function safeTimestamp() {
     return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+function getBackupData() {
+    return config.readFullDataFromSqlite ? getDataFromEntityTables() : getData();
+}
+
 function createBackup(reason = 'manual') {
     ensureRuntimeDirs();
     const stamp = safeTimestamp();
@@ -594,7 +598,7 @@ function createBackup(reason = 'manual') {
     if (fs.existsSync(config.dbPath)) {
         fs.copyFileSync(config.dbPath, sqliteBackupPath);
     }
-    fs.writeFileSync(jsonBackupPath, JSON.stringify(getData(), null, 2));
+    fs.writeFileSync(jsonBackupPath, JSON.stringify(getBackupData(), null, 2));
 
     getDb().prepare(`
         INSERT INTO backup_log (backup_path, json_path, reason, created_at)

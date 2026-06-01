@@ -481,6 +481,7 @@
 - 当前保存侧为双写：保存 `app_state.data` 的同时同步 SQLite 实体表。
 - 可通过 `scripts/status-server.sh` 查看服务状态、SQLite `/data` 读路径和对账健康状态。
 - 如 SQLite 读路径异常，可执行 `scripts/set-sqlite-data-read.sh off` 回退到 `app_state.data`。
+- 服务器备份 JSON 会跟随当前正式读路径；SQLite `/data` 开启时，备份 JSON 从实体表组装生成。
 - Node 的 `node:sqlite` 在 Node 24 中仍有实验警告，但当前可用。
 - MacBook 需要切到 `feature/server-sqlite` 后再协作。
 - 不要再启动旧 Python `8080` 服务。
