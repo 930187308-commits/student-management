@@ -423,6 +423,12 @@
 - 新增字段化读路径运行时检查：`server/check-sqlite-column-read-runtime.js`。
 - 新增命令：`npm run sqlite:column-read-check`。
 - 当前正式 `/data` 不直接切换到字段化读路径，先通过旁路接口与 `GET /api/data-sqlite` 做全量 JSON 对比。
+- 新增字段化正式读路径开关：
+  - `scripts/set-sqlite-column-read.sh on|off|status`
+  - `npm run sqlite:column-read:on`
+  - `npm run sqlite:column-read:off`
+  - `npm run sqlite:column-read:status`
+- 默认不开启字段化正式读路径；需要验证时再开启，异常时可立即关闭。
 - 运行时验证仍通过：
   - 实体表数量与快照一致。
   - 课消、已缴/欠费数量和金额统计一致。

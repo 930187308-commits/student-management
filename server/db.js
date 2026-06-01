@@ -814,6 +814,7 @@ function safeTimestamp() {
 }
 
 function getBackupData() {
+    if (config.readFullDataFromSqliteColumns) return getDataFromEntityColumns();
     return config.readFullDataFromSqlite ? getDataFromEntityTables() : getData();
 }
 

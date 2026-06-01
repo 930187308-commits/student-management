@@ -156,6 +156,7 @@ async function handleApi(req, res, pathname) {
         const report = createReconciliationReport();
         sendJson(res, 200, {
             readFullDataFromSqlite: config.readFullDataFromSqlite,
+            readFullDataFromSqliteColumns: config.readFullDataFromSqliteColumns,
             ok: report.migrationStatus === 'all_tables_match_snapshot',
             migrationStatus: report.migrationStatus,
             healthMismatches: (report.healthComparison || []).filter(row => row.status !== 'match').length,
@@ -316,7 +317,12 @@ async function handleApi(req, res, pathname) {
 
     if (pathname === '/data' || pathname === '/api/data') {
         if (req.method === 'GET') {
-            sendJson(res, 200, config.readFullDataFromSqlite ? getDataFromEntityTables() : getData(), {
+            const data = config.readFullDataFromSqliteColumns
+                ? getDataFromEntityColumns()
+                : config.readFullDataFromSqlite
+                    ? getDataFromEntityTables()
+                    : getData();
+            sendJson(res, 200, data, {
                 'X-Data-Updated-At': getDataUpdatedAt() || ''
             });
             return true;

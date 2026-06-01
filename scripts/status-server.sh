@@ -54,6 +54,7 @@ if command -v curl >/dev/null 2>&1; then
         "$PROJECT_ROOT/scripts/node.sh" -e '
 const status = JSON.parse(process.argv[1]);
 console.log(`SQLite /data read: ${status.readFullDataFromSqlite ? "ON" : "OFF"}`);
+console.log(`SQLite column /data read: ${status.readFullDataFromSqliteColumns ? "ON" : "OFF"}`);
 console.log(`SQLite reconcile: ${status.migrationStatus}`);
 console.log(`SQLite health mismatches: ${status.healthMismatches}`);
 if (!status.ok) process.exitCode = 1;
