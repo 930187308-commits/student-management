@@ -55,7 +55,9 @@ function renderFeeTable() {
     const countBar = document.getElementById('feeCountBar');
     if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
     const tbody = document.getElementById('feeTableBody');
-    tbody.innerHTML = filtered.map(f => `<tr>${feeBatchMode ? `<td><input type="checkbox" class="fee-select" value="${f.id}"></td>` : ''}<td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('');
+    tbody.innerHTML = filtered.length > 0
+        ? filtered.map(f => `<tr>${feeBatchMode ? `<td><input type="checkbox" class="fee-select" value="${f.id}"></td>` : ''}<td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('')
+        : `<tr><td colspan="${feeBatchMode ? 9 : 8}" style="text-align:center;color:#888;padding:24px;">暂无收费记录</td></tr>`;
 }
 
 function toggleFeeBatchMode() {

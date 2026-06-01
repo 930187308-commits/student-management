@@ -62,7 +62,7 @@ function renderCommTable() {
             <td>${escapeHtml(c.contactPerson)}</td>
             <td><button class="btn btn-secondary btn-xs" onclick="openCommModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
         </tr>`;
-    }).join('');
+    }).join('') || `<tr><td colspan="${communicationBatchMode ? 8 : 7}" style="text-align:center;color:#888;padding:24px;">暂无沟通记录</td></tr>`;
 }
 
 function toggleCommunicationBatchMode() {

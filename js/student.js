@@ -420,7 +420,7 @@ async function deleteStudent(id) {
 
     // 在读状态：改为停课
     if (student.status === 'active' || student.status === 'renewalPending') {
-        if (!confirm('确定将该学员改为停课状态？删除操作不可恢复。')) return;
+        if (!confirm('确定将该学员改为停课状态？停课后可在数据体检中恢复。')) return;
         student.status = 'inactive';
         student._archivedAt = new Date().toISOString();
         if (currentStudentId === id) currentStudentId = null;
