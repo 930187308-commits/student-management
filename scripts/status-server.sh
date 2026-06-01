@@ -80,4 +80,10 @@ if (!status.ok) process.exitCode = 1;
     else
         echo "Dashboard summary parity: mismatch"
     fi
+
+    if "$PROJECT_ROOT/scripts/node.sh" "$PROJECT_ROOT/server/check-data-health-runtime.js" >/dev/null 2>&1; then
+        echo "Data health parity: OK"
+    else
+        echo "Data health parity: mismatch"
+    fi
 fi

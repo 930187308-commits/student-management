@@ -492,6 +492,15 @@ async function loadDashboardSummaryFromApi() {
     return response.json();
 }
 
+async function loadDataHealthReportFromApi() {
+    const response = await fetch(`${SERVER_URL}/api/data-health`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`读取数据体检失败：${response.status}`);
+    return response.json();
+}
+
 async function saveCollectionToApi(collectionName, items) {
     if (lastSavedDataSnapshot) {
         undoDataSnapshot = cloneData(lastSavedDataSnapshot);

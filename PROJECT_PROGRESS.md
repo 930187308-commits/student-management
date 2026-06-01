@@ -554,6 +554,12 @@
 
 ## 当前风险与注意事项
 
+- 阶段 3C 继续推进：
+  - 数据体检已增加后端接口 `GET /api/data-health`。
+  - 前端数据体检弹窗优先读取后端结果，接口异常时回退本地计算。
+  - `scripts/status-server.sh` 已加入 Data health parity 检查。
+  - 数据体检仍只提示和安全清理，不自动改动欠费、空课次、容量等业务数据。
+
 - 当前正式 `/data` 已开启 SQLite 实体表读路径，`app_state.data` 仍保留为回退快照。
 - 当前保存侧为双写：保存 `app_state.data` 的同时同步 SQLite 实体表。
 - 可通过 `scripts/status-server.sh` 查看服务状态、SQLite `/data` 读路径和对账健康状态。

@@ -133,8 +133,21 @@ function getDataHealthReport() {
     };
 }
 
-function openDataHealthCheck() {
-    const report = getDataHealthReport();
+async function loadPreferredDataHealthReport() {
+    try {
+        return await loadDataHealthReportFromApi();
+    } catch (error) {
+        console.log('读取后端数据体检失败，使用本地计算:', error);
+        return getDataHealthReport();
+    }
+}
+
+async function openDataHealthCheck() {
+    document.getElementById('modalTitle').textContent = '数据体检';
+    document.getElementById('modalBody').innerHTML = '<div style="padding:16px;color:#888;">正在读取数据体检...</div>';
+    document.getElementById('modal').classList.add('show');
+
+    const report = await loadPreferredDataHealthReport();
     const safeCleanCount = report.orphanAttendance.length + report.unknownRecordRefs + report.orphanFees.length;
     updateDataHealthBadge(report);
     document.getElementById('modalTitle').textContent = '数据体检';
@@ -159,7 +172,6 @@ function openDataHealthCheck() {
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
-    document.getElementById('modal').classList.add('show');
 }
 
 function getActionableHealthCount(report = getDataHealthReport()) {
