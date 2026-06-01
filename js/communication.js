@@ -263,14 +263,8 @@ async function saveComm(e) {
         status: form.status.value,
         content: form.content.value, followUp: form.followUp.value
     };
-    if (currentEditId) {
-        const index = data.communications.findIndex(c => c.id === currentEditId);
-        data.communications[index] = commData;
-    } else {
-        data.communications.push(commData);
-    }
     try {
-        await saveCommunicationsToApi(data.communications);
+        await saveCollectionItemToApi('communications', commData);
     } catch (error) {
         showToast('保存失败：' + error.message);
         return;
@@ -301,9 +295,8 @@ function openCommDetail(id) {
 
 async function deleteComm(id) {
     if (!confirm('确定删除该沟通记录？')) return;
-    data.communications = data.communications.filter(c => c.id !== id);
     try {
-        await saveCommunicationsToApi(data.communications);
+        await deleteCollectionItemFromApi('communications', id);
     } catch (error) {
         showToast('删除失败：' + error.message);
         return;

@@ -167,14 +167,8 @@ async function saveGrade(e) {
         ranking: ranking, examType: form.examType.value,
         weakPoints: form.weakPoints.value, remark: form.remark.value
     };
-    if (currentEditId) {
-        const index = data.grades.findIndex(g => g.id === currentEditId);
-        data.grades[index] = gradeData;
-    } else {
-        data.grades.push(gradeData);
-    }
     try {
-        await saveGradesToApi(data.grades);
+        await saveCollectionItemToApi('grades', gradeData);
     } catch (error) {
         showToast('保存失败：' + error.message);
         return;
@@ -186,9 +180,8 @@ async function saveGrade(e) {
 
 async function deleteGrade(id) {
     if (!confirm('确定删除该成绩记录？')) return;
-    data.grades = data.grades.filter(g => g.id !== id);
     try {
-        await saveGradesToApi(data.grades);
+        await deleteCollectionItemFromApi('grades', id);
     } catch (error) {
         showToast('删除失败：' + error.message);
         return;

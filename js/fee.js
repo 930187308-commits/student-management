@@ -144,14 +144,8 @@ async function saveFee(e) {
         hours: parseInt(form.hours.value), paymentDate: form.paymentDate.value, package: form.package.value,
         paymentMethod: form.paymentMethod.value, status: form.status.value, remark: form.remark.value
     };
-    if (currentEditId) {
-        const index = data.fees.findIndex(f => f.id === currentEditId);
-        data.fees[index] = feeData;
-    } else {
-        data.fees.push(feeData);
-    }
     try {
-        await saveFeesToApi(data.fees);
+        await saveCollectionItemToApi('fees', feeData);
     } catch (error) {
         showToast('保存失败：' + error.message);
         return;
@@ -163,9 +157,8 @@ async function saveFee(e) {
 
 async function deleteFee(id) {
     if (!confirm('确定删除该缴费记录？')) return;
-    data.fees = data.fees.filter(f => f.id !== id);
     try {
-        await saveFeesToApi(data.fees);
+        await deleteCollectionItemFromApi('fees', id);
     } catch (error) {
         showToast('删除失败：' + error.message);
         return;

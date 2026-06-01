@@ -230,15 +230,8 @@ async function saveProspect(e) {
         createDate: form.id.value ? (data.prospects || []).find(p => p.id === id)?.createDate : new Date().toISOString().split('T')[0]
     };
 
-    if (form.id.value) {
-        const idx = (data.prospects || []).findIndex(p => p.id === id);
-        if (idx !== -1) data.prospects[idx] = prospectData;
-    } else {
-        if (!data.prospects) data.prospects = [];
-        data.prospects.push(prospectData);
-    }
     try {
-        await saveProspectsToApi(data.prospects);
+        await saveCollectionItemToApi('prospects', prospectData);
     } catch (error) {
         showToast('保存失败：' + error.message);
         return;
@@ -255,9 +248,8 @@ async function deleteProspect(id) {
         ? `"${escapeHtml(prospect?.name || '')}"已转正式学员，删除意向记录不会影响正式学员。\n\n确定删除该意向记录？`
         : '确定删除该意向学员？';
     if (!confirm(msg)) return;
-    data.prospects = (data.prospects || []).filter(p => p.id !== id);
     try {
-        await saveProspectsToApi(data.prospects);
+        await deleteCollectionItemFromApi('prospects', id);
     } catch (error) {
         showToast('删除失败：' + error.message);
         return;
