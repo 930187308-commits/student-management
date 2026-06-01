@@ -51,7 +51,7 @@ function renderDashboard() {
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="dashboard-grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="card">
                 <div class="card-header"><span class="card-title">欠费提醒</span></div>
                 ${pendingFees.length === 0 ? '<div class="empty-state">暂无欠费记录</div>' : `
@@ -74,7 +74,6 @@ function renderDashboard() {
             </div>
         </div>
     `;
-    container.innerHTML = html;
 }
 
 function switchTab(tab) {
