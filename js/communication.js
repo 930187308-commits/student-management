@@ -10,7 +10,7 @@ function renderCommunications() {
             <div class="card-header">
                 <div class="search-bar">
                     <input type="text" id="commSearch" placeholder="搜索学员姓名...">
-                    <select id="commStatusFilter" onchange="renderCommTable">
+                    <select id="commStatusFilter" onchange="renderCommTable()">
                         <option value="">全部状态</option>
                         <option value="pending">待沟通</option>
                         <option value="done">已完成</option>
