@@ -5,6 +5,7 @@ const { URL } = require('node:url');
 const config = require('./config');
 const { openDatabase, getData, getDataFromEntityTables, getDataFromEntityColumns, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
 const { createReconciliationReport } = require('./reconcile-sqlite-split');
+const { createSqliteMetricsReport } = require('./sqlite-metrics');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -162,6 +163,11 @@ async function handleApi(req, res, pathname) {
             healthMismatches: (report.healthComparison || []).filter(row => row.status !== 'match').length,
             report
         });
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/sqlite/metrics') {
+        sendJson(res, 200, createSqliteMetricsReport());
         return true;
     }
 

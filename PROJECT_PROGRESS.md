@@ -433,6 +433,11 @@
   - 当前 `SQLite column /data read: ON`
   - 字段化读路径与 `raw_json` 读路径全量 JSON 对比一致。
   - 如发现异常，可执行 `scripts/set-sqlite-column-read.sh off` 回退到 SQLite `raw_json` 读路径。
+- 新增 SQLite 字段列指标模块：`server/sqlite-metrics.js`。
+- 新增指标接口：`GET /api/sqlite/metrics`。
+- 新增指标对账脚本：`server/check-sqlite-metrics-runtime.js`。
+- 新增命令：`npm run sqlite:metrics-check`。
+- 指标对账会比较 `app_state` 快照算法与 SQLite 字段列算法，确保班级/学员/收费/考勤/成绩/沟通等基础指标一致。
 - 运行时验证仍通过：
   - 实体表数量与快照一致。
   - 课消、已缴/欠费数量和金额统计一致。

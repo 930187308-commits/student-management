@@ -62,4 +62,10 @@ if (!status.ok) process.exitCode = 1;
     else
         echo "SQLite status: unavailable"
     fi
+
+    if "$PROJECT_ROOT/scripts/node.sh" "$PROJECT_ROOT/server/check-sqlite-metrics-runtime.js" >/dev/null 2>&1; then
+        echo "SQLite metrics parity: OK"
+    else
+        echo "SQLite metrics parity: mismatch"
+    fi
 fi
