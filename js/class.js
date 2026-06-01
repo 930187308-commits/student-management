@@ -784,7 +784,7 @@ async function executeClassImport(checkResult, strategies = {}) {
         return;
     }
     render();
-    const msg = `成功导入 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`;
+    const msg = `导入完成：成功 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}`;
     showToast(msg);
 }
 

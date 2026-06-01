@@ -442,7 +442,7 @@ async function executeFeeImport(checkResult, strategies = {}) {
         return;
     }
     render();
-    const msg = `成功导入 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${newStudents > 0 ? `，新建学员 ${newStudents} 名` : ''}`;
+    const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${newStudents > 0 ? `，新建学员 ${newStudents} 名` : ''}${checkResult.fail > 0 ? `，失败 ${checkResult.fail} 条` : ''}`;
     showToast(msg);
     if (errors.length > 0) console.log('导入错误:', errors);
 }
