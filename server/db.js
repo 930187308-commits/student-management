@@ -352,7 +352,7 @@ function setData(nextData, reason = 'save') {
 
 function getCollection(collectionName) {
     if (ENTITY_READ_COLLECTIONS.has(collectionName)) {
-        return getCollectionFromEntityTable(collectionName);
+        return getCollectionFromEntityColumns(collectionName);
     }
     const data = getData();
     const value = data[collectionName];

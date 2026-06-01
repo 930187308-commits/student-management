@@ -3,6 +3,19 @@
 // 本地服务器同步配置
 const SERVER_URL = window.location.protocol === 'file:' ? 'http://localhost:3000' : window.location.origin;
 const DATA_ENDPOINT = SERVER_URL + '/data';
+const API_COLLECTION_NAMES = [
+    'classes',
+    'students',
+    'prospects',
+    'fees',
+    'attendance',
+    'grades',
+    'communications',
+    'communicationTopics',
+    'prospectSources',
+    'classTypes',
+    'gradeOptions'
+];
 
 // 全局数据对象
 let data = {
@@ -128,6 +141,13 @@ function isGistConfigured() {
 // 从本地服务器加载数据
 async function loadFromServer() {
     try {
+        const splitData = await loadSplitCollectionsFromServer();
+        if (splitData) return splitData;
+    } catch (error) {
+        console.warn('按模块加载服务器数据失败，尝试整包 /data 兜底:', error);
+    }
+
+    try {
         const response = await fetch(DATA_ENDPOINT, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
@@ -147,6 +167,25 @@ async function loadFromServer() {
         console.error('从本地服务器加载失败:', error);
         return null;
     }
+}
+
+async function loadSplitCollectionsFromServer() {
+    const metaResponse = await fetch(`${SERVER_URL}/api/meta`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!metaResponse.ok) throw new Error(`读取 meta 失败：${metaResponse.status}`);
+    const meta = await metaResponse.json();
+    serverDataUpdatedAt = meta.dataUpdatedAt || serverDataUpdatedAt;
+
+    const entries = await Promise.all(API_COLLECTION_NAMES.map(async (collectionName) => {
+        const items = await loadCollectionFromApi(collectionName);
+        return [collectionName, items];
+    }));
+    return {
+        ...Object.fromEntries(entries),
+        lastModified: serverDataUpdatedAt || new Date().toISOString()
+    };
 }
 
 // 保存数据到本地服务器

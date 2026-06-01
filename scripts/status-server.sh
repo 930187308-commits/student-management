@@ -86,4 +86,10 @@ if (!status.ok) process.exitCode = 1;
     else
         echo "Data health parity: mismatch"
     fi
+
+    if "$PROJECT_ROOT/scripts/node.sh" "$PROJECT_ROOT/server/check-collection-api-runtime.js" >/dev/null 2>&1; then
+        echo "Collection API parity: OK"
+    else
+        echo "Collection API parity: mismatch"
+    fi
 fi
