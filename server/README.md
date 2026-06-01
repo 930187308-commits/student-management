@@ -75,15 +75,19 @@ The LaunchAgent uses `scripts/run-server.sh`, keeps the service alive, and start
 
 The server keeps compatibility with the current frontend:
 
-- `GET /data` returns the whole app data. It currently reads from SQLite entity tables when `STUDENT_READ_FULL_DATA_FROM_SQLITE=1`.
-- `PUT /data` saves the whole app data and double-writes `app_state.data` plus SQLite entity tables.
+- `GET /data` returns the whole app data and is now mainly a compatibility fallback. The normal frontend boot path reads split module APIs first.
+- `PUT /data` remains available as a compatibility fallback for whole-data writes.
 - `GET /api/health` checks service health.
 - `GET /api/meta` shows database and backup metadata.
 - `POST /api/backups` creates SQLite and JSON backups.
 - `GET /api/sqlite/status` checks whether SQLite reads are enabled and reconciled.
 - `GET /api/data-sqlite` returns full data assembled from SQLite entity tables.
+- `GET /api/data-sqlite-columns` returns full data assembled from SQLite entity columns.
+- `GET /api/dashboard/summary` returns dashboard cards, class overview, and pending fee rows.
+- `GET /api/reports/summary` returns report aggregates.
+- `GET /api/data-health` returns the data health report.
 
-Core module APIs read from SQLite entity tables:
+Core module APIs read from SQLite entity columns where field columns exist:
 
 - `GET /api/classes`
 - `GET /api/students`
@@ -92,6 +96,12 @@ Core module APIs read from SQLite entity tables:
 - `GET /api/attendance`
 - `GET /api/grades`
 - `GET /api/communications`
+- `GET /api/communicationTopics`
+- `GET /api/prospectSources`
+- `GET /api/classTypes`
+- `GET /api/gradeOptions`
+
+Module writes use `PUT /api/{collection}` for one collection and `PUT /api/batch` for multi-collection saves.
 
 `app_state.data` is still retained as the rollback snapshot.
 
