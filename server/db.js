@@ -254,6 +254,20 @@ function getData() {
     return JSON.parse(row.value);
 }
 
+function getDataFromEntityTables() {
+    const snapshot = getData();
+    return {
+        ...snapshot,
+        classes: getCollectionFromEntityTable('classes'),
+        students: getCollectionFromEntityTable('students'),
+        fees: getCollectionFromEntityTable('fees'),
+        attendance: getCollectionFromEntityTable('attendance'),
+        grades: getCollectionFromEntityTable('grades'),
+        communications: getCollectionFromEntityTable('communications'),
+        prospects: getCollectionFromEntityTable('prospects')
+    };
+}
+
 function getDataUpdatedAt() {
     const row = getDb().prepare('SELECT updated_at FROM app_state WHERE key = ?').get('data');
     return row?.updated_at || null;
@@ -654,6 +668,7 @@ module.exports = {
     openDatabase,
     getDb,
     getData,
+    getDataFromEntityTables,
     getDataUpdatedAt,
     setData,
     getCollection,

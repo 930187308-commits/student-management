@@ -3,7 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { URL } = require('node:url');
 const config = require('./config');
-const { openDatabase, getData, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
+const { openDatabase, getData, getDataFromEntityTables, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -151,6 +151,13 @@ async function handleApi(req, res, pathname) {
         return true;
     }
 
+    if (req.method === 'GET' && pathname === '/api/data-sqlite') {
+        sendJson(res, 200, getDataFromEntityTables(), {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
     if (req.method === 'PUT' && pathname === '/api/batch') {
         const currentUpdatedAt = getDataUpdatedAt();
         const baseUpdatedAt = req.headers['x-base-data-updated-at'];
@@ -289,7 +296,7 @@ async function handleApi(req, res, pathname) {
 
     if (pathname === '/data' || pathname === '/api/data') {
         if (req.method === 'GET') {
-            sendJson(res, 200, getData(), {
+            sendJson(res, 200, config.readFullDataFromSqlite ? getDataFromEntityTables() : getData(), {
                 'X-Data-Updated-At': getDataUpdatedAt() || ''
             });
             return true;

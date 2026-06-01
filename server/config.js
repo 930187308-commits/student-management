@@ -14,7 +14,8 @@ const config = {
     logRoot: LOG_ROOT,
     dbPath: process.env.STUDENT_DB_PATH || path.join(DATA_ROOT, 'production.sqlite'),
     backupDir: process.env.STUDENT_BACKUP_DIR || path.join(DATA_ROOT, 'backups'),
-    maxJsonBytes: Number(process.env.STUDENT_MAX_JSON_BYTES || 10 * 1024 * 1024)
+    maxJsonBytes: Number(process.env.STUDENT_MAX_JSON_BYTES || 10 * 1024 * 1024),
+    readFullDataFromSqlite: process.env.STUDENT_READ_FULL_DATA_FROM_SQLITE === '1'
 };
 
 module.exports = config;

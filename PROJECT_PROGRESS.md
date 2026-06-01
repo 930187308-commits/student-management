@@ -373,11 +373,15 @@
   - `GET /api/grades` 从 SQLite `grades.raw_json` 读取。
   - `GET /api/communications` 从 SQLite `communications.raw_json` 读取。
 - `/data` 和其他模块 API 仍继续从 `app_state.data` 读取。
+- 新增验证接口 `GET /api/data-sqlite`，从 SQLite 实体表组装完整数据，用于和 `/data` 做并行对比。
+- 正式 `/data` 仍不切换。
+- 新增安全开关：`STUDENT_READ_FULL_DATA_FROM_SQLITE=1` 时，正式 `/data` 才会从 SQLite 实体表组装读取。
+- 当前 launchd 未开启该环境变量，正式 `/data` 仍读 `app_state.data`。
 
 下一步：
 
 - 继续保持前端读 `app_state.data`，暂不切换 API 读路径。
-- 观察 `classes` / `prospects` 实体表读路径稳定性，再选择下一个模块。
+- 继续验证 `/api/data-sqlite` 与 `/data` 一致性，再决定是否切换正式 `/data`。
 
 ## 后续业务规则规划
 
