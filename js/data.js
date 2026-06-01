@@ -433,21 +433,17 @@ async function saveData() {
         undoDataSnapshot = cloneData(lastSavedDataSnapshot);
     }
     data.lastModified = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    lastSavedDataSnapshot = cloneData(data);
-    lastSaveTime = new Date();
-    updateAutoSaveIndicator();
-    updateUndoButton();
 
-    // 保存到本地服务器
     try {
-        const ok = await saveToServer(data);
-        if (ok) {
-            invalidateReportsSummaryCache();
-            dataModified = false;
-        }
+        await saveAllCollectionsToApi({ skipUndo: true });
+        dataModified = false;
     } catch (e) {
         console.log('保存到服务器失败:', e);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        lastSavedDataSnapshot = cloneData(data);
+        lastSaveTime = new Date();
+        updateAutoSaveIndicator();
+        updateUndoButton();
     }
 }
 
@@ -570,8 +566,16 @@ async function saveCollectionToApi(collectionName, items) {
     return data[collectionName];
 }
 
-async function saveCollectionsToApi(collections) {
-    if (lastSavedDataSnapshot) {
+function getAllCollectionsPayload() {
+    return Object.fromEntries(API_COLLECTION_NAMES.map(collectionName => [collectionName, data[collectionName] || []]));
+}
+
+async function saveAllCollectionsToApi(options = {}) {
+    return saveCollectionsToApi(getAllCollectionsPayload(), options);
+}
+
+async function saveCollectionsToApi(collections, options = {}) {
+    if (!options.skipUndo && lastSavedDataSnapshot) {
         undoDataSnapshot = cloneData(lastSavedDataSnapshot);
     }
     const response = await fetch(`${SERVER_URL}/api/batch`, {
@@ -699,7 +703,7 @@ async function undoLastChange() {
     updateAutoSaveIndicator();
     updateUndoButton();
     try {
-        await saveToServer(data);
+        await saveAllCollectionsToApi({ skipUndo: true });
     } catch (e) {
         console.log('撤回后保存到服务器失败:', e);
     }

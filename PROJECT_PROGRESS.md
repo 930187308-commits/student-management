@@ -562,6 +562,7 @@
   - 集合接口 `/api/classes`、`/api/students`、`/api/fees` 等已改为直接读取 SQLite 字段版结果。
   - 前端启动加载已改为优先并行读取各模块集合，整包 `/data` 只作为兜底。
   - `scripts/status-server.sh` 已加入 Collection API parity 检查。
+  - 前端全量保存 `saveData()` 已改为走 `/api/batch` 批量模块保存，`PUT /data` 只保留为兼容兜底通道。
 
 - 当前正式 `/data` 已开启 SQLite 实体表读路径，`app_state.data` 仍保留为回退快照。
 - 当前保存侧为双写：保存 `app_state.data` 的同时同步 SQLite 实体表。
