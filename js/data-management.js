@@ -155,7 +155,7 @@ async function loadPreferredDataHealthReport() {
 
 async function openDataHealthCheck() {
     document.getElementById('modalTitle').textContent = '数据体检';
-    document.getElementById('modalBody').innerHTML = '<div style=”padding:16px;color:#888;”>正在读取数据体检...</div>';
+    document.getElementById('modalBody').innerHTML = '<div style="padding:16px;color:#888;">正在读取数据体检...</div>';
     document.getElementById('modal').classList.add('show');
 
     const report = await loadPreferredDataHealthReport();
@@ -163,34 +163,34 @@ async function openDataHealthCheck() {
     updateDataHealthBadge(report);
     document.getElementById('modalTitle').textContent = '数据体检';
     document.getElementById('modalBody').innerHTML = `
-        <div style=”font-size: 14px; line-height: 1.8;”>
-            <div style=”margin-bottom: 12px;”>
-                <div style=”font-weight: 600; color: #e74c3c; margin-bottom: 6px; font-size: 13px;”>⚠️ 需处理（可安全清理）</div>
-                <div style=”display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;”>
-                    <div style=”padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;”>不存在班级的考勤<br><strong style=”color:#e74c3c;”>${report.orphanAttendance.length}</strong> 条</div>
-                    <div style=”padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;”>无关联学员的考勤记录<br><strong style=”color:#e74c3c;”>${report.unknownRecordRefs}</strong> 个</div>
-                    <div style=”padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;”>已删学员的收费记录<br><strong style=”color:#e74c3c;”>${report.orphanFees.length}</strong> 条</div>
+        <div style="font-size: 14px; line-height: 1.8;">
+            <div style="margin-bottom: 12px;">
+                <div style="font-weight: 600; color: #e74c3c; margin-bottom: 6px; font-size: 13px;">⚠️ 需处理（可安全清理）</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+                    <div style="padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;">不存在班级的考勤<br><strong style="color:#e74c3c;">${report.orphanAttendance.length}</strong> 条</div>
+                    <div style="padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;">无关联学员的考勤记录<br><strong style="color:#e74c3c;">${report.unknownRecordRefs}</strong> 个</div>
+                    <div style="padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;">已删学员的收费记录<br><strong style="color:#e74c3c;">${report.orphanFees.length}</strong> 条</div>
                 </div>
             </div>
-            <div style=”margin-bottom: 12px;”>
-                <div style=”font-weight: 600; color: #666; margin-bottom: 6px; font-size: 13px;”>ℹ️ 提示（不自动处理）</div>
-                <div style=”display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;”>
-                    <div style=”padding:10px;background:var(--hover-bg);border-radius:8px;”>空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
-                    <div style=”padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;”>已缴余额为负<br><strong style=”color:#f39c12;”>${report.negativeRemaining.length}</strong> 名</div>
-                    <div style=”padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;”>课时不足（欠费）<br><strong style=”color:#e74c3c;”>${report.missingDebtRecords.length}</strong> 名</div>
-                    <div style=”padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;”>上课无收费记录<br><strong style=”color:#f39c12;”>${report.activeNoPaid.length}</strong> 名</div>
-                    <div style=”padding:10px;background:var(--hover-bg);border-radius:8px;”>超容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
+            <div style="margin-bottom: 12px;">
+                <div style="font-weight: 600; color: #666; margin-bottom: 6px; font-size: 13px;">ℹ️ 提示（不自动处理）</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+                    <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
+                    <div style="padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;">已缴余额为负<br><strong style="color:#f39c12;">${report.negativeRemaining.length}</strong> 名</div>
+                    <div style="padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;">课时不足（欠费）<br><strong style="color:#e74c3c;">${report.missingDebtRecords.length}</strong> 名</div>
+                    <div style="padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;">上课无收费记录<br><strong style="color:#f39c12;">${report.activeNoPaid.length}</strong> 名</div>
+                    <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">超容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
                 </div>
             </div>
-            <div style=”padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;line-height:1.6;”>
+            <div style="padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;line-height:1.6;">
                 <strong>说明：</strong>上排红色项（${safeCleanCount} 条）可一键清理，下排橙色项只提示不自动处理。<br>
                 「已有收费但课时不足」适合补欠费，「上课无收费记录」适合先建收费记录再补欠费。「已缴余额为负」不建议重复补录。
             </div>
             ${renderFeeHealthDetails(report)}
             ${renderTuitionHealthDetails(report)}
-            ${safeCleanCount > 0 ? `<div style=”margin-top:12px;”><button class=”btn btn-danger” onclick=”cleanSafeHealthIssues()”>清理安全项（${safeCleanCount} 条）</button></div>` : '<div style=”color:#27ae60;font-weight:600;padding:12px;”>✓ 暂无需要安全清理的数据</div>'}
+            ${safeCleanCount > 0 ? `<div style="margin-top:12px;"><button class="btn btn-danger" onclick="cleanSafeHealthIssues()">清理安全项（${safeCleanCount} 条）</button></div>` : '<div style="color:#27ae60;font-weight:600;padding:12px;">✓ 暂无需要安全清理的数据</div>'}
         </div>
-        <div class=”modal-footer”><button type=”button” class=”btn btn-secondary” onclick=”closeModal()”>关闭</button></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
 }
 
@@ -250,7 +250,7 @@ function renderTuitionHealthDetails(report) {
     return `
         ${section('已有收费但课时不足明细', report.missingDebtDetails, '只显示已经出勤、收费记录不为空，但已缴课时 + 已登记欠费课时仍不足覆盖已消课时的在读学员。', 'missingDebt')}
         ${section('上课无收费记录明细', report.activeNoPaidDetails, '只显示已经有出勤记录、但收费记录里完全没有已缴或欠费记录的在读学员。', 'noFee')}
-        ${section('已缴余额为负参考', report.negativeRemainingDetails, '这是纯“已缴课时 - 已消课时”的参考口径。若已登记欠费，首页欠费提醒会继续跟进，这里不建议重复补录。', 'negative', false)}
+        ${section('已缴余额为负参考', report.negativeRemainingDetails, '这是纯"已缴课时 - 已消课时"的参考口径。若已登记欠费，首页欠费提醒会继续跟进，这里不建议重复补录。', 'negative', false)}
     `;
 }
 
@@ -281,7 +281,7 @@ function renderFeeHealthDetails(report) {
     return `
         <details ${report.orphanFees.length > 0 ? 'open' : ''} style="margin:12px 0;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--card-bg);">
             <summary style="cursor:pointer;font-weight:600;">已删除学员的收费记录（${report.orphanFees.length} 条）</summary>
-            <div style="color:#888;font-size:13px;margin:6px 0 10px;">这类记录已经找不到对应学员，会影响首页已收/欠费统计，建议通过“清理安全项”删除。</div>
+            <div style="color:#888;font-size:13px;margin:6px 0 10px;">这类记录已经找不到对应学员，会影响首页已收/欠费统计，建议通过"清理安全项"删除。</div>
             ${report.orphanFees.length > 0 ? `
                 <div class="table-wrapper" style="max-height:220px;overflow:auto;">
                     <table><thead><tr><th>学员</th><th>状态</th><th>金额</th><th>课时</th><th>套餐</th></tr></thead><tbody>${orphanRows}</tbody></table>
@@ -359,7 +359,7 @@ async function openBackupManager() {
                     <button class="btn btn-secondary btn-sm" onclick="openBackupManager()">刷新</button>
                 </div>
                 <div style="padding:10px;background:#fff3cd;border-radius:8px;color:#856404;margin-bottom:12px;">
-                    恢复备份会覆盖当前系统数据。系统会在恢复前自动再创建一份“恢复前备份”，用于反悔回退。
+                    恢复备份会覆盖当前系统数据。系统会在恢复前自动再创建一份"恢复前备份"，用于反悔回退。
                 </div>
                 ${backups.length === 0 ? '<div class="empty-state">暂无服务器备份</div>' : `
                     <div class="table-wrapper" style="max-height:420px;overflow:auto;">

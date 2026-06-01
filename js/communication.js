@@ -79,7 +79,10 @@ function getSelectedCommunicationIds() {
 }
 
 function toggleAllCommunicationSelection(checkbox) {
-    document.querySelectorAll('.communication-select').forEach(el => { el.checked = checkbox.checked; });
+    const items = Array.from(document.querySelectorAll('.communication-select'));
+    const shouldCheck = checkbox.type === 'checkbox' ? checkbox.checked : items.some(el => !el.checked);
+    items.forEach(el => { el.checked = shouldCheck; });
+    if (checkbox.type !== 'checkbox') checkbox.textContent = shouldCheck ? '取消全选' : '全选';
     updateCommunicationSelectionCount();
 }
 

@@ -377,7 +377,10 @@ function getSelectedGradeIds() {
 }
 
 function toggleAllGradeSelection(checkbox) {
-    document.querySelectorAll('.grade-select').forEach(el => { el.checked = checkbox.checked; });
+    const items = Array.from(document.querySelectorAll('.grade-select'));
+    const shouldCheck = checkbox.type === 'checkbox' ? checkbox.checked : items.some(el => !el.checked);
+    items.forEach(el => { el.checked = shouldCheck; });
+    if (checkbox.type !== 'checkbox') checkbox.textContent = shouldCheck ? '取消全选' : '全选';
     updateGradeSelectionCount();
 }
 

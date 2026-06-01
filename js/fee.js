@@ -182,7 +182,10 @@ function getSelectedFeeIds() {
 }
 
 function toggleAllFeeSelection(checkbox) {
-    document.querySelectorAll('.fee-select').forEach(el => { el.checked = checkbox.checked; });
+    const items = Array.from(document.querySelectorAll('.fee-select'));
+    const shouldCheck = checkbox.type === 'checkbox' ? checkbox.checked : items.some(el => !el.checked);
+    items.forEach(el => { el.checked = shouldCheck; });
+    if (checkbox.type !== 'checkbox') checkbox.textContent = shouldCheck ? '取消全选' : '全选';
     updateFeeSelectionCount();
 }
 

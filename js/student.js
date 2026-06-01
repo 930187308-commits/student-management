@@ -42,6 +42,7 @@ function renderStudents() {
                 </div>
                 ${studentBatchMode ? `<div id="studentBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
                     <span>已选择 <strong id="studentSelectedCount">0</strong> 条</span>
+                    <button class="btn btn-secondary btn-xs" onclick="toggleAllStudentSelection(this)" style="padding: 2px 8px;">全选</button>
                 </div>` : ''}
                 ${studentBatchMode ? `<div style="display: flex; gap: 8px; margin-top: 8px;">
                     <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="exportSelectedStudents()">导出选中</button>
@@ -129,6 +130,14 @@ function updateStudentSelectionCount() {
 
 function getSelectedStudentIds() {
     return Array.from(document.querySelectorAll('.student-select:checked')).map(el => el.value);
+}
+
+function toggleAllStudentSelection(button) {
+    const items = Array.from(document.querySelectorAll('.student-select'));
+    const shouldCheck = items.some(el => !el.checked);
+    items.forEach(el => { el.checked = shouldCheck; });
+    if (button) button.textContent = shouldCheck ? '取消全选' : '全选';
+    updateStudentSelectionCount();
 }
 
 function selectStudent(id) {
