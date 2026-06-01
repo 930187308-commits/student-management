@@ -441,7 +441,10 @@
 - 新增报表汇总接口：`GET /api/reports/summary`。
 - 新增报表汇总检查脚本：`server/check-reports-summary-runtime.js`。
 - 新增命令：`npm run reports:summary-check`。
-- 当前报表汇总接口先作为后端只读能力，不直接替换前端统计页面。
+- 统计报表页已接入后端汇总接口：
+  - 前端优先读取 `GET /api/reports/summary`。
+  - 接口异常时自动退回原本浏览器本地计算，不影响页面使用。
+  - 数据保存后会清空报表缓存，避免统计页显示旧数据。
 - 运行时验证仍通过：
   - 实体表数量与快照一致。
   - 课消、已缴/欠费数量和金额统计一致。

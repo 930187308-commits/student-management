@@ -2,10 +2,7 @@
 
 let currentReportClassId = '';
 
-function renderReports() {
-    const container = document.getElementById('tab-reports');
-
-    // 课消统计（按月 - 基于考勤记录）
+function buildLocalReportsSummary() {
     const monthlyConsumption = {};
     data.attendance.forEach(session => {
         const month = session.date.substring(0, 7);
@@ -21,11 +18,8 @@ function renderReports() {
         });
     });
 
-    // 课消统计（通过考勤）
-    const filterClassId = currentReportClassId;
     const studentConsumptionSummary = data.students.filter(s => {
         if (s.status !== 'active') return false;
-        if (filterClassId && s.classId !== filterClassId) return false;
         return true;
     }).map(s => {
         const totalHours = data.fees.filter(f => f.studentId === s.id && f.status === 'paid').reduce((sum, f) => sum + f.hours, 0);
@@ -35,10 +29,20 @@ function renderReports() {
             if (a.records && a.records[s.id] === 1) usedHours++;
             else if (a.records && a.records[s.id] === 0) absentHours++;
         });
-        return { ...s, totalHours, usedHours, absentHours, remainingHours: totalHours - usedHours };
+        const remainingHours = totalHours - usedHours;
+        return {
+            id: s.id,
+            name: s.name || '',
+            grade: s.grade || '',
+            classId: s.classId || '',
+            totalHours,
+            usedHours,
+            absentHours,
+            remainingHours,
+            statusText: remainingHours <= 5 ? '需续费' : '正常'
+        };
     });
 
-    // 流失/新增学员统计（当季）
     const currentQuarter = getCurrentQuarter();
     const thisYear = new Date().getFullYear();
     const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
@@ -54,7 +58,6 @@ function renderReports() {
         return false;
     });
 
-    // 班级出勤率统计
     const classAttendanceStats = data.classes.filter(c => c.status === 'active' || c.status === 'forming').map(c => {
         const classStudents = data.students.filter(s => s.classId === c.id && s.status === 'active');
         const classSessions = data.attendance.filter(a => a.classId === c.id);
@@ -71,23 +74,74 @@ function renderReports() {
         return { id: c.id, name: c.name, rate, total };
     });
 
-    // 意向学员来源分布
     const sourceDist = {};
     (data.prospects || []).forEach(p => {
         const src = p.source || '其他';
         sourceDist[src] = (sourceDist[src] || 0) + 1;
     });
-    const sourceLabels = Object.keys(sourceDist);
-    const sourceData = Object.values(sourceDist);
 
-    // 学员学校分布（只统计正式在读学员）
     const schoolDist = {};
     data.students.filter(s => s.status === 'active').forEach(s => {
         const school = s.school?.trim() || '未填写';
         schoolDist[school] = (schoolDist[school] || 0) + 1;
     });
-    const schoolLabels = Object.keys(schoolDist);
-    const schoolData = Object.values(schoolDist);
+
+    return {
+        monthlyConsumption: Object.keys(monthlyConsumption).sort().reverse().map(month => ({
+            month,
+            sessions: monthlyConsumption[month].sessions,
+            amount: monthlyConsumption[month].amount
+        })),
+        studentConsumptionSummary,
+        quarterlyStudentDynamics: {
+            year: thisYear,
+            quarter: currentQuarter,
+            newStudents: newStudents.length,
+            churnedStudents: churnedStudents.length
+        },
+        classAttendanceStats,
+        sourceDistribution: Object.keys(sourceDist).map(label => ({ label, value: sourceDist[label] })),
+        schoolDistribution: Object.keys(schoolDist).map(label => ({ label, value: schoolDist[label] })),
+        reportClassOptions: data.classes
+            .filter(c => c.status === 'active' || c.status === 'forming')
+            .map(c => ({ id: c.id, name: c.name || '' }))
+    };
+}
+
+function requestReportsSummaryRefresh() {
+    if (reportsSummaryLoading || currentTab !== 'reports') return;
+    reportsSummaryLoading = true;
+    loadReportsSummaryFromApi()
+        .then(summary => {
+            reportsSummaryCache = summary;
+            if (currentTab === 'reports') renderReports();
+        })
+        .catch(error => {
+            console.log('读取后端统计报表失败，使用本地计算:', error);
+        })
+        .finally(() => {
+            reportsSummaryLoading = false;
+        });
+}
+
+function renderReports() {
+    const container = document.getElementById('tab-reports');
+    if (!reportsSummaryCache && currentTab === 'reports') {
+        requestReportsSummaryRefresh();
+    }
+    const summary = reportsSummaryCache || buildLocalReportsSummary();
+    const monthlyConsumption = summary.monthlyConsumption || [];
+    const studentConsumptionSummary = (summary.studentConsumptionSummary || []).filter(s => {
+        if (currentReportClassId && s.classId !== currentReportClassId) return false;
+        return true;
+    });
+    const dynamics = summary.quarterlyStudentDynamics || { newStudents: 0, churnedStudents: 0 };
+    const classAttendanceStats = summary.classAttendanceStats || [];
+    const sourceLabels = (summary.sourceDistribution || []).map(row => row.label);
+    const sourceData = (summary.sourceDistribution || []).map(row => row.value);
+    const schoolLabels = (summary.schoolDistribution || []).map(row => row.label);
+    const schoolData = (summary.schoolDistribution || []).map(row => row.value);
+    const reportClassOptions = summary.reportClassOptions || [];
 
     let html = `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -95,7 +149,7 @@ function renderReports() {
                 <div class="card-header"><span class="card-title">课消统计（按月）</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
                 <div class="table-wrapper">
                     <table><thead><tr><th>月份</th><th>已消课时</th><th>估算课消金额</th></tr></thead><tbody>
-                        ${Object.keys(monthlyConsumption).sort().reverse().map(month => `<tr><td>${escapeHtml(month)}</td><td><strong style="color:#27ae60;">${monthlyConsumption[month].sessions}</strong></td><td><strong style="color:#27ae60;">¥${monthlyConsumption[month].amount.toLocaleString()}</strong></td></tr>`).join('') || '<tr><td colspan="3">暂无数据</td></tr>'}
+                        ${monthlyConsumption.map(row => `<tr><td>${escapeHtml(row.month)}</td><td><strong style="color:#27ae60;">${row.sessions}</strong></td><td><strong style="color:#27ae60;">¥${Number(row.amount || 0).toLocaleString()}</strong></td></tr>`).join('') || '<tr><td colspan="3">暂无数据</td></tr>'}
                     </tbody></table>
                 </div>
             </div>
@@ -104,11 +158,11 @@ function renderReports() {
                 <div class="card-header"><span class="card-title">当季学员动态</span></div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 12px 0;">
                     <div style="text-align: center;">
-                        <div style="font-size: 36px; font-weight: 700; color: #27ae60;">${newStudents.length}</div>
+                        <div style="font-size: 36px; font-weight: 700; color: #27ae60;">${dynamics.newStudents}</div>
                         <div style="font-size: 13px; color: #888;">当季新增</div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="font-size: 36px; font-weight: 700; color: #e74c3c;">${churnedStudents.length}</div>
+                        <div style="font-size: 36px; font-weight: 700; color: #e74c3c;">${dynamics.churnedStudents}</div>
                         <div style="font-size: 13px; color: #888;">当季流失</div>
                     </div>
                 </div>
@@ -135,7 +189,7 @@ function renderReports() {
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <select id="reportClassFilter" onchange="switchReportClass(this.value)" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;">
                             <option value="">全部班级</option>
-                            ${data.classes.filter(c => c.status === 'active' || c.status === 'forming').map(c => `<option value="${escapeHtml(c.id)}" ${currentReportClassId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                            ${reportClassOptions.map(c => `<option value="${escapeHtml(c.id)}" ${currentReportClassId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                         </select>
                         <button class="btn btn-secondary btn-sm" onclick="exportConsumptionSummary()">导出</button>
                     </div>
@@ -145,7 +199,7 @@ function renderReports() {
                         ${studentConsumptionSummary.map(s => {
                             const status = s.remainingHours <= 5 ? 'row-warning' : '';
                             const badge = s.remainingHours <= 5 ? 'badge-pending' : 'badge-active';
-                            const text = s.remainingHours <= 5 ? '需续费' : '正常';
+                            const text = s.statusText || (s.remainingHours <= 5 ? '需续费' : '正常');
                             return `<tr class="${status}"><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.grade)}</td><td>${s.totalHours}</td><td><strong style="color:#27ae60;">${s.usedHours}</strong></td><td><strong style="color:#f39c12;">${s.absentHours}</strong></td><td><strong>${s.remainingHours}</strong></td><td><span class="badge ${badge}">${text}</span></td></tr>`;
                         }).join('') || '<tr><td colspan="7">暂无数据</td></tr>'}
                     </tbody></table>

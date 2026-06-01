@@ -37,6 +37,8 @@ let dataModified = false; // 追踪数据是否有改动
 let serverDataUpdatedAt = null; // 服务器端数据版本号，防止旧设备整包覆盖新数据
 let lastSavedDataSnapshot = null; // 最近一次保存前的数据，用于一步撤回
 let undoDataSnapshot = null;
+let reportsSummaryCache = null;
+let reportsSummaryLoading = false;
 
 // 存储键名
 const STORAGE_KEY = 'studentManagementSystem_v3';
@@ -400,6 +402,7 @@ async function saveData() {
     try {
         const ok = await saveToServer(data);
         if (ok) {
+            invalidateReportsSummaryCache();
             dataModified = false;
         }
     } catch (e) {
@@ -444,6 +447,7 @@ async function restoreServerBackup(id) {
     const payload = await response.json();
     const restored = payload.data || payload;
     data = restored;
+    invalidateReportsSummaryCache();
     serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || restored.lastModified || null;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     lastSavedDataSnapshot = cloneData(data);
@@ -461,6 +465,19 @@ async function loadCollectionFromApi(collectionName) {
     const payload = await response.json();
     serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
     return payload[collectionName] || [];
+}
+
+function invalidateReportsSummaryCache() {
+    reportsSummaryCache = null;
+}
+
+async function loadReportsSummaryFromApi() {
+    const response = await fetch(`${SERVER_URL}/api/reports/summary`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`读取统计报表失败：${response.status}`);
+    return response.json();
 }
 
 async function saveCollectionToApi(collectionName, items) {
@@ -481,8 +498,9 @@ async function saveCollectionToApi(collectionName, items) {
     }
     const payload = await response.json();
     serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
-    data[collectionName] = payload[collectionName] || items;
-    data.lastModified = payload.updatedAt || new Date().toISOString();
+        data[collectionName] = payload[collectionName] || items;
+        invalidateReportsSummaryCache();
+        data.lastModified = payload.updatedAt || new Date().toISOString();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     lastSavedDataSnapshot = cloneData(data);
     lastSaveTime = new Date();
@@ -513,6 +531,7 @@ async function saveCollectionsToApi(collections) {
     Object.keys(collections).forEach(collectionName => {
         data[collectionName] = payload[collectionName] || collections[collectionName];
     });
+    invalidateReportsSummaryCache();
     data.lastModified = payload.updatedAt || new Date().toISOString();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     lastSavedDataSnapshot = cloneData(data);
