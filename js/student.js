@@ -383,14 +383,8 @@ async function saveStudent(e) {
         classLeaveSessions,
         createdAt: currentEditId ? existingStudent?.createdAt : new Date().toISOString()
     };
-    if (currentEditId) {
-        const index = data.students.findIndex(s => s.id === currentEditId);
-        data.students[index] = studentData;
-    } else {
-        data.students.push(studentData);
-    }
     try {
-        await saveStudentsToApi(data.students);
+        await saveCollectionItemToApi('students', studentData);
     } catch (error) {
         showToast('保存失败：' + error.message);
         return;
@@ -431,7 +425,7 @@ async function deleteStudent(id) {
         student._archivedAt = new Date().toISOString();
         if (currentStudentId === id) currentStudentId = null;
         try {
-            await saveStudentsToApi(data.students);
+            await saveCollectionItemToApi('students', student);
         } catch (error) {
             showToast('保存失败：' + error.message);
             return;
@@ -446,10 +440,9 @@ async function deleteStudent(id) {
     const pendingFeeSummary = getPendingFeeSummary([student]);
     if (pendingFeeSummary.count > 0 && !confirm(`该学员还有欠费记录：\n\n${formatPendingFeeSummary(pendingFeeSummary)}\n\n确定仍然彻底删除学员吗？收费记录不会自动删除，后续会在数据体检中提示清理。`)) return;
     await createServerBackup('删除非在读学员前自动备份');
-    data.students = data.students.filter(s => s.id !== id);
     if (currentStudentId === id) currentStudentId = null;
     try {
-        await saveStudentsToApi(data.students);
+        await deleteCollectionItemFromApi('students', id);
     } catch (error) {
         showToast('删除失败：' + error.message);
         return;
