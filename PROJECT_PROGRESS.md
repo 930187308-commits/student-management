@@ -383,6 +383,9 @@
   - `npm run sqlite:data-read:status`
 - 已开启正式 `/data` SQLite 读路径：launchd 环境变量 `STUDENT_READ_FULL_DATA_FROM_SQLITE=1`。
 - 开启后验证 `/data` 与 `/api/data-sqlite` 完全一致，`reconcile` 仍为 `all_tables_match_snapshot`。
+- 新增状态接口：`GET /api/sqlite/status`，用于查看当前 `/data` 是否走 SQLite、实体表是否与快照一致、健康统计是否一致。
+- 新增运行时检查脚本：`server/check-sqlite-runtime.js`。
+- 新增命令：`npm run sqlite:runtime-check`。
 
 下一步：
 

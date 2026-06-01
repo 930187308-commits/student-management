@@ -169,8 +169,8 @@ function compareHealth(snapshotHealth, sqliteHealth) {
     }));
 }
 
-function main() {
-    const db = new DatabaseSync(config.dbPath);
+function createReconciliationReport(dbPath = config.dbPath) {
+    const db = new DatabaseSync(dbPath);
     const { data, updatedAt } = readAppState(db);
     const snapshotCounts = countSnapshot(data);
     const tableCounts = buildTableCounts(db);
@@ -183,8 +183,8 @@ function main() {
     const mismatchedTables = comparison.filter(row => row.status === 'mismatch');
     const mismatchedHealth = healthComparison.filter(row => row.status === 'mismatch');
 
-    const report = {
-        dbPath: config.dbPath,
+    return {
+        dbPath,
         appStateUpdatedAt: updatedAt,
         migrationStatus: migratedTables === TABLES.length
             ? mismatchedHealth.length === 0
@@ -201,8 +201,18 @@ function main() {
                 ? '实体表数量一致，但统计口径不一致。需要先修复迁移映射。'
             : '实体表数量已与快照一致，可以继续做字段级和统计口径对账。'
     };
+}
+
+function main() {
+    const report = createReconciliationReport();
 
     console.log(JSON.stringify(report, null, 2));
 }
 
-main();
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    createReconciliationReport
+};

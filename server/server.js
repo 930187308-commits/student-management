@@ -4,6 +4,7 @@ const path = require('node:path');
 const { URL } = require('node:url');
 const config = require('./config');
 const { openDatabase, getData, getDataFromEntityTables, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
+const { createReconciliationReport } = require('./reconcile-sqlite-split');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -148,6 +149,18 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === 'GET' && pathname === '/api/meta') {
         sendJson(res, 200, getMeta());
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/sqlite/status') {
+        const report = createReconciliationReport();
+        sendJson(res, 200, {
+            readFullDataFromSqlite: config.readFullDataFromSqlite,
+            ok: report.migrationStatus === 'all_tables_match_snapshot',
+            migrationStatus: report.migrationStatus,
+            healthMismatches: (report.healthComparison || []).filter(row => row.status !== 'match').length,
+            report
+        });
         return true;
     }
 
