@@ -445,6 +445,13 @@
   - 前端优先读取 `GET /api/reports/summary`。
   - 接口异常时自动退回原本浏览器本地计算，不影响页面使用。
   - 数据保存后会清空报表缓存，避免统计页显示旧数据。
+- 新增首页统计汇总接口：`GET /api/dashboard/summary`。
+- 新增首页统计检查脚本：`server/check-dashboard-summary-runtime.js`。
+- 新增命令：`npm run dashboard:summary-check`。
+- 首页顶部统计卡已接入后端汇总接口：
+  - 前端优先读取 `GET /api/dashboard/summary`。
+  - 接口异常时自动退回原本浏览器本地计算。
+  - 数据保存后会清空首页统计缓存，避免显示旧数据。
 - 运行时验证仍通过：
   - 实体表数量与快照一致。
   - 课消、已缴/欠费数量和金额统计一致。

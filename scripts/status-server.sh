@@ -74,4 +74,10 @@ if (!status.ok) process.exitCode = 1;
     else
         echo "Reports summary parity: mismatch"
     fi
+
+    if "$PROJECT_ROOT/scripts/node.sh" "$PROJECT_ROOT/server/check-dashboard-summary-runtime.js" >/dev/null 2>&1; then
+        echo "Dashboard summary parity: OK"
+    else
+        echo "Dashboard summary parity: mismatch"
+    fi
 fi

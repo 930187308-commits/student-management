@@ -39,6 +39,8 @@ let lastSavedDataSnapshot = null; // 最近一次保存前的数据，用于一�
 let undoDataSnapshot = null;
 let reportsSummaryCache = null;
 let reportsSummaryLoading = false;
+let dashboardSummaryCache = null;
+let dashboardSummaryLoading = false;
 
 // 存储键名
 const STORAGE_KEY = 'studentManagementSystem_v3';
@@ -469,6 +471,7 @@ async function loadCollectionFromApi(collectionName) {
 
 function invalidateReportsSummaryCache() {
     reportsSummaryCache = null;
+    dashboardSummaryCache = null;
 }
 
 async function loadReportsSummaryFromApi() {
@@ -477,6 +480,15 @@ async function loadReportsSummaryFromApi() {
         headers: { 'Accept': 'application/json' }
     });
     if (!response.ok) throw new Error(`读取统计报表失败：${response.status}`);
+    return response.json();
+}
+
+async function loadDashboardSummaryFromApi() {
+    const response = await fetch(`${SERVER_URL}/api/dashboard/summary`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`读取首页统计失败：${response.status}`);
     return response.json();
 }
 
@@ -829,23 +841,30 @@ function render() {
 
 // 渲染统计卡片
 function renderStats() {
-    const activeStudents = data.students.filter(s => s.status === 'active').length;
-    const totalClasses = data.classes.filter(c => c.status === 'active').length;
-    const totalRevenue = data.fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
-    const pendingAmount = data.fees.filter(f => f.status === 'pending').reduce((sum, f) => sum + f.amount, 0);
-
-    let totalHours = 0, usedHours = 0, absentHours = 0;
-    data.students.filter(s => s.status === 'active').forEach(s => {
-        const studentFees = data.fees.filter(f => f.studentId === s.id && f.status === 'paid');
-        const studentTotalHours = studentFees.reduce((sum, f) => sum + f.hours, 0);
-        totalHours += studentTotalHours;
-        data.attendance.forEach(a => {
-            if (a.records && a.records[s.id] === 1) usedHours++;
-            else if (a.records && a.records[s.id] === 0) absentHours++;
-        });
-    });
-    const remainingHours = totalHours - usedHours;
-    const usageRate = totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0;
+    if (!dashboardSummaryCache && !dashboardSummaryLoading) {
+        dashboardSummaryLoading = true;
+        loadDashboardSummaryFromApi()
+            .then(summary => {
+                dashboardSummaryCache = summary;
+                renderStats();
+            })
+            .catch(error => {
+                console.log('读取后端首页统计失败，使用本地计算:', error);
+            })
+            .finally(() => {
+                dashboardSummaryLoading = false;
+            });
+    }
+    const summary = dashboardSummaryCache || buildLocalDashboardSummary();
+    const activeStudents = summary.activeStudents;
+    const totalClasses = summary.totalClasses;
+    const totalRevenue = summary.totalRevenue;
+    const pendingAmount = summary.pendingAmount;
+    const totalHours = summary.totalHours;
+    const usedHours = summary.usedHours;
+    const absentHours = summary.absentHours;
+    const remainingHours = summary.remainingHours;
+    const usageRate = summary.usageRate;
 
     document.getElementById('statGrid').innerHTML = `
         <div class="stat-card" style="display: flex; align-items: center; gap: 40px; padding: 10px 14px; grid-column: span 2;">
@@ -865,11 +884,31 @@ function renderStats() {
         </div>
         <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">${activeStudents}</div><div class="label" style="font-size: 12px;">在读学员</div></div>
         <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">${totalClasses}</div><div class="label" style="font-size: 12px;">班级数量</div></div>
-        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">¥${totalRevenue.toLocaleString()}</div><div class="label" style="font-size: 12px;">已收学费</div></div>
-        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">¥${pendingAmount.toLocaleString()}</div><div class="label" style="font-size: 12px;">欠费金额</div></div>
+        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">¥${Number(totalRevenue || 0).toLocaleString()}</div><div class="label" style="font-size: 12px;">已收学费</div></div>
+        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">¥${Number(pendingAmount || 0).toLocaleString()}</div><div class="label" style="font-size: 12px;">欠费金额</div></div>
     `;
 
     setTimeout(() => drawHoursRingChart(usedHours, remainingHours), 10);
+}
+
+function buildLocalDashboardSummary() {
+    const activeStudents = data.students.filter(s => s.status === 'active').length;
+    const totalClasses = data.classes.filter(c => c.status === 'active').length;
+    const totalRevenue = data.fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
+    const pendingAmount = data.fees.filter(f => f.status === 'pending').reduce((sum, f) => sum + f.amount, 0);
+    let totalHours = 0, usedHours = 0, absentHours = 0;
+    data.students.filter(s => s.status === 'active').forEach(s => {
+        const studentFees = data.fees.filter(f => f.studentId === s.id && f.status === 'paid');
+        const studentTotalHours = studentFees.reduce((sum, f) => sum + f.hours, 0);
+        totalHours += studentTotalHours;
+        data.attendance.forEach(a => {
+            if (a.records && a.records[s.id] === 1) usedHours++;
+            else if (a.records && a.records[s.id] === 0) absentHours++;
+        });
+    });
+    const remainingHours = totalHours - usedHours;
+    const usageRate = totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0;
+    return { activeStudents, totalClasses, totalRevenue, pendingAmount, totalHours, usedHours, absentHours, remainingHours, usageRate };
 }
 
 function drawHoursRingChart(used, remaining) {

@@ -159,6 +159,79 @@ function createReportsSummary(dbPath = config.dbPath) {
     return createReportsSummaryFromData(readAppState(db));
 }
 
+function createDashboardSummary(dbPath = config.dbPath) {
+    const db = new DatabaseSync(dbPath);
+    const row = db.prepare(`
+        SELECT
+            (SELECT COUNT(*) FROM students WHERE status = 'active') AS activeStudents,
+            (SELECT COUNT(*) FROM classes WHERE status = 'active') AS totalClasses,
+            (SELECT COALESCE(SUM(amount), 0) FROM fees WHERE status = 'paid') AS totalRevenue,
+            (SELECT COALESCE(SUM(amount), 0) FROM fees WHERE status = 'pending') AS pendingAmount,
+            (
+                SELECT COALESCE(SUM(f.hours), 0)
+                FROM fees f
+                JOIN students s ON s.id = f.student_id
+                WHERE f.status = 'paid' AND s.status = 'active'
+            ) AS totalHours,
+            (
+                SELECT COUNT(*)
+                FROM attendance_records r
+                JOIN students s ON s.id = r.student_id
+                WHERE r.status = 1 AND s.status = 'active'
+            ) AS usedHours,
+            (
+                SELECT COUNT(*)
+                FROM attendance_records r
+                JOIN students s ON s.id = r.student_id
+                WHERE r.status = 0 AND s.status = 'active'
+            ) AS absentHours
+    `).get();
+    const totalHours = Number(row.totalHours || 0);
+    const usedHours = Number(row.usedHours || 0);
+    const remainingHours = totalHours - usedHours;
+    return {
+        source: 'sqlite_columns',
+        activeStudents: Number(row.activeStudents || 0),
+        totalClasses: Number(row.totalClasses || 0),
+        totalRevenue: roundMoney(row.totalRevenue),
+        pendingAmount: roundMoney(row.pendingAmount),
+        totalHours,
+        usedHours,
+        absentHours: Number(row.absentHours || 0),
+        remainingHours,
+        usageRate: totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0
+    };
+}
+
+function createDashboardSummaryFromData(data) {
+    const activeStudents = (data.students || []).filter(student => student.status === 'active');
+    const activeStudentIds = new Set(activeStudents.map(student => student.id));
+    const totalHours = (data.fees || [])
+        .filter(fee => fee.status === 'paid' && activeStudentIds.has(fee.studentId))
+        .reduce((sum, fee) => sum + Number(fee.hours || 0), 0);
+    let usedHours = 0;
+    let absentHours = 0;
+    activeStudents.forEach(student => {
+        (data.attendance || []).forEach(session => {
+            if (session.records && session.records[student.id] === 1) usedHours += 1;
+            else if (session.records && session.records[student.id] === 0) absentHours += 1;
+        });
+    });
+    const remainingHours = totalHours - usedHours;
+    return {
+        source: 'app_state_dashboard_logic',
+        activeStudents: activeStudents.length,
+        totalClasses: (data.classes || []).filter(item => item.status === 'active').length,
+        totalRevenue: roundMoney((data.fees || []).filter(fee => fee.status === 'paid').reduce((sum, fee) => sum + Number(fee.amount || 0), 0)),
+        pendingAmount: roundMoney((data.fees || []).filter(fee => fee.status === 'pending').reduce((sum, fee) => sum + Number(fee.amount || 0), 0)),
+        totalHours,
+        usedHours,
+        absentHours,
+        remainingHours,
+        usageRate: totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0
+    };
+}
+
 function createSqliteMetricsReport(dbPath = config.dbPath) {
     const db = new DatabaseSync(dbPath);
     const classRows = db.prepare('SELECT status, archived, grade FROM classes').all();
@@ -318,6 +391,8 @@ function createSnapshotMetricsReport(dbPath = config.dbPath) {
 module.exports = {
     createSqliteMetricsReport,
     createSnapshotMetricsReport,
+    createDashboardSummary,
+    createDashboardSummaryFromData,
     createReportsSummary,
     createReportsSummaryFromData
 };

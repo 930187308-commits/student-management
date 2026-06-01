@@ -5,7 +5,7 @@ const { URL } = require('node:url');
 const config = require('./config');
 const { openDatabase, getData, getDataFromEntityTables, getDataFromEntityColumns, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
 const { createReconciliationReport } = require('./reconcile-sqlite-split');
-const { createSqliteMetricsReport, createReportsSummary } = require('./sqlite-metrics');
+const { createSqliteMetricsReport, createReportsSummary, createDashboardSummary } = require('./sqlite-metrics');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -173,6 +173,11 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === 'GET' && pathname === '/api/reports/summary') {
         sendJson(res, 200, createReportsSummary());
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/dashboard/summary') {
+        sendJson(res, 200, createDashboardSummary());
         return true;
     }
 
