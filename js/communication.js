@@ -56,7 +56,7 @@ function renderCommTable() {
             ${communicationBatchMode ? `<td><input type="checkbox" class="communication-select" value="${c.id}"></td>` : ''}
             <td>${topic ? `<span class="badge" style="background:${escapeHtml(topic.color)};color:white;">${escapeHtml(topic.name)}</span>` : '-'}</td>
             <td>${escapeHtml(c.studentName)}</td>
-            <td>${c.contactDate}</td>
+            <td>${c.contactDate || '-'}</td>
             <td>${escapeHtml(c.contactType)}</td>
             <td><span class="badge ${statusBadge}">${statusText}</span></td>
             <td>${escapeHtml(c.contactPerson)}</td>

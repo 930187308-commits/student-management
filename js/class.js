@@ -652,10 +652,9 @@ function downloadClassTemplate() {
         ['暑假排课', '暑假排课安排', '选填', '如：周一至周五上午'],
         [''],
         ['注意事项'],
-        ['1. 日期必须为 yyyy-mm-dd 格式'],
-        ['2. 状态：active/正常=进行中，forming/组班中=组班中，finished/已结课=已结课，无法识别会导入失败并跳过'],
-        ['3. 计划课次用于首页显示计划课次/已进行课次'],
-        ['4. 旧模板（无计划课次列）导入时计划课次默认为 16'],
+        ['1. 状态：active/正常=进行中，forming/组班中=组班中，finished/已结课=已结课，无法识别会导入失败并跳过'],
+        ['2. 计划课次用于首页显示计划课次/已进行课次'],
+        ['3. 旧模板（无计划课次列）导入时计划课次默认为 16'],
     ]);
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '班级导入模板.xlsx');
@@ -786,6 +785,13 @@ async function executeClassImport(checkResult, strategies = {}) {
     render();
     const msg = `导入完成：成功 ${imported} 个${replaced > 0 ? `，替换 ${replaced} 个` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}${failed > 0 ? `，失败 ${failed} 条` : ''}`;
     showToast(msg);
+    showImportResultSummary({
+        imported, replaced, skipped, failed,
+        total: checkResult.total,
+        actionLabel: '班级导入',
+        failedDetails: checkResult.errors || [],
+        skippedDetails: checkResult.skippedDetails || []
+    });
 }
 
 function openClassMemberManager(classId) {

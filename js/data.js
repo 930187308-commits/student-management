@@ -1258,6 +1258,66 @@ function showImportPreCheck({
     modal.classList.add('show');
 }
 
+// 导入完成结果弹窗摘要
+// 调用方式：showImportResultSummary({ imported, replaced, skipped, failed, total, actionLabel })
+// failedDetails / skippedDetails 为 { row, msg } 数组，可选
+function showImportResultSummary({ imported, replaced, skipped, failed, total, actionLabel = '导入', failedDetails = [], skippedDetails = [] }) {
+    const modal = document.getElementById('modal');
+    document.getElementById('modalTitle').textContent = actionLabel + '结果';
+
+    const buildDetails = (items, color, bg, border, emptyLabel) => {
+        if (!items || items.length === 0) return '';
+        const list = items.slice(0, 200);
+        return `
+            <details style="margin-top: 8px; font-size: 12px; color: ${color};">
+                <summary style="cursor: pointer; user-select: none; font-weight: 600;">查看明细（${items.length} 条）</summary>
+                <div style="margin-top: 6px; max-height: 160px; overflow-y: auto; background: ${bg}; border-radius: 6px; padding: 8px;">
+                    ${list.map(item => `<div style="margin-bottom: 2px;">${item.row ? `第${item.row}行：` : ''}${escapeHtml(item.msg || item.name || '')}</div>`).join('')}
+                    ${items.length > 200 ? `<div>还有 ${items.length - 200} 条未显示</div>` : ''}
+                </div>
+            </details>
+        `;
+    };
+
+    const allSuccess = failed === 0 && skipped === 0;
+    const summaryColor = failed > 0 ? '#e74c3c' : allSuccess ? '#27ae60' : '#f39c12';
+    const summaryBg = failed > 0 ? '#fdecea' : allSuccess ? '#e8f5e9' : '#fff7e6';
+
+    document.getElementById('modalBody').innerHTML = `
+        <div style="text-align: center; padding: 16px 0;">
+            <div style="font-size: 48px; margin-bottom: 8px;">${failed > 0 ? '⚠️' : allSuccess ? '✅' : '⚡'}</div>
+            <div style="font-size: 16px; font-weight: 600; color: ${summaryColor}; margin-bottom: 4px;">
+                ${failed > 0 ? '导入完成（有失败）' : allSuccess ? '全部导入成功' : '导入完成'}
+            </div>
+            <div style="font-size: 13px; color: #888;">共读取 ${total} 条</div>
+        </div>
+        <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin: 16px 0;">
+            <div style="text-align: center; padding: 12px 20px; background: #e8f5e9; border-radius: 8px; min-width: 80px;">
+                <div style="font-size: 24px; font-weight: 700; color: #27ae60;">${imported}</div>
+                <div style="font-size: 12px; color: #888;">成功</div>
+            </div>
+            ${replaced > 0 ? `<div style="text-align: center; padding: 12px 20px; background: #fff3e0; border-radius: 8px; min-width: 80px;">
+                <div style="font-size: 24px; font-weight: 700; color: #f39c12;">${replaced}</div>
+                <div style="font-size: 12px; color: #888;">替换</div>
+            </div>` : ''}
+            ${skipped > 0 ? `<div style="text-align: center; padding: 12px 20px; background: var(--hover-bg); border-radius: 8px; min-width: 80px;">
+                <div style="font-size: 24px; font-weight: 700; color: #888;">${skipped}</div>
+                <div style="font-size: 12px; color: #888;">跳过</div>
+            </div>` : ''}
+            ${failed > 0 ? `<div style="text-align: center; padding: 12px 20px; background: #fdecea; border-radius: 8px; min-width: 80px;">
+                <div style="font-size: 24px; font-weight: 700; color: #e74c3c;">${failed}</div>
+                <div style="font-size: 12px; color: #888;">失败</div>
+            </div>` : ''}
+        </div>
+        ${failed > 0 && failedDetails.length > 0 ? buildDetails(failedDetails, '#c0392b', '#fdecea', '#e74c3c', '失败明细') : ''}
+        ${skipped > 0 && skippedDetails.length > 0 ? buildDetails(skippedDetails, '#666', 'var(--hover-bg)', 'var(--border-color)', '跳过明细') : ''}
+        <div class="modal-footer" style="margin-top: 16px;">
+            <button type="button" class="btn btn-primary" onclick="closeModal()">关闭</button>
+        </div>
+    `;
+    modal.classList.add('show');
+}
+
 // Toast提示
 function showToast(msg) {
     const toast = document.getElementById('toast');

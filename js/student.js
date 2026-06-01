@@ -709,4 +709,10 @@ async function executeStudentImport(checkResult, strategies = {}) {
     render();
     const msg = `导入完成：成功 ${imported} 名${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}${checkResult.fail > 0 ? `，失败 ${checkResult.fail} 条` : ''}`;
     showToast(msg);
+    showImportResultSummary({
+        imported, replaced, skipped, failed: checkResult.fail, total: checkResult.total,
+        actionLabel: '学员导入',
+        failedDetails: checkResult.errors || [],
+        skippedDetails: checkResult.skippedDetails || []
+    });
 }
