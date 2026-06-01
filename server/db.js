@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const config = require('./config');
 
@@ -561,6 +562,67 @@ function setCollection(collectionName, items, reason = 'module_save') {
     return saved;
 }
 
+function getCollectionItemId(collectionName, item) {
+    const prefixMap = {
+        classes: 'class',
+        students: 'student',
+        prospects: 'prospect',
+        fees: 'fee',
+        attendance: 'attendance',
+        grades: 'grade',
+        communications: 'communication'
+    };
+    return item.id ? String(item.id) : `${prefixMap[collectionName] || 'item'}_${crypto.randomUUID()}`;
+}
+
+function upsertCollectionItem(collectionName, item, reason = 'item_save') {
+    if (!ENTITY_READ_COLLECTIONS.has(collectionName)) {
+        const error = new Error(`${collectionName} 不支持单条记录保存`);
+        error.statusCode = 400;
+        throw error;
+    }
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        const error = new Error('记录必须是对象');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const items = getCollection(collectionName);
+    const nextItem = { ...item, id: getCollectionItemId(collectionName, item) };
+    const index = items.findIndex(current => String(current.id) === String(nextItem.id));
+    const nextItems = index >= 0
+        ? items.map((current, currentIndex) => currentIndex === index ? nextItem : current)
+        : [...items, nextItem];
+    const saved = setCollection(collectionName, nextItems, reason);
+    return {
+        item: nextItem,
+        created: index < 0,
+        collection: saved[collectionName]
+    };
+}
+
+function deleteCollectionItem(collectionName, id, reason = 'item_delete') {
+    if (!ENTITY_READ_COLLECTIONS.has(collectionName)) {
+        const error = new Error(`${collectionName} 不支持单条记录删除`);
+        error.statusCode = 400;
+        throw error;
+    }
+    const items = getCollection(collectionName);
+    const index = items.findIndex(current => String(current.id) === String(id));
+    if (index < 0) {
+        const error = new Error('记录不存在');
+        error.statusCode = 404;
+        throw error;
+    }
+    const deleted = items[index];
+    const nextItems = items.filter((_, currentIndex) => currentIndex !== index);
+    const saved = setCollection(collectionName, nextItems, reason);
+    return {
+        deleted,
+        collection: saved[collectionName]
+    };
+}
+
 function json(value) {
     return JSON.stringify(value || {});
 }
@@ -907,6 +969,8 @@ module.exports = {
     setData,
     getCollection,
     setCollection,
+    upsertCollectionItem,
+    deleteCollectionItem,
     createBackup,
     listBackups,
     restoreBackup,

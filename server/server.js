@@ -3,7 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { URL } = require('node:url');
 const config = require('./config');
-const { openDatabase, getData, getDataFromEntityTables, getDataFromEntityColumns, getDataUpdatedAt, setData, getCollection, setCollection, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
+const { openDatabase, getData, getDataFromEntityTables, getDataFromEntityColumns, getDataUpdatedAt, setData, getCollection, setCollection, upsertCollectionItem, deleteCollectionItem, createBackup, listBackups, restoreBackup, getMeta } = require('./db');
 const { createReconciliationReport } = require('./reconcile-sqlite-split');
 const { createSqliteMetricsReport, createReportsSummary, createDashboardSummary } = require('./sqlite-metrics');
 const { createDataHealthReport } = require('./data-health');
@@ -34,6 +34,15 @@ const API_COLLECTIONS = new Set([
     'prospectSources',
     'classTypes',
     'gradeOptions'
+]);
+const API_ITEM_COLLECTIONS = new Set([
+    'classes',
+    'students',
+    'prospects',
+    'fees',
+    'attendance',
+    'grades',
+    'communications'
 ]);
 
 openDatabase();
@@ -77,6 +86,32 @@ function readRequestBody(req) {
         req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
         req.on('error', reject);
     });
+}
+
+function ensureClientDataVersion(req, res) {
+    const currentUpdatedAt = getDataUpdatedAt();
+    const baseUpdatedAt = req.headers['x-base-data-updated-at'];
+    if (currentUpdatedAt && !baseUpdatedAt) {
+        sendJson(res, 428, {
+            error: '缺少数据版本号，已拒绝覆盖服务器数据',
+            hint: '请刷新页面后重试。'
+        }, {
+            'X-Data-Updated-At': currentUpdatedAt
+        });
+        return false;
+    }
+    if (currentUpdatedAt && baseUpdatedAt !== currentUpdatedAt) {
+        sendJson(res, 409, {
+            error: '服务器数据已被其他设备更新，已拒绝覆盖',
+            hint: '请刷新页面加载最新数据后，再重新修改。',
+            serverUpdatedAt: currentUpdatedAt,
+            clientBaseUpdatedAt: baseUpdatedAt
+        }, {
+            'X-Data-Updated-At': currentUpdatedAt
+        });
+        return false;
+    }
+    return true;
 }
 
 function isLikelyBuiltInSampleData(payload) {
@@ -294,29 +329,30 @@ async function handleApi(req, res, pathname) {
             return true;
         }
 
+        if (req.method === 'POST') {
+            if (!API_ITEM_COLLECTIONS.has(collectionName)) {
+                sendJson(res, 400, { error: `${collectionName} 不支持单条记录新增` });
+                return true;
+            }
+            if (!ensureClientDataVersion(req, res)) return true;
+
+            const rawBody = await readRequestBody(req);
+            const parsed = JSON.parse(rawBody || '{}');
+            const item = parsed.item || parsed[collectionName.slice(0, -1)] || parsed;
+            const result = upsertCollectionItem(collectionName, item, `api_post_${collectionName}`);
+            sendJson(res, result.created ? 201 : 200, {
+                item: result.item,
+                [collectionName]: result.collection,
+                created: result.created,
+                updatedAt: getDataUpdatedAt() || null
+            }, {
+                'X-Data-Updated-At': getDataUpdatedAt() || ''
+            });
+            return true;
+        }
+
         if (req.method === 'PUT') {
-            const currentUpdatedAt = getDataUpdatedAt();
-            const baseUpdatedAt = req.headers['x-base-data-updated-at'];
-            if (currentUpdatedAt && !baseUpdatedAt) {
-                sendJson(res, 428, {
-                    error: '缺少数据版本号，已拒绝覆盖服务器数据',
-                    hint: '请刷新页面后重试。'
-                }, {
-                    'X-Data-Updated-At': currentUpdatedAt
-                });
-                return true;
-            }
-            if (currentUpdatedAt && baseUpdatedAt !== currentUpdatedAt) {
-                sendJson(res, 409, {
-                    error: '服务器数据已被其他设备更新，已拒绝覆盖',
-                    hint: '请刷新页面加载最新数据后，再重新修改。',
-                    serverUpdatedAt: currentUpdatedAt,
-                    clientBaseUpdatedAt: baseUpdatedAt
-                }, {
-                    'X-Data-Updated-At': currentUpdatedAt
-                });
-                return true;
-            }
+            if (!ensureClientDataVersion(req, res)) return true;
 
             const rawBody = await readRequestBody(req);
             const parsed = JSON.parse(rawBody || '{}');
@@ -329,6 +365,67 @@ async function handleApi(req, res, pathname) {
             const saved = setCollection(collectionName, items, `api_put_${collectionName}`);
             sendJson(res, 200, {
                 [collectionName]: saved[collectionName],
+                updatedAt: getDataUpdatedAt() || null
+            }, {
+                'X-Data-Updated-At': getDataUpdatedAt() || ''
+            });
+            return true;
+        }
+    }
+
+    const itemMatch = pathname.match(/^\/api\/(classes|students|prospects|fees|attendance|grades|communications)\/([^/]+)$/);
+    if (itemMatch) {
+        const collectionName = itemMatch[1];
+        const itemId = decodeURIComponent(itemMatch[2]);
+
+        if (req.method === 'GET') {
+            const item = getCollection(collectionName).find(current => String(current.id) === itemId);
+            if (!item) {
+                sendJson(res, 404, { error: '记录不存在' });
+                return true;
+            }
+            sendJson(res, 200, {
+                item,
+                updatedAt: getDataUpdatedAt() || null
+            }, {
+                'X-Data-Updated-At': getDataUpdatedAt() || ''
+            });
+            return true;
+        }
+
+        if (req.method === 'PUT' || req.method === 'PATCH') {
+            if (!ensureClientDataVersion(req, res)) return true;
+
+            const rawBody = await readRequestBody(req);
+            const parsed = JSON.parse(rawBody || '{}');
+            const existing = getCollection(collectionName).find(current => String(current.id) === itemId);
+            if (!existing && req.method === 'PATCH') {
+                sendJson(res, 404, { error: '记录不存在' });
+                return true;
+            }
+            const bodyItem = parsed.item || parsed[collectionName.slice(0, -1)] || parsed;
+            const item = req.method === 'PATCH'
+                ? { ...existing, ...bodyItem, id: itemId }
+                : { ...bodyItem, id: itemId };
+            const result = upsertCollectionItem(collectionName, item, `api_${req.method.toLowerCase()}_${collectionName}_${itemId}`);
+            sendJson(res, result.created ? 201 : 200, {
+                item: result.item,
+                [collectionName]: result.collection,
+                created: result.created,
+                updatedAt: getDataUpdatedAt() || null
+            }, {
+                'X-Data-Updated-At': getDataUpdatedAt() || ''
+            });
+            return true;
+        }
+
+        if (req.method === 'DELETE') {
+            if (!ensureClientDataVersion(req, res)) return true;
+
+            const result = deleteCollectionItem(collectionName, itemId, `api_delete_${collectionName}_${itemId}`);
+            sendJson(res, 200, {
+                deleted: result.deleted,
+                [collectionName]: result.collection,
                 updatedAt: getDataUpdatedAt() || null
             }, {
                 'X-Data-Updated-At': getDataUpdatedAt() || ''

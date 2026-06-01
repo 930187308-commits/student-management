@@ -103,6 +103,16 @@ Core module APIs read from SQLite entity columns where field columns exist:
 
 Module writes use `PUT /api/{collection}` for one collection and `PUT /api/batch` for multi-collection saves.
 
+Single-record APIs are available for entity collections:
+
+- `POST /api/{collection}` creates or upserts one record from `{ item }`.
+- `GET /api/{collection}/{id}` reads one record.
+- `PUT /api/{collection}/{id}` replaces one record.
+- `PATCH /api/{collection}/{id}` partially updates one record.
+- `DELETE /api/{collection}/{id}` deletes one record.
+
+Single-record writes require `X-Base-Data-Updated-At`, the same conflict-protection header used by collection writes.
+
 `app_state.data` is still retained as the rollback snapshot.
 
 ## SQLite Runtime Checks

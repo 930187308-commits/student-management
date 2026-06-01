@@ -566,6 +566,69 @@ async function saveCollectionToApi(collectionName, items) {
     return data[collectionName];
 }
 
+async function saveCollectionItemToApi(collectionName, item) {
+    if (lastSavedDataSnapshot) {
+        undoDataSnapshot = cloneData(lastSavedDataSnapshot);
+    }
+    const method = item && item.id ? 'PUT' : 'POST';
+    const url = item && item.id
+        ? `${SERVER_URL}/api/${collectionName}/${encodeURIComponent(item.id)}`
+        : `${SERVER_URL}/api/${collectionName}`;
+    const response = await fetch(url, {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Base-Data-Updated-At': serverDataUpdatedAt || ''
+        },
+        body: JSON.stringify({ item })
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || `保存 ${collectionName} 记录失败：${response.status}`);
+    }
+    const payload = await response.json();
+    serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
+    data[collectionName] = payload[collectionName] || data[collectionName] || [];
+    invalidateReportsSummaryCache();
+    data.lastModified = payload.updatedAt || new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSavedDataSnapshot = cloneData(data);
+    lastSaveTime = new Date();
+    dataModified = false;
+    updateAutoSaveIndicator();
+    updateUndoButton();
+    return payload.item;
+}
+
+async function deleteCollectionItemFromApi(collectionName, id) {
+    if (lastSavedDataSnapshot) {
+        undoDataSnapshot = cloneData(lastSavedDataSnapshot);
+    }
+    const response = await fetch(`${SERVER_URL}/api/${collectionName}/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: {
+            'Accept': 'application/json',
+            'X-Base-Data-Updated-At': serverDataUpdatedAt || ''
+        }
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || `删除 ${collectionName} 记录失败：${response.status}`);
+    }
+    const payload = await response.json();
+    serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
+    data[collectionName] = payload[collectionName] || data[collectionName] || [];
+    invalidateReportsSummaryCache();
+    data.lastModified = payload.updatedAt || new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSavedDataSnapshot = cloneData(data);
+    lastSaveTime = new Date();
+    dataModified = false;
+    updateAutoSaveIndicator();
+    updateUndoButton();
+    return payload.deleted;
+}
+
 function getAllCollectionsPayload() {
     return Object.fromEntries(API_COLLECTION_NAMES.map(collectionName => [collectionName, data[collectionName] || []]));
 }
