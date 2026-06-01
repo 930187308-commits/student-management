@@ -68,4 +68,10 @@ if (!status.ok) process.exitCode = 1;
     else
         echo "SQLite metrics parity: mismatch"
     fi
+
+    if "$PROJECT_ROOT/scripts/node.sh" "$PROJECT_ROOT/server/check-reports-summary-runtime.js" >/dev/null 2>&1; then
+        echo "Reports summary parity: OK"
+    else
+        echo "Reports summary parity: mismatch"
+    fi
 fi

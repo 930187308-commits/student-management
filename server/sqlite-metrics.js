@@ -27,6 +27,138 @@ function roundMoney(value) {
     return Math.round(Number(value || 0) * 100) / 100;
 }
 
+function sumPaidFeeHours(fees, studentId) {
+    return fees
+        .filter(fee => fee.studentId === studentId && fee.status === 'paid')
+        .reduce((sum, fee) => sum + Number(fee.hours || 0), 0);
+}
+
+function getBestPricePerHour(fees, studentId) {
+    const fee = fees.find(item => item.studentId === studentId && item.status === 'paid' && item.pricePerHour);
+    return fee ? Number(fee.pricePerHour || 0) : 0;
+}
+
+function currentQuarterInfo(now = new Date()) {
+    const quarter = Math.ceil((now.getMonth() + 1) / 3);
+    return {
+        year: now.getFullYear(),
+        quarter,
+        startMonth: (quarter - 1) * 3 + 1
+    };
+}
+
+function createReportsSummaryFromData(data, now = new Date()) {
+    const classes = data.classes || [];
+    const students = data.students || [];
+    const fees = data.fees || [];
+    const attendance = data.attendance || [];
+    const prospects = data.prospects || [];
+    const { year, startMonth } = currentQuarterInfo(now);
+    const studentsById = new Map(students.map(student => [student.id, student]));
+
+    const monthlyConsumptionMap = {};
+    attendance.forEach(session => {
+        const month = String(session.date || '').substring(0, 7);
+        if (!month) return;
+        if (!monthlyConsumptionMap[month]) monthlyConsumptionMap[month] = { month, amount: 0, sessions: 0 };
+        Object.entries(session.records || {}).forEach(([studentId, status]) => {
+            if (status !== 1) return;
+            monthlyConsumptionMap[month].sessions += 1;
+            monthlyConsumptionMap[month].amount += getBestPricePerHour(fees, studentId);
+        });
+    });
+
+    const studentConsumptionSummary = students
+        .filter(student => student.status === 'active')
+        .map(student => {
+            const totalHours = sumPaidFeeHours(fees, student.id);
+            let usedHours = 0;
+            let absentHours = 0;
+            attendance.forEach(session => {
+                if (session.classId !== student.classId) return;
+                const status = session.records?.[student.id];
+                if (status === 1) usedHours += 1;
+                else if (status === 0) absentHours += 1;
+            });
+            const remainingHours = totalHours - usedHours;
+            return {
+                id: student.id,
+                name: student.name || '',
+                grade: student.grade || '',
+                classId: student.classId || '',
+                totalHours,
+                usedHours,
+                absentHours,
+                remainingHours,
+                statusText: remainingHours <= 5 ? '需续费' : '正常'
+            };
+        });
+
+    const newStudents = students.filter(student => {
+        if (!student.enrollDate || student.status !== 'active') return false;
+        const enrollDate = new Date(student.enrollDate);
+        return enrollDate.getFullYear() === year && (enrollDate.getMonth() + 1) >= startMonth;
+    });
+    const churnedStudents = students.filter(student => student.status === 'withdrawn' || student.status === 'graduated');
+
+    const classAttendanceStats = classes
+        .filter(item => item.status === 'active' || item.status === 'forming')
+        .map(item => {
+            const classStudents = students.filter(student => student.classId === item.id && student.status === 'active');
+            const classSessions = attendance.filter(session => session.classId === item.id);
+            let totalPresent = 0;
+            let totalAbsent = 0;
+            classSessions.forEach(session => {
+                classStudents.forEach(student => {
+                    const status = session.records?.[student.id];
+                    if (status === 1) totalPresent += 1;
+                    else if (status === 0) totalAbsent += 1;
+                });
+            });
+            const total = totalPresent + totalAbsent;
+            const rate = total > 0 ? Math.round((totalPresent / total) * 100) : 0;
+            return { id: item.id, name: item.name || '', rate, total };
+        });
+
+    const sourceDist = {};
+    prospects.forEach(prospect => {
+        const source = prospect.source || '其他';
+        sourceDist[source] = (sourceDist[source] || 0) + 1;
+    });
+
+    const schoolDist = {};
+    students.filter(student => student.status === 'active').forEach(student => {
+        const school = String(student.school || '').trim() || '未填写';
+        schoolDist[school] = (schoolDist[school] || 0) + 1;
+    });
+
+    return {
+        source: 'app_state_report_logic',
+        monthlyConsumption: Object.values(monthlyConsumptionMap)
+            .map(row => ({ ...row, amount: roundMoney(row.amount) }))
+            .sort((a, b) => b.month.localeCompare(a.month)),
+        studentConsumptionSummary,
+        quarterlyStudentDynamics: {
+            year,
+            quarter: Math.ceil((now.getMonth() + 1) / 3),
+            newStudents: newStudents.length,
+            churnedStudents: churnedStudents.length
+        },
+        classAttendanceStats,
+        sourceDistribution: Object.entries(sourceDist).map(([label, value]) => ({ label, value })),
+        schoolDistribution: Object.entries(schoolDist).map(([label, value]) => ({ label, value })),
+        reportClassOptions: classes
+            .filter(item => item.status === 'active' || item.status === 'forming')
+            .map(item => ({ id: item.id, name: item.name || '' })),
+        studentCount: studentsById.size
+    };
+}
+
+function createReportsSummary(dbPath = config.dbPath) {
+    const db = new DatabaseSync(dbPath);
+    return createReportsSummaryFromData(readAppState(db));
+}
+
 function createSqliteMetricsReport(dbPath = config.dbPath) {
     const db = new DatabaseSync(dbPath);
     const classRows = db.prepare('SELECT status, archived, grade FROM classes').all();
@@ -185,5 +317,7 @@ function createSnapshotMetricsReport(dbPath = config.dbPath) {
 
 module.exports = {
     createSqliteMetricsReport,
-    createSnapshotMetricsReport
+    createSnapshotMetricsReport,
+    createReportsSummary,
+    createReportsSummaryFromData
 };

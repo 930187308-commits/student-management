@@ -438,6 +438,10 @@
 - 新增指标对账脚本：`server/check-sqlite-metrics-runtime.js`。
 - 新增命令：`npm run sqlite:metrics-check`。
 - 指标对账会比较 `app_state` 快照算法与 SQLite 字段列算法，确保班级/学员/收费/考勤/成绩/沟通等基础指标一致。
+- 新增报表汇总接口：`GET /api/reports/summary`。
+- 新增报表汇总检查脚本：`server/check-reports-summary-runtime.js`。
+- 新增命令：`npm run reports:summary-check`。
+- 当前报表汇总接口先作为后端只读能力，不直接替换前端统计页面。
 - 运行时验证仍通过：
   - 实体表数量与快照一致。
   - 课消、已缴/欠费数量和金额统计一致。
