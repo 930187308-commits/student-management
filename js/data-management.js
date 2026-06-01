@@ -8,16 +8,11 @@ function openDataManager() {
     document.getElementById('modalTitle').textContent = '数据管理';
     document.getElementById('modalBody').innerHTML = `
         <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-		            <button class="btn btn-secondary" onclick="exportAllStudents()">一键导出所有学员</button>
-		            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
-		            <button class="btn btn-secondary" onclick="openBackupManager()">备份列表</button>
-	        </div>
-        <div style="margin-bottom: 16px;">
-            <button class="btn btn-danger" onclick="confirmClearAllData()">一键清空所有数据</button>
+            <button class="btn btn-secondary" onclick="exportAllStudents()">一键导出所有学员</button>
+            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
+            <button class="btn btn-secondary" onclick="openBackupManager()">备份列表</button>
         </div>
-        <div style="margin-bottom: 16px;">
-            <button class="btn btn-warning" onclick="resetToSampleData()">重置为示例数据</button>
-        </div>
+
         <details style="margin-bottom: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px;">
             <summary style="cursor: pointer; font-weight: 600;">高级 JSON 工具</summary>
             <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
@@ -29,11 +24,17 @@ function openDataManager() {
             </div>
             <textarea id="dataJsonPreview" style="width: 100%; height: 160px; font-family: monospace; font-size: 12px; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; resize: vertical; background: var(--input-bg); color: var(--text-primary);" readonly>${jsonStr}</textarea>
         </details>
-        <div style="padding: 16px; background: var(--hover-bg); border-radius: 8px; font-size: 13px;">
-            <strong>说明：</strong>JSON 数据包含所有班级、学员、收费、考勤、成绩、沟通记录。
-            <br>「一键导出所有Excel」会下载所有数据的 Excel 文件（收费、考勤、成绩、班级学员等）。
-            <br>「一键清空所有数据」将删除本地所有数据，且 <strong style="color:#e74c3c;">无法找回</strong>，清空前请确认已导出所有文件。
-            <br>「重置为示例数据」将恢复系统内置的示例数据。
+
+        <div style="margin-top: 20px; padding: 16px; border: 1px solid #e74c3c; border-radius: 8px; background: #fef2f2;">
+            <div style="font-weight: 600; color: #e74c3c; margin-bottom: 10px; font-size: 14px;">⚠️ 危险操作</div>
+            <div style="margin-bottom: 10px;">
+                <button class="btn btn-danger" onclick="confirmClearAllData()">一键清空所有数据</button>
+                <span style="font-size: 12px; color: #888; margin-left: 8px;">删除后无法找回，清空前请先导出备份</span>
+            </div>
+            <div>
+                <button class="btn btn-warning" onclick="resetToSampleData()">重置为示例数据</button>
+                <span style="font-size: 12px; color: #888; margin-left: 8px;">将当前数据替换为示例数据</span>
+            </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
