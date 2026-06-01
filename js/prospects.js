@@ -31,6 +31,9 @@ function renderProspects() {
                 </div>
             </div>
             <div id="prospectCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
+            <div id="prospectBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                ${prospectBatchMode ? `<span>已选择 <strong id="prospectSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllProspectSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
+            </div>
             <div class="table-wrapper">
                 <table>
                     <thead><tr>${prospectBatchMode ? '<th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th>' : ''}<th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
@@ -56,6 +59,7 @@ function renderProspectList() {
     const current = filtered.length;
     const countBar = document.getElementById('prospectCountBar');
     if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
+    if (prospectBatchMode) updateProspectSelectionCount();
 
     const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
     const sourceMap = {};
@@ -67,7 +71,7 @@ function renderProspectList() {
         const remark = p.remark || '';
         const shortRemark = remark.length > 16 ? `${remark.slice(0, 16)}...` : remark;
         return `<tr>
-            ${prospectBatchMode ? `<td><input type="checkbox" class="prospect-select" value="${p.id}"></td>` : ''}
+            ${prospectBatchMode ? `<td><input type="checkbox" class="prospect-select" value="${p.id}" onchange="updateProspectSelectionCount()"></td>` : ''}
             <td><strong>${escapeHtml(p.name)}</strong></td>
             <td>${escapeHtml(p.grade || '-')}</td>
             <td>${escapeHtml(p.wechat || '-')}</td>
@@ -98,6 +102,13 @@ function getSelectedProspectIds() {
 
 function toggleAllProspectSelection(checkbox) {
     document.querySelectorAll('.prospect-select').forEach(el => { el.checked = checkbox.checked; });
+    updateProspectSelectionCount();
+}
+
+function updateProspectSelectionCount() {
+    const count = getSelectedProspectIds().length;
+    const el = document.getElementById('prospectSelectedCount');
+    if (el) el.textContent = count;
 }
 
 function exportSelectedProspects() {

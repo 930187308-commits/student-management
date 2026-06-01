@@ -24,6 +24,9 @@ function renderCommunications() {
                 </div>
             </div>
             <div id="commCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
+            <div id="commBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                ${communicationBatchMode ? `<span>已选择 <strong id="commSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllCommunicationSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
+            </div>
             <div class="table-wrapper">
                 <table><thead><tr>${communicationBatchMode ? '<th><input type="checkbox" onchange="toggleAllCommunicationSelection(this)"></th>' : ''}<th>主题</th><th>学员</th><th>日期</th><th>方式</th><th>状态</th><th>沟通对象</th><th>操作</th></tr></thead><tbody id="commTableBody"></tbody></table>
             </div>
@@ -48,12 +51,13 @@ function renderCommTable() {
     const current = filtered.length;
     const countBar = document.getElementById('commCountBar');
     if (countBar) countBar.textContent = total === current ? `共 ${total} 条` : `当前 ${current} 条 / 共 ${total} 条`;
+    if (communicationBatchMode) updateCommunicationSelectionCount();
     document.getElementById('commTableBody').innerHTML = filtered.map(c => {
         const topic = (data.communicationTopics || []).find(t => t.id === c.topicId);
         const statusBadge = c.status === 'pending' ? 'badge-pending' : 'badge-active';
         const statusText = c.status === 'pending' ? '待沟通' : '已完成';
         return `<tr>
-            ${communicationBatchMode ? `<td><input type="checkbox" class="communication-select" value="${c.id}"></td>` : ''}
+            ${communicationBatchMode ? `<td><input type="checkbox" class="communication-select" value="${c.id}" onchange="updateCommunicationSelectionCount()"></td>` : ''}
             <td>${topic ? `<span class="badge" style="background:${escapeHtml(topic.color)};color:white;">${escapeHtml(topic.name)}</span>` : '-'}</td>
             <td>${escapeHtml(c.studentName)}</td>
             <td>${c.contactDate || '-'}</td>
@@ -76,6 +80,13 @@ function getSelectedCommunicationIds() {
 
 function toggleAllCommunicationSelection(checkbox) {
     document.querySelectorAll('.communication-select').forEach(el => { el.checked = checkbox.checked; });
+    updateCommunicationSelectionCount();
+}
+
+function updateCommunicationSelectionCount() {
+    const count = getSelectedCommunicationIds().length;
+    const el = document.getElementById('commSelectedCount');
+    if (el) el.textContent = count;
 }
 
 function exportSelectedCommunications() {

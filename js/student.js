@@ -40,6 +40,9 @@ function renderStudents() {
                 <div style="display: flex; gap: 8px; margin-top: 8px;">
                     <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="toggleStudentBatchMode()">${studentBatchMode ? '退出多选' : '多选'}</button>
                 </div>
+                ${studentBatchMode ? `<div id="studentBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                    <span>已选择 <strong id="studentSelectedCount">0</strong> 条</span>
+                </div>` : ''}
                 ${studentBatchMode ? `<div style="display: flex; gap: 8px; margin-top: 8px;">
                     <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="exportSelectedStudents()">导出选中</button>
                     <button class="btn btn-danger btn-sm" style="flex:1;" onclick="deleteSelectedStudents()">删除选中</button>
@@ -102,7 +105,7 @@ function renderStudentList() {
         return `<div class="student-item ${currentStudentId === s.id ? 'active' : ''}" onclick="selectStudent('${s.id}')" ${statusClass}>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="display:flex; align-items:center; gap:6px;">
-                    ${studentBatchMode ? `<input type="checkbox" class="student-select" value="${s.id}" onclick="event.stopPropagation()">` : ''}
+                    ${studentBatchMode ? `<input type="checkbox" class="student-select" value="${s.id}" onclick="event.stopPropagation(); updateStudentSelectionCount()">` : ''}
                     <div class="name" style="font-weight: 600; font-size: 14px;">${escapeHtml(s.name)}</div>
                 </div>
                 <span class="badge" style="${badgeColor} font-size: 10px;">${statusText}</span>
@@ -110,11 +113,18 @@ function renderStudentList() {
             <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(s.grade)} · ${escapeHtml(cls?.name) || '未分班'}</div>
         </div>`;
     }).join('');
+    if (studentBatchMode) updateStudentSelectionCount();
 }
 
 function toggleStudentBatchMode() {
     studentBatchMode = !studentBatchMode;
     renderStudents();
+}
+
+function updateStudentSelectionCount() {
+    const count = getSelectedStudentIds().length;
+    const el = document.getElementById('studentSelectedCount');
+    if (el) el.textContent = count;
 }
 
 function getSelectedStudentIds() {

@@ -7,14 +7,24 @@ function openDataManager() {
 
     document.getElementById('modalTitle').textContent = '数据管理';
     document.getElementById('modalBody').innerHTML = `
-        <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="btn btn-secondary" onclick="exportAllStudents()">一键导出所有学员</button>
-            <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
-            <button class="btn btn-secondary" onclick="openBackupManager()">备份列表</button>
+        <div style="margin-bottom: 12px;">
+            <div style="font-weight: 600; color: #666; margin-bottom: 8px; font-size: 13px;">导出</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="exportAllStudents()">导出所有学员</button>
+                <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
+            </div>
         </div>
 
-        <details style="margin-bottom: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px;">
-            <summary style="cursor: pointer; font-weight: 600;">高级 JSON 工具</summary>
+        <div style="margin-bottom: 12px;">
+            <div style="font-weight: 600; color: #666; margin-bottom: 8px; font-size: 13px;">备份</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="openBackupManager()">备份列表</button>
+                <button class="btn btn-success" onclick="createManualServerBackup()">立即创建备份</button>
+            </div>
+        </div>
+
+        <details style="margin-bottom: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+            <summary style="cursor: pointer; font-weight: 600; color: #888; font-size: 13px;">🔧 高级 JSON 工具（仅调试使用）</summary>
             <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
                 <span style="font-size: 13px; color: #888;">数据大小：${sizeStr}</span>
                 <div style="display:flex;gap:8px;">
@@ -29,11 +39,11 @@ function openDataManager() {
             <div style="font-weight: 600; color: #e74c3c; margin-bottom: 10px; font-size: 14px;">⚠️ 危险操作</div>
             <div style="margin-bottom: 10px;">
                 <button class="btn btn-danger" onclick="confirmClearAllData()">一键清空所有数据</button>
-                <span style="font-size: 12px; color: #888; margin-left: 8px;">删除后无法找回，清空前请先导出备份</span>
+                <span style="font-size: 12px; color: #888; margin-left: 8px;">覆盖当前所有数据，删除后无法找回</span>
             </div>
             <div>
                 <button class="btn btn-warning" onclick="resetToSampleData()">重置为示例数据</button>
-                <span style="font-size: 12px; color: #888; margin-left: 8px;">将当前数据替换为示例数据</span>
+                <span style="font-size: 12px; color: #888; margin-left: 8px;">用示例数据替换当前所有数据</span>
             </div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
@@ -145,7 +155,7 @@ async function loadPreferredDataHealthReport() {
 
 async function openDataHealthCheck() {
     document.getElementById('modalTitle').textContent = '数据体检';
-    document.getElementById('modalBody').innerHTML = '<div style="padding:16px;color:#888;">正在读取数据体检...</div>';
+    document.getElementById('modalBody').innerHTML = '<div style=”padding:16px;color:#888;”>正在读取数据体检...</div>';
     document.getElementById('modal').classList.add('show');
 
     const report = await loadPreferredDataHealthReport();
@@ -153,25 +163,34 @@ async function openDataHealthCheck() {
     updateDataHealthBadge(report);
     document.getElementById('modalTitle').textContent = '数据体检';
     document.getElementById('modalBody').innerHTML = `
-        <div style="font-size: 14px; line-height: 1.8;">
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;">
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">不存在班级的考勤<br><strong style="color:#e74c3c;">${report.orphanAttendance.length}</strong> 条</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">不存在学员的考勤记录<br><strong style="color:#e74c3c;">${report.unknownRecordRefs}</strong> 个</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已删除学员的收费<br><strong style="color:#e74c3c;">${report.orphanFees.length}</strong> 条</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已缴余额为负<br><strong style="color:#f39c12;">${report.negativeRemaining.length}</strong> 名</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">已有收费但课时不足<br><strong style="color:#e74c3c;">${report.missingDebtRecords.length}</strong> 名</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">上课无收费记录<br><strong style="color:#f39c12;">${report.activeNoPaid.length}</strong> 名</div>
-                <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">超过容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
+        <div style=”font-size: 14px; line-height: 1.8;”>
+            <div style=”margin-bottom: 12px;”>
+                <div style=”font-weight: 600; color: #e74c3c; margin-bottom: 6px; font-size: 13px;”>⚠️ 需处理（可安全清理）</div>
+                <div style=”display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;”>
+                    <div style=”padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;”>不存在班级的考勤<br><strong style=”color:#e74c3c;”>${report.orphanAttendance.length}</strong> 条</div>
+                    <div style=”padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;”>无关联学员的考勤记录<br><strong style=”color:#e74c3c;”>${report.unknownRecordRefs}</strong> 个</div>
+                    <div style=”padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;”>已删学员的收费记录<br><strong style=”color:#e74c3c;”>${report.orphanFees.length}</strong> 条</div>
+                </div>
             </div>
-            <div style="padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;">
-                安全清理只会删除“不存在班级的考勤”、考勤 records 里“不存在的学员 ID”和“已删除学员的收费记录”。空课次、欠费、负课时、超容量只提示，不自动改。“已有收费但课时不足”和“上课无收费记录”不重叠，前者适合补欠费/续费，后者适合先补建收费记录。
+            <div style=”margin-bottom: 12px;”>
+                <div style=”font-weight: 600; color: #666; margin-bottom: 6px; font-size: 13px;”>ℹ️ 提示（不自动处理）</div>
+                <div style=”display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;”>
+                    <div style=”padding:10px;background:var(--hover-bg);border-radius:8px;”>空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
+                    <div style=”padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;”>已缴余额为负<br><strong style=”color:#f39c12;”>${report.negativeRemaining.length}</strong> 名</div>
+                    <div style=”padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;”>课时不足（欠费）<br><strong style=”color:#e74c3c;”>${report.missingDebtRecords.length}</strong> 名</div>
+                    <div style=”padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;”>上课无收费记录<br><strong style=”color:#f39c12;”>${report.activeNoPaid.length}</strong> 名</div>
+                    <div style=”padding:10px;background:var(--hover-bg);border-radius:8px;”>超容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
+                </div>
+            </div>
+            <div style=”padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;line-height:1.6;”>
+                <strong>说明：</strong>上排红色项（${safeCleanCount} 条）可一键清理，下排橙色项只提示不自动处理。<br>
+                「已有收费但课时不足」适合补欠费，「上课无收费记录」适合先建收费记录再补欠费。「已缴余额为负」不建议重复补录。
             </div>
             ${renderFeeHealthDetails(report)}
             ${renderTuitionHealthDetails(report)}
-            ${safeCleanCount > 0 ? `<button class="btn btn-danger" onclick="cleanSafeHealthIssues()">清理安全项（${safeCleanCount}）</button>` : '<div style="color:#27ae60;font-weight:600;">暂无需要安全清理的数据</div>'}
+            ${safeCleanCount > 0 ? `<div style=”margin-top:12px;”><button class=”btn btn-danger” onclick=”cleanSafeHealthIssues()”>清理安全项（${safeCleanCount} 条）</button></div>` : '<div style=”color:#27ae60;font-weight:600;padding:12px;”>✓ 暂无需要安全清理的数据</div>'}
         </div>
-        <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+        <div class=”modal-footer”><button type=”button” class=”btn btn-secondary” onclick=”closeModal()”>关闭</button></div>
     `;
 }
 
