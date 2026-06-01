@@ -2,6 +2,7 @@
 set -euo pipefail
 
 LOG_ROOT="${STUDENT_LOG_DIR:-/Users/bzx/Logs/student-ai-console}"
+PROJECT_ROOT="${PROJECT_ROOT:-/Users/bzx/Projects/student-ai-console}"
 PORT="${STUDENT_SERVER_PORT:-3000}"
 PID_FILE="$LOG_ROOT/student-ai-console.pid"
 LABEL="com.bzx.student-ai-console"
@@ -45,4 +46,19 @@ echo "Local: http://localhost:$PORT"
 echo "LAN: http://$local_name.local:$PORT"
 if [[ -n "$lan_ip" ]]; then
     echo "LAN IP: http://$lan_ip:$PORT"
+fi
+
+echo ""
+if command -v curl >/dev/null 2>&1; then
+    if health_json="$(curl -fsS "http://localhost:$PORT/api/sqlite/status" 2>/dev/null)"; then
+        "$PROJECT_ROOT/scripts/node.sh" -e '
+const status = JSON.parse(process.argv[1]);
+console.log(`SQLite /data read: ${status.readFullDataFromSqlite ? "ON" : "OFF"}`);
+console.log(`SQLite reconcile: ${status.migrationStatus}`);
+console.log(`SQLite health mismatches: ${status.healthMismatches}`);
+if (!status.ok) process.exitCode = 1;
+' "$health_json" || echo "SQLite status: unhealthy"
+    else
+        echo "SQLite status: unavailable"
+    fi
 fi

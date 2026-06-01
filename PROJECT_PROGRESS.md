@@ -477,8 +477,10 @@
 
 ## 当前风险与注意事项
 
-- 当前前端初始加载仍读取整份 `/data` 快照，保存侧已基本切到模块 API / 批量 API。
-- 当前 SQLite 表结构已预留，核心数据仍以 `app_state` 快照为权威来源，后续可再逐步拆到真实表。
+- 当前正式 `/data` 已开启 SQLite 实体表读路径，`app_state.data` 仍保留为回退快照。
+- 当前保存侧为双写：保存 `app_state.data` 的同时同步 SQLite 实体表。
+- 可通过 `scripts/status-server.sh` 查看服务状态、SQLite `/data` 读路径和对账健康状态。
+- 如 SQLite 读路径异常，可执行 `scripts/set-sqlite-data-read.sh off` 回退到 `app_state.data`。
 - Node 的 `node:sqlite` 在 Node 24 中仍有实验警告，但当前可用。
 - MacBook 需要切到 `feature/server-sqlite` 后再协作。
 - 不要再启动旧 Python `8080` 服务。
@@ -490,10 +492,10 @@
 
 ```text
 当前项目：AI 教培工作台
-当前阶段：阶段 3，模块 API / 批量 API 拆分基本完成，等待稳定性观察和下一步真实拆表规划
+当前阶段：阶段 3B，SQLite 实体表已写入，模块 API 和正式 /data 已从 SQLite 读取，保留 app_state 快照回退
 当前主协作分支：feature/server-sqlite
 请先 git pull origin feature/server-sqlite，然后读取 PROJECT_PROGRESS.md。
 前端小功能和录入体验优化可以由 Claude Code 做。
-后端、SQLite、部署、数据同步、备份恢复、API 拆分和真实拆表规划请交给 Mac mini / Codex。
+后端、SQLite、部署、数据同步、备份恢复、API 拆分、读写路径切换请交给 Mac mini / Codex。
 不要录入真实学生信息到测试数据或 GitHub。
 ```
