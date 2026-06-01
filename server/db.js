@@ -90,6 +90,10 @@ function migrate() {
             max_students INTEGER,
             status TEXT,
             summer_schedule TEXT,
+            planned_sessions INTEGER,
+            archived INTEGER DEFAULT 0,
+            archived_at TEXT,
+            archived_snapshot_json TEXT,
             raw_json TEXT,
             updated_at TEXT
         );
@@ -106,6 +110,11 @@ function migrate() {
             teacher TEXT,
             status TEXT,
             enroll_date TEXT,
+            first_enroll_date TEXT,
+            follow_up_status TEXT,
+            created_at TEXT,
+            class_join_sessions_json TEXT,
+            class_leave_sessions_json TEXT,
             remark TEXT,
             archived_at TEXT,
             raw_json TEXT,
@@ -116,6 +125,7 @@ function migrate() {
         CREATE TABLE IF NOT EXISTS fees (
             id TEXT PRIMARY KEY,
             student_id TEXT,
+            student_name TEXT,
             amount REAL,
             hours REAL,
             price_per_hour REAL,
@@ -155,6 +165,7 @@ function migrate() {
         CREATE TABLE IF NOT EXISTS grades (
             id TEXT PRIMARY KEY,
             student_id TEXT,
+            student_name TEXT,
             class_id TEXT,
             test_name TEXT,
             test_date TEXT,
@@ -173,6 +184,7 @@ function migrate() {
         CREATE TABLE IF NOT EXISTS communications (
             id TEXT PRIMARY KEY,
             student_id TEXT,
+            student_name TEXT,
             topic_id TEXT,
             contact_type TEXT,
             contact_person TEXT,
@@ -191,6 +203,9 @@ function migrate() {
             name TEXT NOT NULL,
             phone TEXT,
             source TEXT,
+            grade TEXT,
+            wechat TEXT,
+            class_id TEXT,
             intent TEXT,
             trial_date TEXT,
             trial_status TEXT,
@@ -237,11 +252,43 @@ function migrate() {
             created_at TEXT NOT NULL
         );
     `);
+    ensureFieldColumns();
 
     const row = db.prepare('SELECT value FROM app_state WHERE key = ?').get('data');
     if (!row) {
         setData(DEFAULT_DATA, 'init');
     }
+}
+
+function getTableColumns(tableName) {
+    return new Set(db.prepare(`PRAGMA table_info(${tableName})`).all().map(column => column.name));
+}
+
+function addColumnIfMissing(tableName, columnName, columnDefinition) {
+    const columns = getTableColumns(tableName);
+    if (columns.has(columnName)) return;
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
+}
+
+function ensureFieldColumns() {
+    addColumnIfMissing('classes', 'planned_sessions', 'INTEGER');
+    addColumnIfMissing('classes', 'archived', 'INTEGER DEFAULT 0');
+    addColumnIfMissing('classes', 'archived_at', 'TEXT');
+    addColumnIfMissing('classes', 'archived_snapshot_json', 'TEXT');
+
+    addColumnIfMissing('students', 'first_enroll_date', 'TEXT');
+    addColumnIfMissing('students', 'follow_up_status', 'TEXT');
+    addColumnIfMissing('students', 'created_at', 'TEXT');
+    addColumnIfMissing('students', 'class_join_sessions_json', 'TEXT');
+    addColumnIfMissing('students', 'class_leave_sessions_json', 'TEXT');
+
+    addColumnIfMissing('prospects', 'grade', 'TEXT');
+    addColumnIfMissing('prospects', 'wechat', 'TEXT');
+    addColumnIfMissing('prospects', 'class_id', 'TEXT');
+
+    addColumnIfMissing('fees', 'student_name', 'TEXT');
+    addColumnIfMissing('grades', 'student_name', 'TEXT');
+    addColumnIfMissing('communications', 'student_name', 'TEXT');
 }
 
 function nowIso() {
@@ -375,6 +422,10 @@ function buildEntityRows(data) {
         max_students: Number(c.maxStudents || c.capacity || 0),
         status: c.status || 'active',
         summer_schedule: c.summerSchedule || '',
+        planned_sessions: Number(c.plannedSessions || 0),
+        archived: c.archived ? 1 : 0,
+        archived_at: c.archivedAt || '',
+        archived_snapshot_json: json(c.archivedStudentSnapshot || []),
         raw_json: json(c)
     }));
 
@@ -390,6 +441,11 @@ function buildEntityRows(data) {
         teacher: s.teacher || '',
         status: s.status || 'active',
         enroll_date: s.enrollDate || '',
+        first_enroll_date: s.firstEnrollDate || '',
+        follow_up_status: s.followUpStatus || '',
+        created_at: s.createdAt || '',
+        class_join_sessions_json: json(s.classJoinSessions || {}),
+        class_leave_sessions_json: json(s.classLeaveSessions || {}),
         remark: s.remark || '',
         archived_at: s._archivedAt || s.archivedAt || '',
         raw_json: json(s)
@@ -398,6 +454,7 @@ function buildEntityRows(data) {
     const feeRows = fees.map((f, index) => ({
         id: normalizeId('fee', index, f.id),
         student_id: f.studentId || null,
+        student_name: f.studentName || '',
         amount: Number(f.amount || 0),
         hours: Number(f.hours || 0),
         price_per_hour: Number(f.pricePerHour || 0),
@@ -434,6 +491,7 @@ function buildEntityRows(data) {
     const gradeRows = grades.map((g, index) => ({
         id: normalizeId('grade', index, g.id),
         student_id: g.studentId || null,
+        student_name: g.studentName || '',
         class_id: g.classId || null,
         test_name: g.testName || '',
         test_date: g.testDate || '',
@@ -449,6 +507,7 @@ function buildEntityRows(data) {
     const communicationRows = communications.map((c, index) => ({
         id: normalizeId('communication', index, c.id),
         student_id: c.studentId || null,
+        student_name: c.studentName || '',
         topic_id: c.topicId || '',
         contact_type: c.contactType || '',
         contact_person: c.contactPerson || '',
@@ -465,6 +524,9 @@ function buildEntityRows(data) {
         name: p.name || '',
         phone: p.phone || '',
         source: p.source || '',
+        grade: p.grade || '',
+        wechat: p.wechat || '',
+        class_id: p.classId || null,
         intent: p.intent || '',
         trial_date: p.trialDate || '',
         trial_status: p.trialStatus || '',
@@ -504,22 +566,22 @@ function clearEntityTables(database) {
 
 function insertEntityRows(database, rows, stamp) {
     const insertClass = database.prepare(`
-        INSERT INTO classes (id, name, grade, class_type, schedule, semester, max_students, status, summer_schedule, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    rows.classes.forEach(row => insertClass.run(row.id, row.name, row.grade, row.class_type, row.schedule, row.semester, row.max_students, row.status, row.summer_schedule, row.raw_json, stamp));
-
-    const insertStudent = database.prepare(`
-        INSERT INTO students (id, name, gender, grade, school, phone, emergency_contact, class_id, teacher, status, enroll_date, remark, archived_at, raw_json, updated_at)
+        INSERT INTO classes (id, name, grade, class_type, schedule, semester, max_students, status, summer_schedule, planned_sessions, archived, archived_at, archived_snapshot_json, raw_json, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    rows.students.forEach(row => insertStudent.run(row.id, row.name, row.gender, row.grade, row.school, row.phone, row.emergency_contact, row.class_id, row.teacher, row.status, row.enroll_date, row.remark, row.archived_at, row.raw_json, stamp));
+    rows.classes.forEach(row => insertClass.run(row.id, row.name, row.grade, row.class_type, row.schedule, row.semester, row.max_students, row.status, row.summer_schedule, row.planned_sessions, row.archived, row.archived_at, row.archived_snapshot_json, row.raw_json, stamp));
+
+    const insertStudent = database.prepare(`
+        INSERT INTO students (id, name, gender, grade, school, phone, emergency_contact, class_id, teacher, status, enroll_date, first_enroll_date, follow_up_status, created_at, class_join_sessions_json, class_leave_sessions_json, remark, archived_at, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.students.forEach(row => insertStudent.run(row.id, row.name, row.gender, row.grade, row.school, row.phone, row.emergency_contact, row.class_id, row.teacher, row.status, row.enroll_date, row.first_enroll_date, row.follow_up_status, row.created_at, row.class_join_sessions_json, row.class_leave_sessions_json, row.remark, row.archived_at, row.raw_json, stamp));
 
     const insertFee = database.prepare(`
-        INSERT INTO fees (id, student_id, amount, hours, price_per_hour, payment_date, payment_method, package_name, status, remark, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO fees (id, student_id, student_name, amount, hours, price_per_hour, payment_date, payment_method, package_name, status, remark, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    rows.fees.forEach(row => insertFee.run(row.id, row.student_id, row.amount, row.hours, row.price_per_hour, row.payment_date, row.payment_method, row.package_name, row.status, row.remark, row.raw_json, stamp));
+    rows.fees.forEach(row => insertFee.run(row.id, row.student_id, row.student_name, row.amount, row.hours, row.price_per_hour, row.payment_date, row.payment_method, row.package_name, row.status, row.remark, row.raw_json, stamp));
 
     const insertAttendanceSession = database.prepare(`
         INSERT INTO attendance_sessions (id, class_id, date, session_name, raw_json, updated_at)
@@ -534,22 +596,22 @@ function insertEntityRows(database, rows, stamp) {
     rows.attendance_records.forEach(row => insertAttendanceRecord.run(row.session_id, row.student_id, row.status, row.consumed_hours, row.note, stamp));
 
     const insertGrade = database.prepare(`
-        INSERT INTO grades (id, student_id, class_id, test_name, test_date, exam_type, score, full_score, ranking, weak_points, remark, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO grades (id, student_id, student_name, class_id, test_name, test_date, exam_type, score, full_score, ranking, weak_points, remark, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    rows.grades.forEach(row => insertGrade.run(row.id, row.student_id, row.class_id, row.test_name, row.test_date, row.exam_type, row.score, row.full_score, row.ranking, row.weak_points, row.remark, row.raw_json, stamp));
+    rows.grades.forEach(row => insertGrade.run(row.id, row.student_id, row.student_name, row.class_id, row.test_name, row.test_date, row.exam_type, row.score, row.full_score, row.ranking, row.weak_points, row.remark, row.raw_json, stamp));
 
     const insertCommunication = database.prepare(`
-        INSERT INTO communications (id, student_id, topic_id, contact_type, contact_person, contact_date, teacher, status, content, follow_up, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    rows.communications.forEach(row => insertCommunication.run(row.id, row.student_id, row.topic_id, row.contact_type, row.contact_person, row.contact_date, row.teacher, row.status, row.content, row.follow_up, row.raw_json, stamp));
-
-    const insertProspect = database.prepare(`
-        INSERT INTO prospects (id, name, phone, source, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, raw_json, updated_at)
+        INSERT INTO communications (id, student_id, student_name, topic_id, contact_type, contact_person, contact_date, teacher, status, content, follow_up, raw_json, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    rows.prospects.forEach(row => insertProspect.run(row.id, row.name, row.phone, row.source, row.intent, row.trial_date, row.trial_status, row.deal_status, row.remark, row.create_date, row.converted_student_id, row.raw_json, stamp));
+    rows.communications.forEach(row => insertCommunication.run(row.id, row.student_id, row.student_name, row.topic_id, row.contact_type, row.contact_person, row.contact_date, row.teacher, row.status, row.content, row.follow_up, row.raw_json, stamp));
+
+    const insertProspect = database.prepare(`
+        INSERT INTO prospects (id, name, phone, source, grade, wechat, class_id, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    rows.prospects.forEach(row => insertProspect.run(row.id, row.name, row.phone, row.source, row.grade, row.wechat, row.class_id, row.intent, row.trial_date, row.trial_status, row.deal_status, row.remark, row.create_date, row.converted_student_id, row.raw_json, stamp));
 }
 
 function syncEntityTables(data) {

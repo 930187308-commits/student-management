@@ -66,6 +66,10 @@ function buildMigrationPlan(data) {
         max_students: Number(c.maxStudents || c.capacity || 0),
         status: c.status || 'active',
         summer_schedule: c.summerSchedule || '',
+        planned_sessions: Number(c.plannedSessions || 0),
+        archived: c.archived ? 1 : 0,
+        archived_at: c.archivedAt || '',
+        archived_snapshot_json: json(c.archivedStudentSnapshot || []),
         raw_json: json(c)
     }));
 
@@ -85,6 +89,11 @@ function buildMigrationPlan(data) {
             teacher: s.teacher || '',
             status: s.status || 'active',
             enroll_date: s.enrollDate || '',
+            first_enroll_date: s.firstEnrollDate || '',
+            follow_up_status: s.followUpStatus || '',
+            created_at: s.createdAt || '',
+            class_join_sessions_json: json(s.classJoinSessions || {}),
+            class_leave_sessions_json: json(s.classLeaveSessions || {}),
             remark: s.remark || '',
             archived_at: s._archivedAt || s.archivedAt || '',
             raw_json: json(s)
@@ -98,6 +107,7 @@ function buildMigrationPlan(data) {
         return {
             id: normalizeId('fee', index, f.id),
             student_id: f.studentId || null,
+            student_name: f.studentName || '',
             amount: Number(f.amount || 0),
             hours: Number(f.hours || 0),
             price_per_hour: Number(f.pricePerHour || 0),
@@ -145,6 +155,7 @@ function buildMigrationPlan(data) {
         return {
             id: normalizeId('grade', index, g.id),
             student_id: g.studentId || null,
+            student_name: g.studentName || '',
             class_id: g.classId || null,
             test_name: g.testName || '',
             test_date: g.testDate || '',
@@ -165,6 +176,7 @@ function buildMigrationPlan(data) {
         return {
             id: normalizeId('communication', index, c.id),
             student_id: c.studentId || null,
+            student_name: c.studentName || '',
             topic_id: c.topicId || '',
             contact_type: c.contactType || '',
             contact_person: c.contactPerson || '',
@@ -182,6 +194,9 @@ function buildMigrationPlan(data) {
         name: p.name || '',
         phone: p.phone || '',
         source: p.source || '',
+        grade: p.grade || '',
+        wechat: p.wechat || '',
+        class_id: p.classId || null,
         intent: p.intent || '',
         trial_date: p.trialDate || '',
         trial_status: p.trialStatus || '',
@@ -238,29 +253,32 @@ function insertRows(db, rows) {
     const stamp = new Date().toISOString();
 
     const insertClass = db.prepare(`
-        INSERT INTO classes (id, name, grade, class_type, schedule, semester, max_students, status, summer_schedule, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO classes (id, name, grade, class_type, schedule, semester, max_students, status, summer_schedule, planned_sessions, archived, archived_at, archived_snapshot_json, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     rows.classes.forEach(row => insertClass.run(
         row.id, row.name, row.grade, row.class_type, row.schedule, row.semester,
-        row.max_students, row.status, row.summer_schedule, row.raw_json, stamp
+        row.max_students, row.status, row.summer_schedule, row.planned_sessions, row.archived,
+        row.archived_at, row.archived_snapshot_json, row.raw_json, stamp
     ));
 
     const insertStudent = db.prepare(`
-        INSERT INTO students (id, name, gender, grade, school, phone, emergency_contact, class_id, teacher, status, enroll_date, remark, archived_at, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO students (id, name, gender, grade, school, phone, emergency_contact, class_id, teacher, status, enroll_date, first_enroll_date, follow_up_status, created_at, class_join_sessions_json, class_leave_sessions_json, remark, archived_at, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     rows.students.forEach(row => insertStudent.run(
         row.id, row.name, row.gender, row.grade, row.school, row.phone, row.emergency_contact,
-        row.class_id, row.teacher, row.status, row.enroll_date, row.remark, row.archived_at, row.raw_json, stamp
+        row.class_id, row.teacher, row.status, row.enroll_date, row.first_enroll_date,
+        row.follow_up_status, row.created_at, row.class_join_sessions_json,
+        row.class_leave_sessions_json, row.remark, row.archived_at, row.raw_json, stamp
     ));
 
     const insertFee = db.prepare(`
-        INSERT INTO fees (id, student_id, amount, hours, price_per_hour, payment_date, payment_method, package_name, status, remark, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO fees (id, student_id, student_name, amount, hours, price_per_hour, payment_date, payment_method, package_name, status, remark, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     rows.fees.forEach(row => insertFee.run(
-        row.id, row.student_id, row.amount, row.hours, row.price_per_hour, row.payment_date,
+        row.id, row.student_id, row.student_name, row.amount, row.hours, row.price_per_hour, row.payment_date,
         row.payment_method, row.package_name, row.status, row.remark, row.raw_json, stamp
     ));
 
@@ -281,30 +299,31 @@ function insertRows(db, rows) {
     ));
 
     const insertGrade = db.prepare(`
-        INSERT INTO grades (id, student_id, class_id, test_name, test_date, exam_type, score, full_score, ranking, weak_points, remark, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO grades (id, student_id, student_name, class_id, test_name, test_date, exam_type, score, full_score, ranking, weak_points, remark, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     rows.grades.forEach(row => insertGrade.run(
-        row.id, row.student_id, row.class_id, row.test_name, row.test_date, row.exam_type,
+        row.id, row.student_id, row.student_name, row.class_id, row.test_name, row.test_date, row.exam_type,
         row.score, row.full_score, row.ranking, row.weak_points, row.remark, row.raw_json, stamp
     ));
 
     const insertCommunication = db.prepare(`
-        INSERT INTO communications (id, student_id, topic_id, contact_type, contact_person, contact_date, teacher, status, content, follow_up, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO communications (id, student_id, student_name, topic_id, contact_type, contact_person, contact_date, teacher, status, content, follow_up, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     rows.communications.forEach(row => insertCommunication.run(
-        row.id, row.student_id, row.topic_id, row.contact_type, row.contact_person, row.contact_date,
+        row.id, row.student_id, row.student_name, row.topic_id, row.contact_type, row.contact_person, row.contact_date,
         row.teacher, row.status, row.content, row.follow_up, row.raw_json, stamp
     ));
 
     const insertProspect = db.prepare(`
-        INSERT INTO prospects (id, name, phone, source, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO prospects (id, name, phone, source, grade, wechat, class_id, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     rows.prospects.forEach(row => insertProspect.run(
-        row.id, row.name, row.phone, row.source, row.intent, row.trial_date, row.trial_status,
-        row.deal_status, row.remark, row.create_date, row.converted_student_id, row.raw_json, stamp
+        row.id, row.name, row.phone, row.source, row.grade, row.wechat, row.class_id,
+        row.intent, row.trial_date, row.trial_status, row.deal_status, row.remark,
+        row.create_date, row.converted_student_id, row.raw_json, stamp
     ));
 }
 
