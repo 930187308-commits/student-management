@@ -416,6 +416,9 @@
 - 已执行迁移 apply 补齐当前实体表字段，执行前自动创建服务器备份。
 - 字段覆盖检查结果：
   - 班级、学员、意向学员、收费、考勤、成绩、沟通的当前真实字段 `rawOnlyFieldCount` 均为 0。
+- 新增字段化读取一致性检查脚本：`server/check-sqlite-field-read-parity.js`。
+- 新增命令：`npm run sqlite:field-read-parity`。
+- 该脚本只比较实体列与 `raw_json` 中同名业务字段是否一致，不输出真实字段值。
 - 运行时验证仍通过：
   - 实体表数量与快照一致。
   - 课消、已缴/欠费数量和金额统计一致。
