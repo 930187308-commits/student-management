@@ -2,14 +2,24 @@
 
 function renderDashboard() {
     const container = document.getElementById('tab-dashboard');
-    const pendingFees = data.fees.filter(f => f.status === 'pending');
-
-    const classStats = data.classes.filter(c => c.status === 'active').map(c => {
-        const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
-        // 计划课次：班级 plannedSessions；已进行课次：考勤记录次数
-        const completedSessions = data.attendance.filter(a => a.classId === c.id).length;
-        return { ...c, currentCount: count, completedSessions };
-    });
+    if (!dashboardSummaryCache && !dashboardSummaryLoading) {
+        dashboardSummaryLoading = true;
+        loadDashboardSummaryFromApi()
+            .then(summary => {
+                dashboardSummaryCache = summary;
+                renderStats();
+                renderDashboard();
+            })
+            .catch(error => {
+                console.log('读取后端首页汇总失败，使用本地计算:', error);
+            })
+            .finally(() => {
+                dashboardSummaryLoading = false;
+            });
+    }
+    const summary = dashboardSummaryCache || buildLocalDashboardSummary();
+    const pendingFees = summary.pendingFees || [];
+    const classStats = summary.classOverview || [];
 
     let html = `
         <div class="card">

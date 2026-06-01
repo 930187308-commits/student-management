@@ -13,6 +13,22 @@ function comparable(summary) {
     return rest;
 }
 
+function summarize(summary) {
+    return {
+        activeStudents: summary.activeStudents,
+        totalClasses: summary.totalClasses,
+        totalRevenue: summary.totalRevenue,
+        pendingAmount: summary.pendingAmount,
+        totalHours: summary.totalHours,
+        usedHours: summary.usedHours,
+        absentHours: summary.absentHours,
+        remainingHours: summary.remainingHours,
+        usageRate: summary.usageRate,
+        classOverviewRows: (summary.classOverview || []).length,
+        pendingFeeRows: (summary.pendingFees || []).length
+    };
+}
+
 function main() {
     const fromSnapshot = comparable(createDashboardSummaryFromData(readAppState()));
     const fromSqlite = comparable(createDashboardSummary());
@@ -21,8 +37,8 @@ function main() {
         ok: same,
         checkedAt: new Date().toISOString(),
         same,
-        snapshot: fromSnapshot,
-        sqlite: fromSqlite
+        snapshot: summarize(fromSnapshot),
+        sqlite: summarize(fromSqlite)
     };
     console.log(JSON.stringify(report, null, 2));
     if (!report.ok) process.exit(1);

@@ -189,6 +189,46 @@ function createDashboardSummary(dbPath = config.dbPath) {
     const totalHours = Number(row.totalHours || 0);
     const usedHours = Number(row.usedHours || 0);
     const remainingHours = totalHours - usedHours;
+    const classOverview = db.prepare(`
+        SELECT
+            c.id,
+            c.name,
+            c.grade,
+            c.schedule,
+            c.max_students AS maxStudents,
+            c.planned_sessions AS plannedSessions,
+            COUNT(CASE WHEN s.status = 'active' THEN 1 END) AS currentCount,
+            (
+                SELECT COUNT(*)
+                FROM attendance_sessions a
+                WHERE a.class_id = c.id
+            ) AS completedSessions
+        FROM classes c
+        LEFT JOIN students s ON s.class_id = c.id
+        WHERE c.status = 'active'
+        GROUP BY c.id
+        ORDER BY c.rowid
+    `).all().map(item => ({
+        id: item.id || '',
+        name: item.name || '',
+        grade: item.grade || '',
+        schedule: item.schedule || '',
+        currentCount: Number(item.currentCount || 0),
+        maxStudents: Number(item.maxStudents || 0),
+        plannedSessions: Number(item.plannedSessions || 0),
+        completedSessions: Number(item.completedSessions || 0)
+    }));
+    const pendingFees = db.prepare(`
+        SELECT id, student_name AS studentName, amount
+        FROM fees
+        WHERE status = 'pending'
+        ORDER BY rowid
+    `).all().map(item => ({
+        id: item.id || '',
+        studentName: item.studentName || '',
+        amount: Number(item.amount || 0)
+    }));
+
     return {
         source: 'sqlite_columns',
         activeStudents: Number(row.activeStudents || 0),
@@ -199,7 +239,9 @@ function createDashboardSummary(dbPath = config.dbPath) {
         usedHours,
         absentHours: Number(row.absentHours || 0),
         remainingHours,
-        usageRate: totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0
+        usageRate: totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0,
+        classOverview,
+        pendingFees
     };
 }
 
@@ -218,6 +260,30 @@ function createDashboardSummaryFromData(data) {
         });
     });
     const remainingHours = totalHours - usedHours;
+    const classOverview = (data.classes || [])
+        .filter(item => item.status === 'active')
+        .map(item => {
+            const currentCount = (data.students || []).filter(student => student.classId === item.id && student.status === 'active').length;
+            const completedSessions = (data.attendance || []).filter(session => session.classId === item.id).length;
+            return {
+                id: item.id || '',
+                name: item.name || '',
+                grade: item.grade || '',
+                schedule: item.schedule || '',
+                currentCount,
+                maxStudents: Number(item.maxStudents || 0),
+                plannedSessions: Number(item.plannedSessions || 0),
+                completedSessions
+            };
+        });
+    const pendingFees = (data.fees || [])
+        .filter(fee => fee.status === 'pending')
+        .map(fee => ({
+            id: fee.id || '',
+            studentName: fee.studentName || '',
+            amount: Number(fee.amount || 0)
+        }));
+
     return {
         source: 'app_state_dashboard_logic',
         activeStudents: activeStudents.length,
@@ -228,7 +294,9 @@ function createDashboardSummaryFromData(data) {
         usedHours,
         absentHours,
         remainingHours,
-        usageRate: totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0
+        usageRate: totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0,
+        classOverview,
+        pendingFees
     };
 }
 

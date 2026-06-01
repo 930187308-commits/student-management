@@ -908,7 +908,26 @@ function buildLocalDashboardSummary() {
     });
     const remainingHours = totalHours - usedHours;
     const usageRate = totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0;
-    return { activeStudents, totalClasses, totalRevenue, pendingAmount, totalHours, usedHours, absentHours, remainingHours, usageRate };
+    const classOverview = data.classes
+        .filter(c => c.status === 'active')
+        .map(c => ({
+            id: c.id || '',
+            name: c.name || '',
+            grade: c.grade || '',
+            schedule: c.schedule || '',
+            currentCount: data.students.filter(s => s.classId === c.id && s.status === 'active').length,
+            maxStudents: Number(c.maxStudents || 0),
+            plannedSessions: Number(c.plannedSessions || 0),
+            completedSessions: data.attendance.filter(a => a.classId === c.id).length
+        }));
+    const pendingFees = data.fees
+        .filter(f => f.status === 'pending')
+        .map(f => ({
+            id: f.id || '',
+            studentName: f.studentName || '',
+            amount: Number(f.amount || 0)
+        }));
+    return { activeStudents, totalClasses, totalRevenue, pendingAmount, totalHours, usedHours, absentHours, remainingHours, usageRate, classOverview, pendingFees };
 }
 
 function drawHoursRingChart(used, remaining) {
