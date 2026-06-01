@@ -73,15 +73,57 @@ The LaunchAgent uses `scripts/run-server.sh`, keeps the service alive, and start
 
 ## Current API
 
-This first server version keeps compatibility with the current frontend:
+The server keeps compatibility with the current frontend:
 
-- `GET /data` returns the whole app data snapshot.
-- `PUT /data` saves the whole app data snapshot.
+- `GET /data` returns the whole app data. It currently reads from SQLite entity tables when `STUDENT_READ_FULL_DATA_FROM_SQLITE=1`.
+- `PUT /data` saves the whole app data and double-writes `app_state.data` plus SQLite entity tables.
 - `GET /api/health` checks service health.
 - `GET /api/meta` shows database and backup metadata.
 - `POST /api/backups` creates SQLite and JSON backups.
+- `GET /api/sqlite/status` checks whether SQLite reads are enabled and reconciled.
+- `GET /api/data-sqlite` returns full data assembled from SQLite entity tables.
 
-The SQLite schema already reserves normalized tables for later migration, but the frontend still uses the app-state snapshot in this stage.
+Core module APIs read from SQLite entity tables:
+
+- `GET /api/classes`
+- `GET /api/students`
+- `GET /api/prospects`
+- `GET /api/fees`
+- `GET /api/attendance`
+- `GET /api/grades`
+- `GET /api/communications`
+
+`app_state.data` is still retained as the rollback snapshot.
+
+## SQLite Runtime Checks
+
+Check the managed service and SQLite health:
+
+```bash
+scripts/status-server.sh
+```
+
+Run the full SQLite runtime check:
+
+```bash
+scripts/node.sh server/check-sqlite-runtime.js
+```
+
+Reconcile the app-state snapshot against SQLite entity tables:
+
+```bash
+scripts/node.sh server/reconcile-sqlite-split.js
+```
+
+Enable or disable full `/data` reads from SQLite:
+
+```bash
+scripts/set-sqlite-data-read.sh on
+scripts/set-sqlite-data-read.sh off
+scripts/set-sqlite-data-read.sh status
+```
+
+If real usage shows an unexpected issue, run `scripts/set-sqlite-data-read.sh off` to immediately restore `/data` reads from `app_state.data`.
 
 ## Manual Backup
 
