@@ -376,12 +376,18 @@
 - 新增验证接口 `GET /api/data-sqlite`，从 SQLite 实体表组装完整数据，用于和 `/data` 做并行对比。
 - 正式 `/data` 仍不切换。
 - 新增安全开关：`STUDENT_READ_FULL_DATA_FROM_SQLITE=1` 时，正式 `/data` 才会从 SQLite 实体表组装读取。
-- 当前 launchd 未开启该环境变量，正式 `/data` 仍读 `app_state.data`。
+- 新增切换脚本：`scripts/set-sqlite-data-read.sh on|off|status`。
+- 新增命令：
+  - `npm run sqlite:data-read:on`
+  - `npm run sqlite:data-read:off`
+  - `npm run sqlite:data-read:status`
+- 已开启正式 `/data` SQLite 读路径：launchd 环境变量 `STUDENT_READ_FULL_DATA_FROM_SQLITE=1`。
+- 开启后验证 `/data` 与 `/api/data-sqlite` 完全一致，`reconcile` 仍为 `all_tables_match_snapshot`。
 
 下一步：
 
-- 继续保持前端读 `app_state.data`，暂不切换 API 读路径。
-- 继续验证 `/api/data-sqlite` 与 `/data` 一致性，再决定是否切换正式 `/data`。
+- 继续运行 reconcile 和业务操作验证。
+- 若发现问题，执行 `scripts/set-sqlite-data-read.sh off` 立刻回退到 `app_state.data` 读路径。
 
 ## 后续业务规则规划
 
