@@ -394,6 +394,30 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     gap: 16px;
 }
 
+/* 工作中心侧边栏 */
+.work-center-item {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.work-center-item:hover {
+    background: var(--hover-bg) !important;
+}
+
+/* 任务卡片 */
+.ai-task-card {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.ai-task-card:hover {
+    background: #e8f4fd !important;
+    border-color: #3498db !important;
+}
+.ai-task-card.selected {
+    background: #e8f4fd;
+    border-color: #3498db;
+}
+.ai-task-card-grid {}
+
 /* 业务快照 */
 .ai-snapshot-card {}
 .ai-snapshot-header {
