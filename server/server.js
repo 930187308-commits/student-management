@@ -9,6 +9,7 @@ const { createSqliteMetricsReport, createReportsSummary, createDashboardSummary 
 const { createDataHealthReport } = require('./data-health');
 const { convertProspectToStudent, saveClassWithTransitions, finishClass, archiveClass, unarchiveClass, permanentlyDeleteArchivedClass, cleanSafeDataHealthIssues } = require('./actions');
 const { getAiStatus, generateAIResponse, listAITasks, listAgentLogs } = require('./ai-service');
+const { listResource, getResource, upsertResource, deleteResource, getKnowledgeSummary } = require('./knowledge-service');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -46,6 +47,14 @@ const API_ITEM_COLLECTIONS = new Set([
     'grades',
     'communications'
 ]);
+const KNOWLEDGE_API_ROUTES = [
+    { base: '/api/knowledge/sources', resource: 'knowledgeSources', listKey: 'sources', itemKey: 'source' },
+    { base: '/api/knowledge/chunks', resource: 'knowledgeChunks', listKey: 'chunks', itemKey: 'chunk' },
+    { base: '/api/style/profiles', resource: 'styleProfiles', listKey: 'profiles', itemKey: 'profile' },
+    { base: '/api/style/samples', resource: 'styleSamples', listKey: 'samples', itemKey: 'sample' },
+    { base: '/api/questions', resource: 'questionItems', listKey: 'questions', itemKey: 'question' },
+    { base: '/api/ai/context-refs', resource: 'aiContextRefs', listKey: 'refs', itemKey: 'ref' }
+];
 
 openDatabase();
 
@@ -171,6 +180,7 @@ function serveStatic(req, res, pathname) {
 }
 
 async function handleApi(req, res, pathname) {
+    const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     if (req.method === 'OPTIONS') {
         sendJson(res, 204, {});
         return true;
@@ -245,6 +255,60 @@ async function handleApi(req, res, pathname) {
     if (req.method === 'GET' && pathname === '/api/agent-logs') {
         sendJson(res, 200, { logs: listAgentLogs(50) });
         return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/knowledge/summary') {
+        sendJson(res, 200, getKnowledgeSummary());
+        return true;
+    }
+
+    const knowledgeRoute = KNOWLEDGE_API_ROUTES.find(route => pathname === route.base || pathname.startsWith(`${route.base}/`));
+    if (knowledgeRoute) {
+        const itemPath = pathname === knowledgeRoute.base ? '' : decodeURIComponent(pathname.slice(knowledgeRoute.base.length + 1));
+        if (!itemPath) {
+            if (req.method === 'GET') {
+                const filters = Object.fromEntries(requestUrl.searchParams.entries());
+                sendJson(res, 200, { [knowledgeRoute.listKey]: listResource(knowledgeRoute.resource, filters) });
+                return true;
+            }
+
+            if (req.method === 'POST') {
+                const rawBody = await readRequestBody(req);
+                const parsed = JSON.parse(rawBody || '{}');
+                const item = parsed.item || parsed[knowledgeRoute.itemKey] || parsed;
+                const result = upsertResource(knowledgeRoute.resource, item);
+                sendJson(res, result.created ? 201 : 200, {
+                    [knowledgeRoute.itemKey]: result.item,
+                    created: result.created
+                });
+                return true;
+            }
+        }
+
+        if (itemPath && !itemPath.includes('/')) {
+            if (req.method === 'GET') {
+                sendJson(res, 200, { [knowledgeRoute.itemKey]: getResource(knowledgeRoute.resource, itemPath) });
+                return true;
+            }
+
+            if (req.method === 'PUT' || req.method === 'PATCH') {
+                const rawBody = await readRequestBody(req);
+                const parsed = JSON.parse(rawBody || '{}');
+                const bodyItem = parsed.item || parsed[knowledgeRoute.itemKey] || parsed;
+                const existing = req.method === 'PATCH' ? getResource(knowledgeRoute.resource, itemPath) : {};
+                const result = upsertResource(knowledgeRoute.resource, { ...existing, ...bodyItem, id: itemPath });
+                sendJson(res, result.created ? 201 : 200, {
+                    [knowledgeRoute.itemKey]: result.item,
+                    created: result.created
+                });
+                return true;
+            }
+
+            if (req.method === 'DELETE') {
+                sendJson(res, 200, deleteResource(knowledgeRoute.resource, itemPath));
+                return true;
+            }
+        }
     }
 
     if (req.method === 'GET' && pathname === '/api/data-sqlite') {

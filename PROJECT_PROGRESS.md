@@ -1323,3 +1323,52 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - Stage 7C：风格库 MVP
 - Stage 7D：资料库 MVP
 - Stage 7E：题库 MVP
+
+### Stage 7B 资料库后端表结构 MVP 完成内容（2026-06-03）
+
+**目标**：为后续网页端资料库、风格库、题库页面提供真实 SQLite 表结构和基础 API。
+
+#### A. SQLite 表结构
+- 新增 `knowledge_sources`：资料来源、摘要、标签、文件路径、可信度
+- 新增 `knowledge_chunks`：资料片段，为后续长文拆分和检索准备
+- 新增 `style_profiles`：风格规则、禁用词、常用表达、平台类型
+- 新增 `style_samples`：风格样本，用于积累白老师表达语料
+- 新增 `question_items`：数学题库题目、知识点、难度、答案、解析、易错点
+- 新增 `ai_context_refs`：AI 生成时引用资料的追溯记录
+
+#### B. 后端服务
+- 新增 `server/knowledge-service.js`
+- 支持资料库、风格库、题库、AI 引用记录的基础 CRUD
+- 支持简单搜索和筛选：
+  - `q`
+  - `category`
+  - `grade`
+  - `profileId`
+  - `sourceId`
+
+#### C. API
+- `GET/POST /api/knowledge/sources`
+- `GET/POST /api/knowledge/chunks`
+- `GET/POST /api/style/profiles`
+- `GET/POST /api/style/samples`
+- `GET/POST /api/questions`
+- `GET/POST /api/ai/context-refs`
+- `GET /api/knowledge/summary`
+- 单条记录支持 `GET/PUT/PATCH/DELETE`
+
+#### D. Runtime Check
+- 新增 `server/check-knowledge-runtime.js`
+- 新增 `npm run knowledge:runtime-check`
+- `npm run backend:check` 已纳入知识库检查
+- 当前 `backend:check` 14 项全部通过
+
+**明确说明**
+- 本阶段只做后端表结构和基础 API
+- 不扫描 Obsidian
+- 不解析 PDF/Excel
+- 不做 OCR/公式识别
+- 不让 AI 自动修改业务数据
+
+**下一步**
+- Claude 可开始做网页端风格库、资料库、题库管理页面
+- Codex 下一步可继续做 AI 上下文引用：生成时读取风格规则和资料摘要

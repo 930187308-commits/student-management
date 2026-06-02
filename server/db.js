@@ -252,6 +252,99 @@ function migrate() {
             output_json TEXT,
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS knowledge_sources (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            source_type TEXT,
+            category TEXT,
+            sub_category TEXT,
+            file_path TEXT,
+            source_url TEXT,
+            status TEXT,
+            trust_level TEXT,
+            grade TEXT,
+            tags_json TEXT,
+            summary TEXT,
+            raw_text TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS knowledge_chunks (
+            id TEXT PRIMARY KEY,
+            source_id TEXT NOT NULL,
+            chunk_index INTEGER,
+            title TEXT,
+            content TEXT NOT NULL,
+            summary TEXT,
+            tags_json TEXT,
+            token_estimate INTEGER,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(source_id) REFERENCES knowledge_sources(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS style_profiles (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            rules_text TEXT,
+            forbidden_words_json TEXT,
+            preferred_phrases_json TEXT,
+            platform TEXT,
+            is_default INTEGER DEFAULT 0,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS style_samples (
+            id TEXT PRIMARY KEY,
+            profile_id TEXT,
+            title TEXT,
+            sample_type TEXT,
+            content TEXT NOT NULL,
+            quality TEXT,
+            tags_json TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(profile_id) REFERENCES style_profiles(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS question_items (
+            id TEXT PRIMARY KEY,
+            grade TEXT,
+            system TEXT,
+            chapter TEXT,
+            knowledge_points_json TEXT,
+            question_type TEXT,
+            difficulty TEXT,
+            source_id TEXT,
+            source_name TEXT,
+            stem TEXT NOT NULL,
+            answer TEXT,
+            solution TEXT,
+            common_mistakes TEXT,
+            error_tags_json TEXT,
+            class_type TEXT,
+            usage_count INTEGER DEFAULT 0,
+            status TEXT,
+            remark TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(source_id) REFERENCES knowledge_sources(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS ai_context_refs (
+            id TEXT PRIMARY KEY,
+            ai_task_id TEXT NOT NULL,
+            ref_type TEXT,
+            ref_id TEXT,
+            title TEXT,
+            summary TEXT,
+            created_at TEXT,
+            FOREIGN KEY(ai_task_id) REFERENCES ai_tasks(id) ON DELETE CASCADE
+        );
     `);
     ensureFieldColumns();
 
