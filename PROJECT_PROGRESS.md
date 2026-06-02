@@ -12,7 +12,7 @@
 
 - GitHub 仓库：`930187308-commits/student-management`
 - 当前主协作分支：`feature/server-sqlite`
-- 当前最新提交：`7d5c16a`
+- 当前最新提交：以 GitHub `feature/server-sqlite` 最新 HEAD 为准
 - 当前稳定标签：`stage-2-real-data-operational`
 - Mac mini 项目目录：`/Users/bzx/Projects/student-ai-console`
 - Mac mini 数据目录：`/Users/bzx/Data/student-ai-console`
@@ -607,3 +607,7 @@
 ## 前端真实使用可用版本
 
 2026-06-02：前端真实使用体验已完成多轮优化，导入导出、数据体检、批量操作、考勤、班级归档、移动端适配已基本可用。下一阶段进入 SQLite 拆表与后端数据结构整理。
+
+## 后端运行验收基线
+
+2026-06-02：进入后端阶段后，新增统一后端运行检查命令 `npm run backend:check`。该命令会串联验证 SQLite 读路径、字段覆盖、字段读取一致性、指标、报表、首页汇总、数据体检、集合 API、单条 API，作为后续 SQLite 拆表和后端改动前后的固定验收基线。

@@ -129,6 +129,14 @@ Run the full SQLite runtime check:
 scripts/node.sh server/check-sqlite-runtime.js
 ```
 
+Run the full backend runtime baseline before and after backend changes:
+
+```bash
+npm run backend:check
+```
+
+This runs the SQLite read path, field coverage, field/read parity, metrics, reports, dashboard, data-health, collection API, and single-record API checks together.
+
 Reconcile the app-state snapshot against SQLite entity tables:
 
 ```bash
