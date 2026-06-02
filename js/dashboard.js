@@ -3,6 +3,7 @@
 // 待办本地存储键
 const TODO_STORAGE_KEY = 'studentManageTodos_v1';
 
+// ========== 待办数据 ==========
 function getTodos() {
     try {
         return JSON.parse(localStorage.getItem(TODO_STORAGE_KEY) || '[]');
@@ -13,7 +14,7 @@ function saveTodos(todos) {
     localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
 }
 
-function addTodo(text, category) {
+function addTodo(text, category, dateStr) {
     if (!text.trim()) return;
     const todos = getTodos();
     todos.unshift({
@@ -21,10 +22,11 @@ function addTodo(text, category) {
         text: text.trim(),
         category: category || '其他',
         done: false,
+        dateStr: dateStr || '',
         createdAt: new Date().toISOString()
     });
     saveTodos(todos.slice(0, 50));
-    renderTodoList();
+    renderTodoCalendarArea();
 }
 
 function toggleTodo(id) {
@@ -32,50 +34,219 @@ function toggleTodo(id) {
     const todo = todos.find(t => t.id === id);
     if (todo) todo.done = !todo.done;
     saveTodos(todos);
-    renderTodoList();
+    renderTodoCalendarArea();
 }
 
 function deleteTodo(id) {
     let todos = getTodos();
     todos = todos.filter(t => t.id !== id);
     saveTodos(todos);
-    renderTodoList();
+    renderTodoCalendarArea();
 }
 
-function renderTodoList() {
-    const container = document.getElementById('todoList');
-    if (!container) return;
+function getTodosByDate(dateStr) {
+    return getTodos().filter(t => t.dateStr === dateStr);
+}
+
+function getTodoDates() {
     const todos = getTodos();
-    const activeTodos = todos.filter(t => !t.done).slice(0, 5);
-    const doneTodos = todos.filter(t => t.done).slice(0, 3);
+    const dates = {};
+    todos.forEach(t => {
+        if (t.dateStr) dates[t.dateStr] = true;
+    });
+    return dates;
+}
 
-    if (todos.length === 0) {
-        container.innerHTML = '<div class="todo-empty">暂无待办</div>';
-        return;
+// ========== 小日历渲染 ==========
+function renderMiniCalendar(year, month, selectedDate, onSelect) {
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    const todoDates = getTodoDates();
+
+    const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+    const monthName = `${year}年${month + 1}月`;
+
+    let cells = '';
+    // 空单元格
+    for (let i = 0; i < firstDay; i++) {
+        cells += '<div class="mc-cell mc-empty"></div>';
+    }
+    // 日期单元格
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+        const isSelected = selectedDate === dateStr;
+        const hasTodo = todoDates[dateStr];
+        const classes = [
+            'mc-cell',
+            isToday ? 'mc-today' : '',
+            isSelected ? 'mc-selected' : '',
+        ].filter(Boolean).join(' ');
+        cells += `<div class="${classes}" onclick="${onSelect}('${dateStr}')" style="cursor:pointer;">
+            <span class="mc-day-num">${d}</span>
+            ${hasTodo ? '<span class="mc-dot"></span>' : ''}
+        </div>`;
     }
 
-    let html = '';
-    if (activeTodos.length > 0) {
-        html += activeTodos.map(t => `
-            <div class="todo-item">
-                <input type="checkbox" onchange="toggleTodo(${t.id})">
-                <span class="todo-text">${escapeHtml(t.text)}</span>
-                <span class="todo-cat">${escapeHtml(t.category)}</span>
-                <button class="btn btn-xs" onclick="deleteTodo(${t.id})" style="padding:2px 6px;">×</button>
+    return `
+        <div class="mini-calendar">
+            <div class="mc-header">
+                <button class="btn btn-xs mc-nav" onclick="changeCalMonth(-1)">&lt;</button>
+                <span class="mc-month">${monthName}</span>
+                <button class="btn btn-xs mc-nav" onclick="changeCalMonth(1)">&gt;</button>
             </div>
-        `).join('');
-    }
-    if (doneTodos.length > 0) {
-        html += doneTodos.map(t => `
-            <div class="todo-item todo-done">
-                <input type="checkbox" checked onchange="toggleTodo(${t.id})">
-                <span class="todo-text">${escapeHtml(t.text)}</span>
-                <span class="todo-cat">${escapeHtml(t.category)}</span>
-                <button class="btn btn-xs" onclick="deleteTodo(${t.id})" style="padding:2px 6px;">×</button>
+            <div class="mc-weekdays">
+                ${dayNames.map(d => `<div class="mc-weekday">${d}</div>`).join('')}
             </div>
-        `).join('');
+            <div class="mc-grid">
+                ${cells}
+            </div>
+        </div>
+    `;
+}
+
+// ========== 待办+日历 区域 ==========
+function renderTodoCalendarArea() {
+    const container = document.getElementById('todoCalendarArea');
+    if (!container) return;
+
+    const todos = getTodos();
+    const selectedDate = container.dataset.selectedDate || '';
+    const activeTodos = todos.filter(t => !t.done);
+    const doneTodos = todos.filter(t => t.done);
+
+    // 左侧：待办列表
+    let todoListHtml = '';
+    if (activeTodos.length === 0 && doneTodos.length === 0) {
+        todoListHtml = '<div class="tc-empty">暂无待办，点击右侧日期添加</div>';
+    } else {
+        if (activeTodos.length > 0) {
+            todoListHtml += activeTodos.slice(0, 8).map(t => `
+                <div class="tc-todo-item">
+                    <input type="checkbox" onchange="toggleTodo(${t.id})">
+                    <span class="tc-todo-text">${escapeHtml(t.text)}</span>
+                    <span class="tc-todo-cat">${escapeHtml(t.category)}</span>
+                    <button class="btn btn-xs tc-todo-del" onclick="deleteTodo(${t.id})">×</button>
+                </div>
+            `).join('');
+        }
+        if (doneTodos.length > 0) {
+            todoListHtml += doneTodos.slice(0, 4).map(t => `
+                <div class="tc-todo-item tc-todo-done">
+                    <input type="checkbox" checked onchange="toggleTodo(${t.id})">
+                    <span class="tc-todo-text">${escapeHtml(t.text)}</span>
+                    <span class="tc-todo-cat">${escapeHtml(t.category)}</span>
+                    <button class="btn btn-xs tc-todo-del" onclick="deleteTodo(${t.id})">×</button>
+                </div>
+            `).join('');
+        }
     }
-    container.innerHTML = html;
+
+    // 右侧：选中日期的待办 + 日历
+    let rightHtml = '';
+    if (selectedDate) {
+        const dateTodos = getTodosByDate(selectedDate);
+        const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+        rightHtml = `
+            <div class="tc-selected-todos">
+                <div class="tc-selected-date">${dateLabel}</div>
+                ${dateTodos.length === 0 ? '<div class="tc-empty">当天无待办</div>' : dateTodos.map(t => `
+                    <div class="tc-todo-item ${t.done ? 'tc-todo-done' : ''}">
+                        <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTodo(${t.id})">
+                        <span class="tc-todo-text">${escapeHtml(t.text)}</span>
+                        <span class="tc-todo-cat">${escapeHtml(t.category)}</span>
+                    </div>
+                `).join('')}
+                <div class="tc-add-date-todo">
+                    <input type="text" id="dateTodoInput" placeholder="添加待办事项..." style="flex:1;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;font-size:12px;background:var(--input-bg);color:var(--text-primary);" onkeydown="if(event.key==='Enter')addDateTodo()">
+                    <button class="btn btn-xs btn-primary" onclick="addDateTodo()">+</button>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="todo-calendar-layout">
+            <div class="tc-left">
+                <div class="tc-add-row">
+                    <input type="text" id="todoInput" placeholder="添加待办事项..." style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--input-bg);color:var(--text-primary);" onkeydown="if(event.key==='Enter')submitTodo()">
+                    <select id="todoCategory" style="padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
+                        <option value="教务">教务</option>
+                        <option value="招生">招生</option>
+                        <option value="续费">续费</option>
+                        <option value="教学">教学</option>
+                        <option value="财务">财务</option>
+                        <option value="其他">其他</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="submitTodo()">添加</button>
+                </div>
+                <div class="tc-todo-list">${todoListHtml}</div>
+            </div>
+            <div class="tc-right">
+                ${rightHtml}
+                <div id="miniCalendarContainer"></div>
+            </div>
+        </div>
+    `;
+
+    // 渲染日历
+    renderMiniCalendarIntoContainer();
+}
+
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function renderMiniCalendarIntoContainer() {
+    const calContainer = document.getElementById('miniCalendarContainer');
+    if (!calContainer) return;
+    const selectedDate = document.getElementById('todoCalendarArea')?.dataset.selectedDate || '';
+    calContainer.innerHTML = renderMiniCalendar(calYear, calMonth, selectedDate, 'onCalDateSelect');
+}
+
+function changeCalMonth(delta) {
+    calMonth += delta;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    renderMiniCalendarIntoContainer();
+}
+
+function onCalDateSelect(dateStr) {
+    const container = document.getElementById('todoCalendarArea');
+    if (container) container.dataset.selectedDate = dateStr;
+    renderTodoCalendarArea();
+}
+
+function addDateTodo() {
+    const input = document.getElementById('dateTodoInput');
+    const container = document.getElementById('todoCalendarArea');
+    if (!input || !input.value.trim()) return;
+    const dateStr = container?.dataset.selectedDate || '';
+    const catSelect = document.getElementById('todoCategory');
+    addTodo(input.value, catSelect ? catSelect.value : '其他', dateStr);
+}
+
+function submitTodo() {
+    const input = document.getElementById('todoInput');
+    const catSelect = document.getElementById('todoCategory');
+    if (input && input.value.trim()) {
+        addTodo(input.value, catSelect ? catSelect.value : '其他', '');
+        input.value = '';
+    }
+}
+
+function toggleTodoForm() {
+    const form = document.getElementById('todoForm');
+    const btn = document.getElementById('todoToggleBtn');
+    if (form) {
+        const isHidden = form.style.display === 'none';
+        form.style.display = isHidden ? 'block' : 'none';
+        if (btn) btn.textContent = isHidden ? '取消' : '+ 添加';
+        if (isHidden) {
+            const input = document.getElementById('todoInput');
+            if (input) input.focus();
+        }
+    }
 }
 
 function getTodayWorkData() {
@@ -130,7 +301,6 @@ function renderDashboard() {
             <span class="card-title">今日工作台</span>
         </div>
         <div class="workspace-body">
-            <!-- 工作提醒 -->
             <div class="workspace-reminders">
                 <div class="reminder-grid">
                     <div class="reminder-item" onclick="goToAttendanceToday()">
@@ -155,8 +325,6 @@ function renderDashboard() {
                     </div>
                 </div>
             </div>
-
-            <!-- 快捷操作 -->
             <div class="workspace-actions">
                 <button class="btn btn-primary btn-sm" onclick="switchTab('students'); setTimeout(() => openStudentModal(), 100)">+ 学员</button>
                 <button class="btn btn-success btn-sm" onclick="switchTab('fees'); setTimeout(() => openFeeModal(), 100)">+ 缴费</button>
@@ -169,26 +337,13 @@ function renderDashboard() {
     </div>
     `;
 
-    // ===== 待办/备忘录 =====
+    // ===== 待办/备忘录 + 日历 =====
     html += `
-    <div class="card dashboard-todo">
+    <div class="card">
         <div class="card-header">
             <span class="card-title">待办 / 备忘录</span>
-            <button class="btn btn-secondary btn-xs" onclick="toggleTodoForm()" id="todoToggleBtn">+ 添加</button>
         </div>
-        <div id="todoForm" style="display:none; margin-bottom: 12px;">
-            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <input type="text" id="todoInput" placeholder="输入待办内容..." style="flex:1; min-width:150px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; background:var(--input-bg); color:var(--text-primary);" onkeydown="if(event.key==='Enter')submitTodo()">
-                <select id="todoCategory" style="padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:13px; background:var(--input-bg); color:var(--text-primary);">
-                    <option value="教务">教务</option>
-                    <option value="招生">招生</option>
-                    <option value="续费">续费</option>
-                    <option value="其他">其他</option>
-                </select>
-                <button class="btn btn-primary btn-sm" onclick="submitTodo()">添加</button>
-            </div>
-        </div>
-        <div id="todoList"></div>
+        <div id="todoCalendarArea" data-selected-date="" class="todo-calendar-wrapper"></div>
     </div>
     `;
 
@@ -238,53 +393,9 @@ function renderDashboard() {
     </div>
     `;
 
-    // ===== 欠费提醒摘要 =====
-    const displayFees = pendingFees.slice(0, 3);
-    const extraCount = pendingFees.length - 3;
-    html += `
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">欠费提醒</span>
-            <button class="btn btn-secondary btn-sm" onclick="switchTab('fees')">去收费记录</button>
-        </div>
-        ${pendingFees.length === 0 ? '<div class="empty-state">暂无欠费记录</div>' : `
-            <table>
-                <thead><tr><th>学员</th><th>欠费金额</th><th>操作</th></tr></thead>
-                <tbody>
-                    ${displayFees.map(f => `<tr class="row-warning"><td>${maskStudentName(f.studentName)}</td><td><strong style="color:#e74c3c;font-size:15px;">${getPrivacyAmount(f.amount)}</strong></td><td><button class="btn btn-success btn-xs" onclick="openFeeModal('${escapeHtml(f.id)}')" style="padding:4px 10px;">去缴费</button></td></tr>`).join('')}
-                </tbody>
-            </table>
-            ${extraCount > 0 ? `<div style="text-align:center;color:#888;font-size:13px;margin-top:8px;">还有 ${getPrivacyVal(extraCount)} 条，去收费记录查看</div>` : ''}
-        `}
-    </div>
-    `;
-
     container.innerHTML = html;
-    renderTodoList();
+    renderTodoCalendarArea();
     updatePrivacyBtnLabel();
-}
-
-function submitTodo() {
-    const input = document.getElementById('todoInput');
-    const catSelect = document.getElementById('todoCategory');
-    if (input) {
-        addTodo(input.value, catSelect ? catSelect.value : '其他');
-        input.value = '';
-    }
-}
-
-function toggleTodoForm() {
-    const form = document.getElementById('todoForm');
-    const btn = document.getElementById('todoToggleBtn');
-    if (form) {
-        const isHidden = form.style.display === 'none';
-        form.style.display = isHidden ? 'block' : 'none';
-        if (btn) btn.textContent = isHidden ? '取消' : '+ 添加';
-        if (isHidden) {
-            const input = document.getElementById('todoInput');
-            if (input) input.focus();
-        }
-    }
 }
 
 function goToAttendanceToday() {

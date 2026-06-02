@@ -310,6 +310,53 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
 }
 
+/* ==================== 待办/日历布局 ==================== */
+.todo-calendar-wrapper { min-height: 300px; }
+.todo-calendar-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 16px;
+}
+.tc-left { display: flex; flex-direction: column; gap: 12px; }
+.tc-right { display: flex; flex-direction: column; gap: 12px; }
+.tc-add-row { display: flex; gap: 8px; align-items: center; }
+.tc-todo-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+.tc-todo-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--hover-bg); border-radius: 6px; }
+.tc-todo-item input[type="checkbox"] { cursor: pointer; flex-shrink: 0; }
+.tc-todo-text { flex: 1; font-size: 13px; color: var(--text-primary); }
+.tc-todo-cat { font-size: 11px; color: var(--text-muted); background: var(--border-color); padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+.tc-todo-del { color: #e74c3c; background: none; border: none; cursor: pointer; padding: 2px 4px; font-size: 14px; }
+.tc-todo-del:hover { color: #c0392b; }
+.tc-todo-done .tc-todo-text { text-decoration: line-through; color: var(--text-muted); }
+.tc-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+.tc-selected-todos { background: var(--hover-bg); border-radius: 8px; padding: 12px; }
+.tc-selected-date { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+.tc-add-date-todo { display: flex; gap: 6px; margin-top: 8px; }
+
+/* 小日历 */
+.mini-calendar { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; }
+.mc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.mc-month { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.mc-nav { padding: 4px 8px; font-size: 12px; cursor: pointer; background: var(--hover-bg); border: none; border-radius: 4px; }
+.mc-nav:hover { background: var(--border-color); }
+.mc-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px; }
+.mc-weekday { text-align: center; font-size: 11px; color: var(--text-muted); padding: 4px 0; }
+.mc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.mc-cell { text-align: center; padding: 6px 2px; font-size: 12px; color: var(--text-primary); border-radius: 4px; }
+.mc-cell:not(.mc-empty):hover { background: var(--hover-bg); cursor: pointer; }
+.mc-empty { }
+.mc-today { background: #3498db; color: white; font-weight: 600; }
+.mc-today:hover { background: #2980b9; }
+.mc-selected { background: #2ecc71; color: white; }
+.mc-selected:hover { background: #27ae60; }
+.mc-day-num { display: block; }
+.mc-dot { display: block; width: 4px; height: 4px; background: #e74c3c; border-radius: 50%; margin: 2px auto 0; }
+
+@media (max-width: 700px) {
+    .todo-calendar-layout { grid-template-columns: 1fr; }
+    .tc-right { order: -1; }
+}
+
 /* ==================== AI 工作台样式 ==================== */
 .ai-workspace-layout {
     display: grid;
