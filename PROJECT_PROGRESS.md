@@ -1414,6 +1414,50 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - Claude 可在知识库页面增加“导入到 AI 风格/资料”的操作提示
 - Codex 后续可做 Obsidian 指定文件夹手动导入工具
 
+### Stage 7F Obsidian 知识库手动导入工具完成内容（2026-06-03）
+
+**目标**：让 Obsidian 中沉淀的风格规则、内容样本、资料摘要，可以通过命令行安全导入网页知识库。
+
+#### A. Obsidian 示例库
+- 已在 iCloud Obsidian 库中填充示例：
+  - 风格库
+  - 内容素材
+  - 资料库
+  - 题库素材
+- Obsidian 只作为笔记和素材仓库，不作为业务数据库。
+
+#### B. 导入工具
+- 新增 `server/import-obsidian-knowledge.js`
+- 新增命令：
+  - `npm run knowledge:import-obsidian -- --dry-run`
+  - `npm run knowledge:import-obsidian -- --apply`
+- 默认读取：
+  - `/Users/bzx/Library/Mobile Documents/com~apple~CloudDocs/ObsidianVaults/AI 教培工作台`
+
+#### C. 安全边界
+- 默认 dry-run，不写入数据库
+- 只有显式 `--apply` 才写入网页知识库
+- apply 前会自动创建服务器备份
+- 不自动常驻扫描 iCloud
+- 不把 iCloud 当成运行数据库
+
+#### D. 导入映射
+- `风格库/白老师风格规则.md`、`常用表达.md`、`禁用词.md` → 风格配置
+- `风格库/内容样本.md` → 风格样本
+- `内容素材/`、`资料库/`、`题库素材/` → 资料来源
+
+#### E. 检查结果
+- dry-run 可识别当前 10 个 Markdown 文件
+- 预计导入：
+  - 7 条资料来源
+  - 3 个风格配置
+  - 1 条风格样本
+- `npm run check` 通过
+
+**下一步**
+- 用户确认后，可以执行 `npm run knowledge:import-obsidian -- --apply`
+- Claude 后续可在知识库页面增加“如何从 Obsidian 导入”的说明卡片
+
 ### 7C 前端知识库/风格库/题库入口完成内容（2026-06-03）
 
 **目标**：前端知识库管理页面（风格库/资料库/题库），只做页面和 API 对接。
