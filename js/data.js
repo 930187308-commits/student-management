@@ -1064,6 +1064,7 @@ function render() {
     renderCommunications();
     renderProspects();
     renderReports();
+    renderKnowledge();
     renderAIWorkspace();
 }
 
