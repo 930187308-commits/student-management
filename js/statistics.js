@@ -355,16 +355,18 @@ function exportConsumptionSummary() {
     }).map(s => {
         const totalHours = data.fees.filter(f => f.studentId === s.id && f.status === 'paid').reduce((sum, f) => sum + f.hours, 0);
         let usedHours = 0;
+        let absentHours = 0;
         data.attendance.forEach(a => {
             if (a.classId !== s.classId) return;
             if (a.records && a.records[s.id] === 1) usedHours++;
+            else if (a.records && a.records[s.id] === 0) absentHours++;
         });
-        return [s.name, s.grade, totalHours, usedHours, totalHours - usedHours, totalHours - usedHours <= 5 ? '需续费' : '正常'];
+        return [s.name, s.grade, totalHours, usedHours, absentHours, totalHours - usedHours, totalHours - usedHours <= 5 ? '需续费' : '正常'];
     });
+    if (studentConsumptionSummary.length === 0) { showToast('当前筛选条件下无数据可导出'); return; }
     const ws = XLSX.utils.aoa_to_sheet([['学员', '年级', '已缴课时', '已消课时', '请假次数', '剩余课时', '状态'], ...studentConsumptionSummary]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '课消统计');
     XLSX.writeFile(wb, '课消统计.xlsx');
-    if (studentConsumptionSummary.length === 0) { showToast('当前筛选条件下无数据可导出'); return; }
     showToast('导出成功');
 }
