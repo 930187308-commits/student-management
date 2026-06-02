@@ -443,12 +443,13 @@ function selectAgent(agentId) {
 
 function onAgentTaskTypeChange() {
     const taskType = document.getElementById('agentTaskType').value;
+    const input = document.getElementById('agentInput');
     const taskPlaceholders = {
         'schedule-conflict': '描述需要检测的班级和时间范围，例如：六年级培优A班本周上课冲突...',
         'attendance-anomaly': '描述考勤异常情况，例如：有哪些学员异常出勤或请假...',
         'class-full-check': '输入班级名称，检查是否有班级接近或达到满班...',
         'renewal-reminder': '输入检查范围，例如：检查未来两周内有哪些学员课时不足...',
-        'student-feedback': '选择学员后，描述本次需要反馈的学习内容...',
+        'student-feedback': '选择学员后，描述本次需要重点反馈的内容...',
         'renewal-script': '描述学员情况和续费背景，生成沟通话术...',
         'parent-greeting': '输入节日或主题，生成家长问候模板...',
         'trial-report': '输入试课学员信息和试课表现...',
@@ -464,8 +465,29 @@ function onAgentTaskTypeChange() {
         'class-consumption': '输入班级名称，分析课消和剩余课时...',
         'tuition-warning': '自动汇总欠费和续费预警学员列表...',
     };
-    const input = document.getElementById('agentInput');
-    input.placeholder = taskPlaceholders[taskType] || '描述你的需求...';
+
+    // 如果是学员/意向关联，显示提示
+    if (currentRelatedType === 'student' && (taskType === 'student-feedback' || taskType === 'renewal-script')) {
+        const student = data.students?.find(s => s.id === currentRelatedId);
+        if (student && input) {
+            input.value = `${student.name}\n`;
+            input.placeholder = '已关联当前学员，可补充本次想重点反馈的内容...';
+            input.focus();
+        } else {
+            input.placeholder = taskPlaceholders[taskType] || '描述你的需求...';
+        }
+    } else if (currentRelatedType === 'prospect' && taskType === 'follow-reminder') {
+        const prospect = data.prospects?.find(p => p.id === currentRelatedId);
+        if (prospect && input) {
+            input.value = `${prospect.name}\n`;
+            input.placeholder = '已关联当前意向学员，可补充跟进情况...';
+            input.focus();
+        } else {
+            input.placeholder = taskPlaceholders[taskType] || '描述你的需求...';
+        }
+    } else {
+        input.placeholder = taskPlaceholders[taskType] || '描述你的需求...';
+    }
     updateDataRangeInfo();
 }
 
@@ -1318,6 +1340,7 @@ function doRunAgentTask(taskType, input, agentNames, taskNames) {
         return res.json();
     })
     .then(response => {
+        clearTimeout(window._aiGenerateTimeout);
         // 显示任务记录信息
         lastTaskId = response.taskId || '';
         lastTaskMode = response.mode || 'local-template';
@@ -1339,7 +1362,7 @@ function doRunAgentTask(taskType, input, agentNames, taskNames) {
         const modeNote = response.mode === 'real-ai'
             ? '<div style="font-size:12px;color:#27ae60;margin-bottom:8px;">✅ 本次由真实 AI 生成，内容需老师确认后使用。</div>'
             : '<div style="font-size:12px;color:#888;margin-bottom:8px;">📋 本次由本地模板生成，真实 AI 尚未启用。</div>';
-        output.innerHTML = `${modeNote}<div class="ai-output-text">${escapeHtml(response.result || '')}</div>`;
+        output.innerHTML = `<div class="ai-output-text">${escapeHtml(response.result || '')}</div>${modeNote}`;
 
         // 更新隐私标签
         const isNamed = aiPrivacyMode === 'named';
@@ -1355,6 +1378,7 @@ function doRunAgentTask(taskType, input, agentNames, taskNames) {
         loadAITasksFromServer();
     })
     .catch(() => {
+        clearTimeout(window._aiGenerateTimeout);
         // 接口失败，回退到本地模板
         output.innerHTML = `<div class="ai-output-placeholder">
 <div style="font-size:24px;margin-bottom:8px;">🤖</div>
@@ -1366,6 +1390,19 @@ function doRunAgentTask(taskType, input, agentNames, taskNames) {
     .finally(() => {
         if (btn) { btn.disabled = false; btn.textContent = '生成结果'; }
     });
+
+    // 30秒超时检测
+    window._aiGenerateTimeout = setTimeout(() => {
+        const btn = document.querySelector('.ai-btn-group .btn-primary');
+        if (btn && !btn.disabled) return; // 已完成则不提示
+        if (btn) { btn.disabled = true; btn.textContent = '生成较慢，请稍后...'; }
+        output.innerHTML = `<div class="ai-output-placeholder">
+<div style="font-size:24px;margin-bottom:8px;">⏳</div>
+<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">生成时间较长</div>
+<div style="color:var(--text-muted);">超过30秒未返回结果，请稍后重试或使用本地模板。</div>
+</div>`;
+        showToast('生成超时，可稍后重试');
+    }, 30000);
 }
 
 function updateTaskRecordInfo() {
@@ -1402,9 +1439,12 @@ function renderAgentLogsFromServer(logs) {
         const time = log.createdAt ? new Date(log.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
         const agent = log.agent || '';
         const action = log.action || '';
-        const mode = log.mode || '';
+        const mode = log.mode === 'real-ai' ? '<span style="color:#27ae60;">真实 AI</span>' : '<span style="color:#888;">本地模板</span>';
         const success = log.success !== false;
-        return `<div class="ai-log-item">[${time}] ${escapeHtml(agent)} · ${escapeHtml(action)} · <span style="color:${success ? '#27ae60' : '#e74c3c'}">${success ? '成功' : '失败'}</span>${mode ? ` · ${escapeHtml(mode)}` : ''}</div>`;
+        const statusBadge = success
+            ? '<span style="color:#27ae60;font-size:11px;font-weight:600;">成功</span>'
+            : '<span style="color:#e74c3c;font-size:11px;font-weight:600;">失败</span>';
+        return `<div class="ai-log-item" style="margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--border-color);">[${time}] ${escapeHtml(agent)} · ${escapeHtml(action)} · ${mode} · ${statusBadge}</div>`;
     }).join('');
 }
 
@@ -1435,10 +1475,16 @@ function renderAITasksList(tasks) {
     area.innerHTML = tasks.slice(0, 10).map(task => {
         const time = task.createdAt ? new Date(task.createdAt).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         const title = task.title || task.agent || '未知任务';
-        const statusBadge = task.status === 'done' ? '<span style="color:#27ae60;font-size:11px;">完成</span>' : task.status === 'failed' ? '<span style="color:#e74c3c;font-size:11px;">失败</span>' : '<span style="color:#f39c12;font-size:11px;">进行中</span>';
-        const mode = task.mode || '';
+        const statusBadge = task.status === 'done'
+            ? '<span style="color:#27ae60;font-size:11px;font-weight:600;">已完成</span>'
+            : task.status === 'failed'
+            ? '<span style="color:#e74c3c;font-size:11px;font-weight:600;">失败</span>'
+            : '<span style="color:#f39c12;font-size:11px;">进行中</span>';
+        const mode = task.mode === 'real-ai'
+            ? '<span style="color:#27ae60;font-size:11px;">真实 AI</span>'
+            : '<span style="color:#888;font-size:11px;">本地模板</span>';
         const related = task.relatedType ? `<span style="color:var(--text-muted);">${escapeHtml(task.relatedType)}</span>` : '';
-        return `<div class="ai-log-item">[${time}] ${escapeHtml(title)} · ${statusBadge}${mode ? ` · <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(mode)}</span>` : ''}${related ? ` · ${related}` : ''}</div>`;
+        return `<div class="ai-log-item">[${time}] ${escapeHtml(title)} · ${statusBadge} · ${mode}${related ? ` · ${related}` : ''}</div>`;
     }).join('');
 }
 
