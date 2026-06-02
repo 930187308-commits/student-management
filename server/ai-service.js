@@ -10,35 +10,89 @@ const AGENT_NAMES = {
 };
 
 const TASK_NAMES = {
+    // 学情/续费
     'student-feedback': '生成学情反馈',
     'renewal-script': '生成续费沟通话术',
+    'parent-greeting': '生成家长问候模板',
+
+    // 经营
     'weekly-report': '生成本周经营周报',
     'monthly-report': '生成月度经营报告',
+    'class-consumption': '班级课消分析',
     'consumption-analysis': '班级课消分析',
+    'tuition-warning': '欠费与续费预警汇总',
     'fee-warning': '欠费预警',
+
+    // 招生/内容
     'follow-reminder': '招生跟进提醒',
     'trial-report': '试听反馈',
+    'conversion-script': '试听后转化话术',
     'trial-conversion': '试听后转化话术',
+    'moment-content': '招生内容草稿',
     'social-content': '招生内容草稿',
+
+    // 教务
+    'schedule-conflict': '排课冲突检查',
     'schedule-check': '排课冲突检查',
     'attendance-anomaly': '考勤异常检查',
+    'class-full-check': '班级满班预警',
+
+    // 教研/题库/资料
     'lesson-plan': '教案框架',
+    'exercise-recommend': '练习建议',
     'practice-suggestion': '练习建议',
     'learning-path': '学习路径',
-    'exam-analysis': '试卷分析'
+    'exam-analysis': '试卷分析',
+    'article-draft': '公众号长文草稿',
+    'xiaohongshu-note': '小红书笔记草稿',
+    'video-script': '视频号脚本',
+    'question-bank-plan': '数学题库建设方案',
+    'question-classify': '题目分类规则',
+    'resource-brief': '升学/中高考资料简报',
+    'research-plan': '资料收集计划'
 };
 
 const TASK_DATA_RANGES = {
     'student-feedback': ['学员基础信息', '最近成绩', '最近考勤', '课时余额', '沟通摘要'],
     'renewal-script': ['学员基础信息', '课时余额', '班级进度', '收费摘要'],
+    'parent-greeting': ['学员基础信息', '班级信息', '用户补充说明'],
     'weekly-report': ['本周新增', '课消摘要', '收费摘要', '欠费摘要', '待续费摘要'],
     'monthly-report': ['月度课消', '收费摘要', '班级进度', '意向学员摘要'],
+    'class-consumption': ['班级课次', '学员课时余额', '出勤统计'],
     'consumption-analysis': ['班级课次', '学员课时余额', '出勤统计'],
+    'tuition-warning': ['欠费记录', '待续费学员', '课时不足摘要'],
     'fee-warning': ['欠费记录', '待续费学员', '课时不足摘要'],
     'follow-reminder': ['意向学员状态', '来源', '年级', '备注摘要'],
     'trial-report': ['意向学员信息', '试课状态', '备注摘要'],
+    'conversion-script': ['意向学员信息', '试课状态', '成交状态', '备注摘要'],
     'trial-conversion': ['意向学员信息', '试课状态', '成交状态', '备注摘要'],
-    'social-content': ['招生摘要', '课程方向', '用户补充说明']
+    'moment-content': ['招生摘要', '课程方向', '用户补充说明'],
+    'social-content': ['招生摘要', '课程方向', '用户补充说明'],
+    'schedule-conflict': ['班级上课时间', '学员班级归属', '用户补充说明'],
+    'schedule-check': ['班级上课时间', '学员班级归属', '用户补充说明'],
+    'attendance-anomaly': ['考勤记录', '班级学员', '出勤异常摘要'],
+    'class-full-check': ['班级人数', '班级容量', '组班状态'],
+    'lesson-plan': ['年级', '课程主题', '教学目标', '用户补充说明'],
+    'exercise-recommend': ['年级', '知识点', '薄弱点', '用户补充说明'],
+    'practice-suggestion': ['年级', '知识点', '薄弱点', '用户补充说明'],
+    'learning-path': ['年级', '学习目标', '当前水平', '用户补充说明'],
+    'exam-analysis': ['试卷信息', '错题/薄弱点', '用户补充说明'],
+    'article-draft': ['主题', '目标读者', '素材要点', '用户补充说明'],
+    'xiaohongshu-note': ['主题', '人群', '标题方向', '用户补充说明'],
+    'video-script': ['主题', '镜头结构', '口播风格', '用户补充说明'],
+    'question-bank-plan': ['年级', '章节', '题型', '难度', '标签规则'],
+    'question-classify': ['题目文本', '知识点', '难度', '错因标签'],
+    'resource-brief': ['资料主题', '适用年级', '收集目标', '用户补充说明'],
+    'research-plan': ['资料方向', '来源类型', '整理方式', '用户补充说明']
+};
+
+const TASK_ALIASES = {
+    'schedule-check': 'schedule-conflict',
+    'consumption-analysis': 'class-consumption',
+    'fee-warning': 'tuition-warning',
+    'trial-conversion': 'conversion-script',
+    'social-content': 'moment-content',
+    'practice-suggestion': 'exercise-recommend'
 };
 
 function nowIso() {
@@ -131,6 +185,11 @@ function getStudentConsumption(data, studentId) {
 
 function getTaskDataRange(task) {
     return TASK_DATA_RANGES[task] || ['当前模块摘要', '用户补充说明'];
+}
+
+function normalizeTask(task) {
+    const value = String(task || '').trim();
+    return TASK_ALIASES[value] || value;
 }
 
 function resolveRelatedStudent(data, payload) {
@@ -272,14 +331,73 @@ function buildBusinessContext(data, privacyMode) {
     };
 }
 
+function buildTeachingContext(data, payload) {
+    const students = data.students || [];
+    const grades = data.grades || [];
+    const classes = data.classes || [];
+    const activeByGrade = {};
+    students.filter(item => item.status === 'active').forEach(item => {
+        const grade = item.grade || '未填写';
+        activeByGrade[grade] = (activeByGrade[grade] || 0) + 1;
+    });
+    const weakPointCounts = {};
+    grades.forEach(item => {
+        String(item.weakPoints || '').split(/[、,，;；\s]+/).forEach(label => {
+            const key = label.trim();
+            if (!key) return;
+            weakPointCounts[key] = (weakPointCounts[key] || 0) + 1;
+        });
+    });
+    return {
+        type: 'teaching',
+        activeByGrade,
+        activeClassCount: classes.filter(item => item.status === 'active').length,
+        recentGradeCount: grades.length,
+        commonWeakPoints: Object.entries(weakPointCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 12)
+            .map(([label, count]) => ({ label, count })),
+        userTopic: safeText(payload.userInstruction || payload.input || '', 500)
+    };
+}
+
+function buildContentContext(data, payload) {
+    const students = data.students || [];
+    const prospects = data.prospects || [];
+    const classes = data.classes || [];
+    const gradeCounts = {};
+    students.filter(item => item.status === 'active').forEach(item => {
+        const grade = item.grade || '未填写';
+        gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
+    });
+    const prospectSources = {};
+    prospects.forEach(item => {
+        const source = item.source || '未填写';
+        prospectSources[source] = (prospectSources[source] || 0) + 1;
+    });
+    return {
+        type: 'content',
+        activeStudentGrades: gradeCounts,
+        prospectSources,
+        activeClasses: classes.filter(item => item.status === 'active').map(item => ({
+            name: item.name || '',
+            grade: item.grade || '',
+            classType: item.classType || '',
+            schedule: item.schedule || ''
+        })).slice(0, 12),
+        userTopic: safeText(payload.userInstruction || payload.input || '', 800)
+    };
+}
+
 function buildAIContext(payload) {
     const data = getDataFromEntityColumns();
     const privacyMode = payload.privacyMode === 'named' ? 'named' : 'masked';
-    const task = payload.task || '';
+    const task = normalizeTask(payload.task || '');
     const base = {
         agent: payload.agent || '',
         agentName: AGENT_NAMES[payload.agent] || payload.agent || '',
         task,
+        requestedTask: payload.task || '',
         taskName: TASK_NAMES[task] || task,
         privacyMode,
         dataRange: getTaskDataRange(task),
@@ -289,8 +407,14 @@ function buildAIContext(payload) {
     if (task === 'student-feedback' || task === 'renewal-script') {
         return { ...base, context: buildStudentContext(data, payload, privacyMode) };
     }
-    if (task === 'follow-reminder' || task === 'trial-report' || task === 'trial-conversion' || task === 'social-content') {
+    if (task === 'follow-reminder' || task === 'trial-report' || task === 'conversion-script' || task === 'moment-content') {
         return { ...base, context: buildProspectContext(data, payload, privacyMode) };
+    }
+    if (['lesson-plan', 'exercise-recommend', 'learning-path', 'exam-analysis', 'question-bank-plan', 'question-classify'].includes(task)) {
+        return { ...base, context: buildTeachingContext(data, payload) };
+    }
+    if (['article-draft', 'xiaohongshu-note', 'video-script', 'resource-brief', 'research-plan'].includes(task)) {
+        return { ...base, context: buildContentContext(data, payload) };
     }
     return { ...base, context: buildBusinessContext(data, privacyMode) };
 }
@@ -318,12 +442,56 @@ function buildLocalTemplate(context) {
     return `【${taskName || 'AI 任务'}｜本地模板】\n生成模式：${modeText}\n\n当前业务摘要：\n- 在读学员：${biz.activeStudents || 0}人\n- 待续费学员：${biz.renewalPending || 0}人\n- 意向学员：${biz.prospects || 0}人\n- 正常班级：${biz.activeClasses || 0}个\n- 已登记课次：${biz.attendanceSessions || 0}次\n- 已缴金额：${biz.paidAmount || 0}元\n- 欠费金额：${biz.pendingAmount || 0}元\n\n建议：优先处理课时不足、待续费和未跟进意向学员。\n\n说明：当前为本地模板，未调用真实 AI，不会自动修改系统数据。`;
 }
 
+function getStyleGuide() {
+    return [
+        '默认采用“白老师”表达风格：真实、清楚、克制、偏实用，不夸张营销。',
+        '句子尽量短，少用空话，不要堆形容词。',
+        '可以直接给可执行清单、标题、结构、正文草稿。',
+        '不要使用“突飞猛进、保证提升、逆袭、稳赢、名校必备”等过度承诺表达。',
+        '面向家长时温和但不卑微；面向内容平台时专业但不油腻。',
+        '如果信息不足，先基于用户补充做草稿，并列出需要补充的素材。'
+    ].join('\n');
+}
+
+function getTaskOutputInstruction(task) {
+    const map = {
+        'article-draft': '输出公众号文章草稿：标题3个、开头、正文分段、小标题、结尾引导、可补充素材清单。正文要有观点和例子，不要只列提纲。',
+        'xiaohongshu-note': '输出小红书笔记：标题5个、正文、分段符号、互动结尾、封面文字建议。避免夸张营销。',
+        'video-script': '输出视频号脚本：标题、30-90秒口播稿、镜头/字幕提示、结尾引导。口语化，像老师本人在说。',
+        'moment-content': '输出招生/朋友圈/短内容草稿：标题、正文、适用场景、可替换变量。注意低营销感。',
+        'question-bank-plan': '输出数学题库建设方案：目录结构、字段设计、标签体系、难度分级、导入流程、后续可自动化的步骤。',
+        'question-classify': '输出题目分类结果：知识点、题型、难度、易错点、适合年级、标签、讲解建议。若题目不足，请给分类规则。',
+        'resource-brief': '输出资料简报：资料主题、需要收集的内容、可信来源类型、整理表格字段、使用方式、下次行动。',
+        'research-plan': '输出资料收集计划：关键词、来源类型、筛选标准、整理结构、每周更新流程。',
+        'lesson-plan': '输出教案框架：目标、重点、难点、课堂流程、例题类型、练习安排、课后反馈点。',
+        'exercise-recommend': '输出练习建议：知识点、题型、难度、题量、错因标签、复习顺序。',
+        'learning-path': '输出学习路径：阶段目标、每阶段任务、检测方式、资料/题型建议。',
+        'exam-analysis': '输出试卷分析：得分结构、薄弱点、错因、下一步训练计划。',
+        'weekly-report': '输出经营周报：关键数据、问题判断、下周重点、3条行动清单。',
+        'monthly-report': '输出月度经营复盘：数据变化、风险、机会、下月动作。',
+        'class-consumption': '输出课消分析：班级进度、课时风险、需要跟进的动作。',
+        'tuition-warning': '输出欠费与续费预警：分类、优先级、建议动作，不要生成催收压力话术。',
+        'student-feedback': '输出学情反馈草稿：近期表现、进步、薄弱点、建议。务必像老师真实反馈，不要夸张。',
+        'renewal-script': '输出续费沟通草稿：温和版、直接版、后续跟进提醒。不自动承诺效果。',
+        'follow-reminder': '输出招生跟进清单和话术：下一步、家长可能顾虑、回复模板。',
+        'trial-report': '输出试听反馈草稿：观察点、适合程度、建议安排。',
+        'conversion-script': '输出试听后转化话术：温和、真实、明确下一步。'
+    };
+    return map[task] || '输出可直接使用的中文草稿或行动清单，结构清晰，避免空泛。';
+}
+
 function buildPrompt(context) {
     return [
         '你是一个个人教培机构的 AI 助手。',
         '请根据给定的脱敏业务上下文生成中文内容。',
         '必须遵守：只输出建议或文案，不声称已经修改系统，不自动发送给家长。',
         '不要输出思考过程，不要输出 <think> 标签内容。',
+        '',
+        '【表达风格】',
+        getStyleGuide(),
+        '',
+        '【输出要求】',
+        getTaskOutputInstruction(context.task),
         `任务：${context.taskName || context.task}`,
         `隐私模式：${context.privacyMode}`,
         `读取范围：${context.dataRange.join('、')}`,
@@ -440,13 +608,14 @@ async function generateAIResponse(payload) {
         throw error;
     }
     const agent = payload.agent || 'biz-agent';
-    const task = payload.task || '';
+    const requestedTask = payload.task || '';
+    const task = normalizeTask(requestedTask);
     if (!TASK_NAMES[task]) {
         const error = new Error('不支持的 AI 任务类型');
         error.statusCode = 400;
         throw error;
     }
-    const context = buildAIContext({ ...payload, agent, task });
+    const context = buildAIContext({ ...payload, agent, task, requestedTask });
     const status = getAiStatus();
     const taskId = newId('ai_task');
     const createdAt = nowIso();

@@ -40,6 +40,7 @@
 阶段 3：前端逐步接 API
 阶段 4：AI 控制台首页与 AI 工作台
 阶段 5：真实 AI 接入边界与多 Agent 流程
+阶段 6：AI 工作台重组、内容生产、题库与资料库
 ```
 
 ## 阶段 0：协作与环境整理
@@ -692,6 +693,7 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 阶段 5 详细规划见：
 
 - `docs/STAGE_5_REAL_AI_BOUNDARY_PLAN.md`
+- `docs/STAGE_6_AI_WORKBENCH_BLUEPRINT.md`
 
 ### 5A 前端壳子完成内容（2026-06-02）
 
@@ -951,6 +953,11 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 2026-06-02：阶段 5B 后端 AI API 骨架完成。新增 AI 配置读取、`server/ai-service.js`、`POST /api/ai/generate`、AI 任务记录、Agent 日志记录、`npm run ai:runtime-check`。真实模型调用按 OpenAI-compatible 接口预留，默认关闭；当前不会把 AI 输出写入业务表。
 
 2026-06-02：阶段 5D 真实 AI 安全配置与启用完成。服务支持从 `/Users/bzx/Data/student-ai-console/ai.env` 读取 AI 配置，状态脚本可显示 AI 模式和缺失配置；新增 `docs/AI_ENV_TEMPLATE.md`。MiniMax `MiniMax-M2.7-highspeed` 已启用并通过 `npm run ai:runtime-check`。
+
+2026-06-02：阶段 6 蓝图建立。AI 工作台后续重点从“生成家长反馈/跟进话术”扩展为内容生产、数学题库建设、资料库/升学中高考情报整理和教务经营总控。详细规划见 `docs/STAGE_6_AI_WORKBENCH_BLUEPRINT.md`。
+
+2026-06-02：后端 AI 任务能力补齐。修复前端 task 与后端 `TASK_NAMES` 不匹配问题，新增前端 alias 兼容；增加公众号长文、小红书笔记、视频号脚本、题库建设、题目分类、资料简报、资料收集计划等任务类型；后端 prompt 增加“白老师默认风格”。
+
 ### 5C/5D 前端体验优化完成内容（2026-06-02）
 
 **目标**：AI 工作台前端体验优化，8 个任务 A-H。
@@ -1062,4 +1069,3 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - **真实 AI 已启用**（MiniMax MiniMax-M2.7-highspeed）
 - 仍然只生成文本，不自动修改业务数据
 - 未改后端逻辑，未改 SQLite
-

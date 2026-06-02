@@ -50,7 +50,7 @@ const config = {
         apiKey: process.env.AI_API_KEY || '',
         model: process.env.AI_MODEL || '',
         baseUrl: process.env.AI_BASE_URL || '',
-        timeoutMs: Number(process.env.AI_TIMEOUT_MS || 30000),
+        timeoutMs: Number(process.env.AI_TIMEOUT_MS || 60000),
         logFullInput: process.env.AI_LOG_FULL_INPUT === '1',
         envFile: AI_ENV_FILE,
         envFileLoaded: aiEnvFileLoaded

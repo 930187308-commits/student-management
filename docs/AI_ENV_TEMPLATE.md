@@ -17,7 +17,7 @@ AI_PROVIDER=disabled
 AI_API_KEY=
 AI_MODEL=
 AI_BASE_URL=
-AI_TIMEOUT_MS=30000
+AI_TIMEOUT_MS=60000
 AI_LOG_FULL_INPUT=0
 ```
 
@@ -28,7 +28,7 @@ AI_PROVIDER=deepseek
 AI_API_KEY=你的真实密钥
 AI_MODEL=deepseek-chat
 AI_BASE_URL=https://api.deepseek.com/v1
-AI_TIMEOUT_MS=30000
+AI_TIMEOUT_MS=60000
 AI_LOG_FULL_INPUT=0
 ```
 
@@ -39,7 +39,7 @@ AI_PROVIDER=openai
 AI_API_KEY=你的真实密钥
 AI_MODEL=gpt-4.1-mini
 AI_BASE_URL=https://api.openai.com/v1
-AI_TIMEOUT_MS=30000
+AI_TIMEOUT_MS=60000
 AI_LOG_FULL_INPUT=0
 ```
 
@@ -52,7 +52,7 @@ AI_PROVIDER=minimax
 AI_API_KEY=你的真实密钥
 AI_MODEL=MiniMax-M2.7-highspeed
 AI_BASE_URL=https://api.minimax.io/v1
-AI_TIMEOUT_MS=30000
+AI_TIMEOUT_MS=60000
 AI_LOG_FULL_INPUT=0
 ```
 
