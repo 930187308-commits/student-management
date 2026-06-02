@@ -1,4 +1,4 @@
-// ==================== AI 工作台 ====================
+// ==================== AI 工作台 Stage 6C ====================
 
 let currentAgentId = 'biz-agent';
 let agentLogs = [];
@@ -16,27 +16,20 @@ let lastTaskProvider = '';
 let currentStyle = 'bai-teacher';
 let currentCenterId = 'content';
 let currentTaskType = '';
+let currentTaskLabel = '';
 
 // ========== Markdown 安全渲染 ==========
 function renderMarkdown(text) {
     if (!text) return '';
-    // 先转义 HTML
     let html = escapeHtml(text);
-    // 代码块 ```code```
     html = html.replace(/```([\s\S]*?)```/g, '<pre style="background:#f4f4f4;padding:12px;border-radius:6px;overflow-x:auto;margin:8px 0;font-size:12px;line-height:1.4;"><code>$1</code></pre>');
-    // 标题 ### ###
     html = html.replace(/^### (.+)$/gm, '<h4 style="margin:12px 0 6px;font-size:14px;font-weight:600;color:var(--text-primary);">$1</h4>');
     html = html.replace(/^## (.+)$/gm, '<h3 style="margin:14px 0 8px;font-size:16px;font-weight:600;color:var(--text-primary);">$1</h3>');
     html = html.replace(/^# (.+)$/gm, '<h2 style="margin:16px 0 10px;font-size:18px;font-weight:600;color:var(--text-primary);">$1</h2>');
-    // 加粗 **text**
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // 列表 - item
     html = html.replace(/^- (.+)$/gm, '<li style="margin:4px 0 4px 16px;list-style:disc;">$1</li>');
-    // 数字列表
     html = html.replace(/^(\d+)\. (.+)$/gm, '<li style="margin:4px 0 4px 16px;list-style:decimal;">$2</li>');
-    // 换行
     html = html.replace(/\n/g, '<br>');
-    // 清理空列表包装
     html = html.replace(/(<li[^>]*>.*?<\/li>)+/g, '<ul style="margin:8px 0;padding-left:0;">$&</ul>');
     return html;
 }
@@ -178,20 +171,21 @@ const STYLE_OPTIONS = [
 
 // 内容生产工作流模式
 const CONTENT_MODES = {
-    'brainstorm': { label: '💡 选题 brainstorm', hint: '请给10个选题，每个附适合平台和切入点。' },
+    'brainstorm': { label: '💡 选题', hint: '请给10个选题，每个附适合平台和切入点。' },
     'outline': { label: '📋 大纲', hint: '请给文章结构和每段要点。' },
-    'full-draft': { label: '✏️ 完整草稿', hint: '请直接生成可修改的正文。' },
-    'polish': { label: '🔄 润色改写', hint: '请保留原意，改成更像白老师风格。' },
+    'full-draft': { label: '✏️ 初稿', hint: '请直接生成可修改的正文。' },
+    'polish': { label: '🔄 润色', hint: '请保留原意，改成更像白老师风格。' },
     'title': { label: '📌 标题优化', hint: '请给10个标题，区分稳重/吸引/专业。' },
 };
 
-// ========== 渲染 AI 工作台 ==========
+// ========== 渲染 AI 工作台 Stage 6C ==========
 function renderAIWorkspace() {
     const container = document.getElementById('tab-ai-workspace');
     const summary = getAIWorkspaceSummary();
 
     container.innerHTML = `
         <div class="ai-workspace-layout">
+            <!-- 左侧工作中心列表 -->
             <div class="card ai-agent-sidebar">
                 <div class="ai-agent-sidebar-header">AI 工作台</div>
                 <div id="workCenterList">
@@ -202,12 +196,23 @@ function renderAIWorkspace() {
                 </div>
             </div>
 
+            <!-- 主工作区 -->
             <div class="ai-workspace-main">
-                <div class="card ai-snapshot-card">
-                    <div class="ai-snapshot-header">
-                        <span class="ai-snapshot-title">当前业务快照</span>
-                        <span class="ai-snapshot-meta">实时汇总</span>
+                <!-- 顶部：工作中心标题 + AI状态 + 数据参考折叠 -->
+                <div class="ai-workspace-topbar">
+                    <div class="ai-workspace-topbar-left">
+                        <h3 id="workCenterTitle" class="ai-agent-name">📝 内容生产</h3>
+                        <span id="currentTaskHint" class="ai-current-task-hint" style="display:none;"></span>
                     </div>
+                    <div class="ai-workspace-topbar-right">
+                        <span id="agentStatus" class="badge" style="background:#95a5a6;color:white;">加载中</span>
+                        <span id="aiModeLabel" style="font-size:11px;color:var(--text-muted);">-</span>
+                        <button class="btn btn-secondary btn-xs" onclick="toggleSnapshot()" style="margin-left:8px;">📊 数据参考</button>
+                    </div>
+                </div>
+
+                <!-- 数据参考折叠区 -->
+                <div id="snapshotArea" class="ai-snapshot-area" style="display:none;">
                     <div class="ai-snapshot-grid">
                         <div class="ai-snapshot-item">
                             <div class="ai-snapshot-num" style="color:#3498db;">${getPrivacyVal(summary.activeStudentCount)}</div>
@@ -236,157 +241,367 @@ function renderAIWorkspace() {
                     </div>
                 </div>
 
-                <div class="card ai-agent-workspace">
-                    <div id="aiConfigStatus" class="ai-config-status"><span style="color:#95a5a6;">● 加载中...</span></div>
+                <!-- AI 配置状态 -->
+                <div id="aiConfigStatus" class="ai-config-status"><span style="color:#95a5a6;">● 加载中...</span></div>
+                <div id="relatedObjectHint" class="ai-related-hint" style="display:none;"></div>
 
-                    <div class="ai-workspace-header">
-                        <div>
-                            <h3 id="workCenterTitle" class="ai-agent-name">📝 内容生产</h3>
-                            <p id="workCenterDesc" class="ai-agent-desc">生成公众号、小红书、视频号、朋友圈招生文案</p>
-                        </div>
-                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-                            <span id="agentStatus" class="badge" style="background:#95a5a6;color:white;">加载中</span>
-                            <span id="aiModeLabel" style="font-size:11px;color:var(--text-muted);">-</span>
-                        </div>
-                    </div>
+                <!-- 任务卡片区 -->
+                <div id="taskCardArea"></div>
+                <div id="moreTasksArea" style="display:none;margin-top:12px;"></div>
+                <button id="toggleMoreBtn" class="btn btn-secondary btn-sm" onclick="toggleMoreTasks()" style="margin-top:8px;">展开更多 ↓</button>
 
-                    <div id="relatedObjectHint" class="ai-related-hint" style="display:none;"></div>
-
-                    <div id="taskCardArea"></div>
-                    <div id="moreTasksArea" style="display:none;margin-top:12px;"></div>
-                    <button id="toggleMoreBtn" class="btn btn-secondary btn-sm" onclick="toggleMoreTasks()" style="margin-top:8px;">展开更多 ↓</button>
-
-                    <div id="agentTaskArea">
-                        <div class="ai-form-group">
+                <!-- 输入区 -->
+                <div id="agentTaskArea">
+                    <!-- 风格 + 工作流 -->
+                    <div class="ai-form-row">
+                        <div class="ai-form-group" style="flex:1;">
                             <label class="ai-form-label">生成风格</label>
                             <select id="styleSelect" onchange="onStyleChange()" class="ai-form-select">
                                 ${STYLE_OPTIONS.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}
                             </select>
                         </div>
-
-                        <div class="ai-form-group" id="contentModeGroup" style="display:none;">
-                            <label class="ai-form-label">内容生成模式</label>
+                        <div class="ai-form-group" id="contentModeGroup" style="flex:1;display:none;">
+                            <label class="ai-form-label">工作流模式</label>
                             <select id="contentModeSelect" onchange="onContentModeChange()" class="ai-form-select">
-                                <option value="">请选择生成模式</option>
+                                <option value="">普通模式</option>
                                 ${Object.entries(CONTENT_MODES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
                             </select>
                         </div>
+                    </div>
 
-                        <div class="ai-form-group">
-                            <label class="ai-form-label">任务描述 / 补充说明
-                                <button class="btn btn-secondary btn-xs" onclick="toggleAdvancedOptions()" style="margin-left:8px;">高级选项</button>
-                                <button class="btn btn-secondary btn-xs" onclick="fillExampleInput()" style="margin-left:4px;">填入示例</button>
-                            </label>
-                            <textarea id="agentInput" rows="5" placeholder="选择任务卡片后在此输入具体需求..." class="ai-form-textarea" style="resize:vertical;"></textarea>
-                        </div>
+                    <!-- 任务描述 -->
+                    <div class="ai-form-group">
+                        <label class="ai-form-label">任务描述 / 补充说明
+                            <button class="btn btn-secondary btn-xs" onclick="toggleAdvancedOptions()" style="margin-left:8px;">高级选项</button>
+                            <button class="btn btn-secondary btn-xs" onclick="fillExampleInput()" style="margin-left:4px;">填入示例</button>
+                        </label>
+                        <textarea id="agentInput" rows="5" placeholder="选择任务卡片后在此输入具体需求..." class="ai-form-textarea" style="resize:vertical;"></textarea>
+                    </div>
 
-                        <div id="advancedOptionsArea" style="display:none;background:var(--hover-bg);border-radius:8px;padding:12px;margin-bottom:12px;">
-                            <div id="advancedOptionsContent"></div>
-                        </div>
+                    <!-- 高级选项 -->
+                    <div id="advancedOptionsArea" style="display:none;background:var(--hover-bg);border-radius:8px;padding:12px;margin-bottom:12px;">
+                        <div id="advancedOptionsContent"></div>
+                    </div>
 
-                        <div class="ai-privacy-row">
-                            <div class="ai-privacy-label">隐私模式：</div>
-                            <label class="ai-privacy-option">
-                                <input type="radio" name="aiPrivacyMode" value="masked" checked onchange="onPrivacyModeChange()">
-                                <span>脱敏生成</span>
-                            </label>
-                            <label class="ai-privacy-option">
-                                <input type="radio" name="aiPrivacyMode" value="named" onchange="onPrivacyModeChange()">
-                                <span>带姓名生成</span>
-                            </label>
-                        </div>
+                    <!-- 隐私模式 -->
+                    <div class="ai-privacy-row">
+                        <div class="ai-privacy-label">隐私模式：</div>
+                        <label class="ai-privacy-option">
+                            <input type="radio" name="aiPrivacyMode" value="masked" checked onchange="onPrivacyModeChange()">
+                            <span>脱敏生成</span>
+                        </label>
+                        <label class="ai-privacy-option">
+                            <input type="radio" name="aiPrivacyMode" value="named" onchange="onPrivacyModeChange()">
+                            <span>带姓名生成</span>
+                        </label>
+                    </div>
 
-                        <div id="dataRangeInfo" class="ai-data-range" style="display:none;">
-                            <span class="ai-data-range-title">本次读取数据范围</span>
-                            <div id="dataRangeContent"></div>
-                        </div>
+                    <!-- 数据范围 -->
+                    <div id="dataRangeInfo" class="ai-data-range" style="display:none;">
+                        <span class="ai-data-range-title">本次读取数据范围</span>
+                        <div id="dataRangeContent"></div>
+                    </div>
 
-                        <div class="ai-btn-group" style="flex-wrap:wrap;">
-                            <button class="btn btn-primary" id="generateBtn" onclick="runAgentTask()">生成结果</button>
-                            <button class="btn btn-secondary" onclick="clearAgentInput()">清空输入</button>
-                            <button class="btn btn-secondary" onclick="clearAgentOutput()">清空</button>
-                        </div>
+                    <!-- 无任务警告 -->
+                    <div id="noTaskWarning" class="ai-no-task-warning" style="display:none;">
+                        ⚠️ 请先在左侧选择一个任务类型
+                    </div>
 
-                        <div class="ai-output-area">
-                            <div id="aiWarnings" class="ai-warnings" style="display:none;"></div>
+                    <!-- 生成按钮 -->
+                    <div class="ai-btn-group" style="flex-wrap:wrap;">
+                        <button class="btn btn-primary" id="generateBtn" onclick="runAgentTask()">生成结果</button>
+                        <button class="btn btn-secondary" onclick="clearAgentInput()">清空输入</button>
+                        <button class="btn btn-secondary" onclick="clearAgentOutput()">清空</button>
+                    </div>
 
-                            <div class="ai-output-header">
-                                <span class="ai-output-label">生成结果</span>
-                                <div style="display:flex;gap:8px;align-items:center;">
-                                    <span id="outputPrivacyTag" style="font-size:11px;color:var(--text-muted);"></span>
-                                    <button class="btn btn-secondary btn-xs" onclick="copyAgentOutput()">复制全文</button>
-                                </div>
+                    <!-- 输出区 -->
+                    <div class="ai-output-area">
+                        <div id="aiWarnings" class="ai-warnings" style="display:none;"></div>
+                        <div class="ai-output-header">
+                            <span class="ai-output-label">生成结果</span>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <span id="outputPrivacyTag" style="font-size:11px;color:var(--text-muted);"></span>
+                                <button class="btn btn-secondary btn-xs" onclick="copyAgentOutput()">复制全文</button>
                             </div>
-                            <div id="agentOutput" class="ai-output-content">
+                        </div>
+                        <div id="agentOutput" class="ai-output-content">
 选择左侧任务卡片或输入需求，点击「生成结果」查看输出。
-                            </div>
-
-                            <div id="outputActions" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);">
-                                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                    <button class="btn btn-secondary btn-sm" onclick="copyAgentOutput()">📋 复制全文</button>
-                                    <button class="btn btn-secondary btn-sm" onclick="copyAgentPlainText()">📝 复制纯文本</button>
-                                    <button class="btn btn-secondary btn-sm" onclick="saveToDrafts()">💾 保存草稿</button>
-                                    <button class="btn btn-secondary btn-sm" onclick="addToTodo()">✅ 加入待办</button>
-                                    <button class="btn btn-secondary btn-sm" onclick="regenerateResult()">🔄 重新生成</button>
-                                    <button class="btn btn-secondary btn-sm" onclick="clearAgentOutput()">🗑 清空</button>
-                                </div>
-                            </div>
-
-                            <div id="taskRecordInfo" class="ai-task-record" style="display:none;"></div>
                         </div>
+
+                        <div id="outputActions" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);">
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button class="btn btn-secondary btn-sm" onclick="copyAgentOutput()">📋 复制全文</button>
+                                <button class="btn btn-secondary btn-sm" onclick="copyAgentPlainText()">📝 复制纯文本</button>
+                                <button class="btn btn-secondary btn-sm" onclick="saveToDrafts()">💾 保存草稿</button>
+                                <button class="btn btn-secondary btn-sm" onclick="addToTodo()">✅ 加入待办</button>
+                                <button class="btn btn-secondary btn-sm" onclick="regenerateResult()">🔄 重新生成</button>
+                                <button class="btn btn-secondary btn-sm" onclick="clearAgentOutput()">🗑 清空</button>
+                            </div>
+                        </div>
+
+                        <div id="taskRecordInfo" class="ai-task-record" style="display:none;"></div>
                     </div>
                 </div>
+            </div>
 
-                <!-- 草稿箱 -->
-                <div class="card ai-tasks-card">
-                    <div class="ai-log-header">
-                        <span class="ai-log-title">📁 AI 草稿箱</span>
-                        <button class="btn btn-secondary btn-xs" onclick="refreshDrafts()">刷新</button>
-                        <button class="btn btn-secondary btn-xs" onclick="openStyleSettings()">🎨 风格设置</button>
-                        <button class="btn btn-danger btn-xs" onclick="clearAllDrafts()">清空全部</button>
+            <!-- 右侧记录区 -->
+            <div class="ai-workspace-right">
+                <div class="card ai-right-panel">
+                    <div class="ai-right-tabs">
+                        <button class="ai-right-tab active" data-tab="drafts" onclick="switchRightTab('drafts')">📁 草稿箱</button>
+                        <button class="ai-right-tab" data-tab="tasks" onclick="switchRightTab('tasks')">📋 最近</button>
+                        <button class="ai-right-tab" data-tab="logs" onclick="switchRightTab('logs')">📝 日志</button>
                     </div>
-                    <div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                        <input type="text" id="draftSearchInput" placeholder="搜索草稿..." oninput="filterDrafts()" style="flex:1;min-width:120px;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;">
-                        <select id="draftCenterFilter" onchange="filterDrafts()" style="padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;">
-                            <option value="">全部中心</option>
-                            <option value="content">内容生产</option>
-                            <option value="question-bank">数学题库</option>
-                            <option value="resource">资料库/升学</option>
-                            <option value="operations">教务经营</option>
-                        </select>
-                    </div>
-                    <div id="draftsArea" class="ai-log-content"><div class="ai-log-empty">暂无草稿</div></div>
-                </div>
 
-                <!-- 最近生成记录 -->
-                <div class="card ai-tasks-card">
-                    <div class="ai-log-header">
-                        <span class="ai-log-title">最近生成记录</span>
-                        <button class="btn btn-secondary btn-xs" onclick="refreshAITasks()">刷新</button>
+                    <!-- 草稿箱 Tab -->
+                    <div id="rightTabDrafts" class="ai-right-tab-content">
+                        <div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <input type="text" id="draftSearchInput" placeholder="搜索草稿..." oninput="filterDrafts()" style="flex:1;min-width:100px;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;">
+                            <select id="draftCenterFilter" onchange="filterDrafts()" style="padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;">
+                                <option value="">全部</option>
+                                <option value="content">内容</option>
+                                <option value="question-bank">题库</option>
+                                <option value="resource">资料</option>
+                                <option value="operations">经营</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-bottom:8px;">
+                            <button class="btn btn-secondary btn-xs" onclick="refreshDrafts()">刷新</button>
+                            <button class="btn btn-secondary btn-xs" onclick="openStyleSettings()">🎨 风格</button>
+                            <button class="btn btn-danger btn-xs" onclick="clearAllDrafts()">清空</button>
+                        </div>
+                        <div id="draftsArea" class="ai-log-content"><div class="ai-log-empty">暂无草稿</div></div>
                     </div>
-                    <div id="aiTasksArea" class="ai-log-content"><div class="ai-log-empty">暂无生成记录</div></div>
-                </div>
 
-                <!-- Agent 日志 -->
-                <div class="card ai-log-card">
-                    <div class="ai-log-header">
-                        <span class="ai-log-title">Agent 日志</span>
-                        <button class="btn btn-secondary btn-xs" onclick="refreshAgentLogs()">刷新</button>
+                    <!-- 最近生成 Tab -->
+                    <div id="rightTabTasks" class="ai-right-tab-content" style="display:none;">
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                            <button class="btn btn-secondary btn-xs" onclick="refreshAITasks()">刷新</button>
+                        </div>
+                        <div id="aiTasksArea" class="ai-log-content"><div class="ai-log-empty">暂无生成记录</div></div>
                     </div>
-                    <div id="agentLogArea" class="ai-log-content"><div class="ai-log-empty">暂无 Agent 调用记录</div></div>
+
+                    <!-- 日志 Tab -->
+                    <div id="rightTabLogs" class="ai-right-tab-content" style="display:none;">
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                            <button class="btn btn-secondary btn-xs" onclick="refreshAgentLogs()">刷新</button>
+                        </div>
+                        <div id="agentLogArea" class="ai-log-content"><div class="ai-log-empty">暂无 Agent 调用记录</div></div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <style>
+            .ai-workspace-layout {
+                display: grid;
+                grid-template-columns: 90px 1fr 280px;
+                gap: 12px;
+                height: calc(100vh - 160px);
+                min-height: 500px;
+            }
+            .ai-agent-sidebar {
+                padding: 0;
+                overflow-y: auto;
+            }
+            .ai-agent-sidebar-header {
+                padding: 12px 8px;
+                font-weight: 600;
+                font-size: 12px;
+                text-align: center;
+                border-bottom: 1px solid var(--border-color);
+                color: var(--text-secondary);
+            }
+            .work-center-item {
+                padding: 10px 6px;
+                cursor: pointer;
+                border-left: 3px solid transparent;
+                transition: all 0.2s;
+                text-align: center;
+            }
+            .work-center-item:hover {
+                background: var(--hover-bg);
+            }
+            .ai-workspace-main {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                overflow-y: auto;
+                padding-right: 4px;
+            }
+            .ai-workspace-topbar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .ai-workspace-topbar-left {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .ai-workspace-topbar-right {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .ai-current-task-hint {
+                font-size: 12px;
+                color: var(--text-muted);
+                background: var(--hover-bg);
+                padding: 2px 8px;
+                border-radius: 4px;
+            }
+            .ai-snapshot-area {
+                background: var(--hover-bg);
+                border-radius: 8px;
+                padding: 10px 12px;
+            }
+            .ai-snapshot-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            .ai-snapshot-item {
+                text-align: center;
+                padding: 6px 4px;
+                background: var(--card-bg);
+                border-radius: 6px;
+            }
+            .ai-snapshot-num {
+                font-size: 18px;
+                font-weight: 600;
+            }
+            .ai-snapshot-label {
+                font-size: 10px;
+                color: var(--text-muted);
+            }
+            .ai-form-row {
+                display: flex;
+                gap: 12px;
+            }
+            .ai-form-row .ai-form-group {
+                margin-bottom: 8px;
+            }
+            .ai-no-task-warning {
+                background: #fff3cd;
+                color: #856404;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                margin-bottom: 8px;
+            }
+            .ai-workspace-right {
+                overflow-y: auto;
+            }
+            .ai-right-panel {
+                padding: 0;
+            }
+            .ai-right-tabs {
+                display: flex;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .ai-right-tab {
+                flex: 1;
+                padding: 8px 4px;
+                font-size: 11px;
+                cursor: pointer;
+                background: none;
+                border: none;
+                border-bottom: 2px solid transparent;
+                color: var(--text-muted);
+            }
+            .ai-right-tab.active {
+                color: var(--text-primary);
+                border-bottom-color: #3498db;
+                font-weight: 600;
+            }
+            .ai-right-tab-content {
+                padding: 8px;
+                max-height: calc(100vh - 300px);
+                overflow-y: auto;
+            }
+            .ai-task-card-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            .ai-task-card {
+                padding: 10px 10px;
+                background: var(--hover-bg);
+                border-radius: 8px;
+                cursor: pointer;
+                border: 1px solid var(--border-color);
+                transition: all 0.2s;
+            }
+            .ai-task-card:hover {
+                border-color: var(--text-secondary);
+            }
+            .ai-task-card.selected {
+                background: #e8f4fd;
+                border: 1px solid #3498db;
+            }
+            .ai-task-card.selected .ai-task-card-label {
+                color: #3498db;
+            }
+            .ai-task-card-label {
+                font-size: 13px;
+                font-weight: 600;
+                margin-bottom: 3px;
+            }
+            .ai-task-card-desc {
+                font-size: 10px;
+                color: var(--text-muted);
+                line-height: 1.3;
+            }
+            .ai-log-content {
+                max-height: 400px;
+                overflow-y: auto;
+            }
+            .ai-log-empty {
+                text-align: center;
+                padding: 20px 0;
+                color: var(--text-muted);
+                font-size: 12px;
+            }
+            .ai-log-item {
+                padding: 6px 0;
+                border-bottom: 1px solid var(--border-color);
+                font-size: 11px;
+            }
+            @media (max-width: 900px) {
+                .ai-workspace-layout { grid-template-columns: 70px 1fr; }
+                .ai-workspace-right { display: none; }
+            }
             @media (max-width: 700px) {
-                .ai-workspace-layout { grid-template-columns: 1fr !important; }
+                .ai-workspace-layout { grid-template-columns: 1fr; height: auto; }
                 .ai-agent-sidebar { flex-direction: row !important; overflow-x: auto; }
-                .ai-agent-sidebar .ai-agent-sidebar-header { writing-mode: horizontal-tb; border-bottom: none; border-right: 1px solid var(--border-color); min-width: 70px; text-align: center; }
-                .work-center-item { min-width: 90px; border-left: none !important; border-bottom: 3px solid transparent !important; }
+                .ai-agent-sidebar .ai-agent-sidebar-header { writing-mode: horizontal-tb; border-bottom: none; border-right: 1px solid var(--border-color); min-width: 60px; text-align: center; }
+                .work-center-item { min-width: 70px; border-left: none !important; border-bottom: 3px solid transparent !important; }
                 .work-center-item.active-mobile { border-bottom-color: #3498db !important; }
                 .ai-task-card-grid { grid-template-columns: 1fr 1fr !important; }
-                #outputActions .btn { font-size: 11px; padding: 4px 8px; }
+                .ai-snapshot-grid { grid-template-columns: repeat(2, 1fr); }
+                .ai-form-row { flex-direction: column; gap: 0; }
+                .ai-workspace-right { display: block; }
+                .ai-right-panel { margin-top: 12px; }
+                .ai-right-tabs { flex-wrap: wrap; }
+                .ai-right-tab { font-size: 12px; padding: 8px; }
+                .ai-workspace-right {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    z-index: 100;
+                    background: var(--card-bg);
+                    border-top: 1px solid var(--border-color);
+                    max-height: 200px;
+                }
+                .ai-right-panel { border-radius: 12px 12px 0 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+            }
+            @media (max-width: 390px) {
+                .ai-task-card-grid { grid-template-columns: 1fr !important; }
             }
         </style>
     `;
@@ -403,11 +618,25 @@ function renderAIWorkspace() {
     }
 }
 
+function toggleSnapshot() {
+    const area = document.getElementById('snapshotArea');
+    if (!area) return;
+    area.style.display = area.style.display === 'none' ? 'block' : 'none';
+}
+
+function switchRightTab(tab) {
+    document.querySelectorAll('.ai-right-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.ai-right-tab[data-tab="${tab}"]`).classList.add('active');
+    document.querySelectorAll('.ai-right-tab-content').forEach(c => c.style.display = 'none');
+    const content = document.getElementById(`rightTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+    if (content) content.style.display = 'block';
+}
+
 function renderWorkCenterItem(id, icon, name, color, isActive) {
     const activeStyle = isActive ? `background:var(--hover-bg);border-left:3px solid ${color};` : 'border-left:3px solid transparent;';
-    return `<div class="work-center-item" onclick="selectWorkCenter('${id}')" data-center="${id}" style="padding:12px 16px;cursor:pointer;transition:background 0.2s;${activeStyle}">
+    return `<div class="work-center-item" onclick="selectWorkCenter('${id}')" data-center="${id}" style="${activeStyle}">
         <div style="font-size:18px;margin-bottom:4px;">${icon}</div>
-        <div style="font-size:13px;font-weight:600;">${escapeHtml(name)}</div>
+        <div style="font-size:12px;font-weight:600;">${escapeHtml(name)}</div>
     </div>`;
 }
 
@@ -416,10 +645,13 @@ function selectWorkCenter(centerId) {
     const center = WORK_CENTERS[centerId];
     if (!center) return;
     currentTaskType = '';
+    currentTaskLabel = '';
 
+    // 更新标题
     document.getElementById('workCenterTitle').textContent = `${center.icon} ${center.name}`;
-    document.getElementById('workCenterDesc').textContent = getCenterDescription(centerId);
+    document.getElementById('currentTaskHint').style.display = 'none';
 
+    // 更新左侧选中态
     document.querySelectorAll('.work-center-item').forEach(el => {
         el.style.background = 'transparent';
         el.style.borderLeft = '3px solid transparent';
@@ -432,6 +664,7 @@ function selectWorkCenter(centerId) {
         selected.classList.add('active-mobile');
     }
 
+    // 渲染任务卡片
     renderTaskCards(centerId, center.tasks);
 
     // 内容中心显示工作流模式
@@ -443,31 +676,30 @@ function selectWorkCenter(centerId) {
         contentModeGroup.style.display = 'none';
     }
 
+    // 清空输出
     const output = document.getElementById('agentOutput');
     if (output) output.innerHTML = '选择左侧任务卡片或输入需求，点击「生成结果」查看输出。';
     document.getElementById('outputActions').style.display = 'none';
     document.getElementById('advancedOptionsArea').style.display = 'none';
+    document.getElementById('noTaskWarning').style.display = 'none';
     updatePrivacyModeUI();
 
+    // 默认选中第一个任务
     const defaultTask = center.tasks?.[0];
     if (defaultTask) {
         selectTask(defaultTask.task, defaultTask.agent, defaultTask.label, { focusInput: false, clearInput: true });
     }
 }
 
-function getCenterDescription(centerId) {
-    return { 'content': '生成公众号、小红书、视频号、朋友圈招生文案', 'question-bank': '建设数学题库、分类规则、推荐练习题、试卷分析', 'resource': '收集升学/中高考资料、制定资料收集计划', 'operations': '经营周报、班级课消、欠费续费预警、考勤异常' }[centerId] || '';
-}
-
 function renderTaskCards(centerId, tasks) {
     const area = document.getElementById('taskCardArea');
     if (!area) return;
-    area.innerHTML = `<div class="ai-task-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:12px;">` +
+    area.innerHTML = `<div class="ai-task-card-grid">` +
         tasks.map(t => {
             const badge = t.hasRealAI ? '<span style="background:#27ae60;color:white;padding:1px 4px;border-radius:3px;font-size:9px;margin-left:4px;">AI</span>' : '';
-            return `<div class="ai-task-card" onclick="selectTask('${t.task}','${t.agent}','${escapeHtml(t.label)}')" data-task="${t.task}" style="padding:10px 12px;background:var(--hover-bg);border-radius:8px;cursor:pointer;border:1px solid var(--border-color);transition:all 0.2s;">
-                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">${escapeHtml(t.label)}${badge}</div>
-                <div style="font-size:11px;color:var(--text-muted);line-height:1.3;">${escapeHtml(t.placeholder.substring(0,25))}...</div>
+            return `<div class="ai-task-card" onclick="selectTask('${t.task}','${t.agent}','${escapeHtml(t.label)}')" data-task="${t.task}" data-label="${escapeHtml(t.label)}">
+                <div class="ai-task-card-label">${escapeHtml(t.label)}${badge}</div>
+                <div class="ai-task-card-desc">${escapeHtml(t.placeholder.substring(0,20))}...</div>
             </div>`;
         }).join('') + `</div>`;
 }
@@ -481,10 +713,10 @@ function toggleMoreTasks() {
         moreArea.style.display = 'block';
         toggleBtn.textContent = '收起更多 ↑';
         moreArea.innerHTML = `<div style="margin-bottom:8px;font-size:12px;color:var(--text-muted);">更多任务</div>` +
-            `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;">` +
-            MORE_TASKS.map(t => `<div class="ai-task-card" onclick="selectTask('${t.task}','${t.agent}','${escapeHtml(t.label)}')" data-task="${t.task}" style="padding:10px 12px;background:var(--hover-bg);border-radius:8px;cursor:pointer;border:1px solid var(--border-color);transition:all 0.2s;">
-                <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">${escapeHtml(t.label)}</div>
-                <div style="font-size:11px;color:var(--text-muted);">更多功能</div>
+            `<div class="ai-task-card-grid">` +
+            MORE_TASKS.map(t => `<div class="ai-task-card" onclick="selectTask('${t.task}','${t.agent}','${escapeHtml(t.label)}')" data-task="${t.task}" data-label="${escapeHtml(t.label)}">
+                <div class="ai-task-card-label">${escapeHtml(t.label)}</div>
+                <div class="ai-task-card-desc">更多功能</div>
             </div>`).join('') + `</div>`;
     } else {
         moreArea.style.display = 'none';
@@ -495,17 +727,28 @@ function toggleMoreTasks() {
 function selectTask(taskId, agentId, taskLabel, options = {}) {
     currentAgentId = agentId;
     currentTaskType = taskId;
+    currentTaskLabel = taskLabel || '';
 
+    // 更新任务卡片选中态
     document.querySelectorAll('.ai-task-card').forEach(el => {
-        el.style.background = 'var(--hover-bg)';
-        el.style.border = '1px solid var(--border-color)';
+        el.classList.remove('selected');
     });
     const selected = document.querySelector(`.ai-task-card[data-task="${taskId}"]`);
     if (selected) {
-        selected.style.background = '#e8f4fd';
-        selected.style.border = '1px solid #3498db';
+        selected.classList.add('selected');
     }
 
+    // 显示当前任务提示
+    const hintEl = document.getElementById('currentTaskHint');
+    if (hintEl) {
+        hintEl.textContent = `当前任务：${currentTaskLabel}`;
+        hintEl.style.display = 'inline-block';
+    }
+
+    // 隐藏无任务警告
+    document.getElementById('noTaskWarning').style.display = 'none';
+
+    // 更新输入框 placeholder
     const input = document.getElementById('agentInput');
     const placeholder = getTaskPlaceholder(taskId);
     if (input) {
@@ -514,6 +757,7 @@ function selectTask(taskId, agentId, taskLabel, options = {}) {
         if (options.focusInput !== false) input.focus();
     }
 
+    // 外部跳转时预填姓名
     if (currentRelatedType === 'student' && (taskId === 'student-feedback' || taskId === 'renewal-script')) {
         const student = data.students?.find(s => s.id === currentRelatedId);
         if (student && input) input.value = `${student.name}\n`;
@@ -569,12 +813,6 @@ function onContentModeChange() {
 
 function toggleAdvancedOptions() {
     const area = document.getElementById('advancedOptionsArea');
-    if (!area) return;
-    area.style.display = area.style.display === 'none' ? 'block' : 'none';
-}
-
-function toggleAdvancedOptions() {
-    const area = document.getElementById('advancedOptionsArea');
     if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
 }
 
@@ -604,6 +842,7 @@ function updateAdvancedOptions() {
     } else if (taskId === 'question-bank-plan' || taskId === 'question-classify') {
         area.innerHTML = `
             <div style="margin-bottom:8px;font-size:12px;color:var(--text-secondary);">题库辅助（可选）</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">AI 辅助整理题库结构，当前为前端入口设计阶段，暂不接正式题库数据库。</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                 <input type="text" id="advGrade" placeholder="年级" style="padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
                 <input type="text" id="advChapter" placeholder="章节" style="padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
@@ -617,8 +856,8 @@ function updateAdvancedOptions() {
         `;
     } else if (taskId === 'resource-brief' || taskId === 'research-plan') {
         area.innerHTML = `
-            <div style="margin-bottom:8px;font-size:12px;color:var(--text-secondary);">资料整理辅助</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">请把资料或链接粘贴进输入框，AI 可帮你摘要和分类。不自动联网搜索。</div>
+            <div style="margin-bottom:8px;font-size:12px;color:var(--text-secondary);">资料库/升学情报（可选）</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">资料来源：Obsidian 笔记、本地资料文件夹、后续 SQLite 资料库。暂不接文件上传。</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <input type="text" id="advResourceGrade" placeholder="适用年级" style="padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
                 <input type="text" id="advResourceType" placeholder="资料类型（政策/真题/经验）" style="padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
@@ -741,10 +980,14 @@ function runAgentTask() {
     const input = document.getElementById('agentInput').value.trim();
     const output = document.getElementById('agentOutput');
 
+    // 检查是否选择了任务
     if (!currentTaskType) {
+        document.getElementById('noTaskWarning').style.display = 'block';
         showToast('请先选择任务类型');
         return;
     }
+
+    document.getElementById('noTaskWarning').style.display = 'none';
 
     if (!input) {
         showToast('建议补充主题，效果会更好');
@@ -766,7 +1009,6 @@ function doRunAgentTask(input, agentNames, taskNames) {
     const btn = document.getElementById('generateBtn');
     if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
 
-    // 收集高级选项
     const advancedText = collectAdvancedOptions();
     const styleNote = getStyleNote();
     const contentModeNote = getContentModeNote();
@@ -800,7 +1042,6 @@ function doRunAgentTask(input, agentNames, taskNames) {
             warningsEl.style.display = response.warnings?.length > 0 ? 'block' : 'none';
         }
 
-        // Markdown 渲染
         const modeNote = response.mode === 'real-ai'
             ? '<div style="font-size:12px;color:#27ae60;margin-bottom:8px;">✅ 本次由真实 AI 生成，内容需老师确认后使用。</div>'
             : '<div style="font-size:12px;color:#888;margin-bottom:8px;">📋 本次由本地模板生成，真实 AI 尚未启用。</div>';
@@ -1244,3 +1485,5 @@ window.refreshDrafts = refreshDrafts;
 window.refreshAITasks = refreshAITasks;
 window.refreshAgentLogs = refreshAgentLogs;
 window.openStyleSettings = openStyleSettings;
+window.toggleSnapshot = toggleSnapshot;
+window.switchRightTab = switchRightTab;
