@@ -41,6 +41,7 @@
 阶段 4：AI 控制台首页与 AI 工作台
 阶段 5：真实 AI 接入边界与多 Agent 流程
 阶段 6：AI 工作台重组、内容生产、题库与资料库
+阶段 7：资料库、语料库、题库后端底座
 ```
 
 ## 阶段 0：协作与环境整理
@@ -1284,3 +1285,41 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 **下一步**
 - Stage 6C 收尾：风格库进阶 + 样本积累
 - Stage 6D：题库 MVP（Excel 导入 + AI 分类）
+
+### Stage 7 资料库、语料库、题库后端规划完成内容（2026-06-02）
+
+**目标**：为 AI 工作台建立真正可持续使用的本地知识底座，让内容生产、资料整理、题库建设不再只依赖临时输入。
+
+#### A. 规划文档
+- 新增 `docs/STAGE_7_KNOWLEDGE_LIBRARY_BACKEND_PLAN.md`
+- 明确资料库、语料库、题库的后端目标、边界、数据表、API 和实施顺序
+
+#### B. 资料存放分工
+- Obsidian：长期笔记、表达风格、内容样本、教育观点、资料阅读摘要
+- 本地资料文件夹：PDF、Excel、题目、政策资料、机构讲义等原始文件
+- SQLite：资料索引、摘要、标签、风格样本、题库字段、AI 引用记录
+
+#### C. 后端表结构规划
+- `knowledge_sources`：资料来源
+- `knowledge_chunks`：资料片段
+- `style_profiles`：风格配置
+- `style_samples`：表达样本
+- `question_items`：题库题目
+- `ai_context_refs`：AI 生成引用记录
+
+#### D. API 规划
+- 第一批：资料库、风格库、题库基础 CRUD
+- 第二批：导入和检索
+- 第三批：AI 上下文预览和引用追溯
+
+#### E. 边界确认
+- 暂不自动联网抓取资料
+- 暂不处理复杂 PDF/OCR/公式识别
+- 暂不让 AI 自动修改业务数据
+- 暂不把飞书、Notion、Airtable 等外部工具作为核心数据源
+
+**下一步**
+- Stage 7B：Codex 新增 SQLite 表结构和 runtime check
+- Stage 7C：风格库 MVP
+- Stage 7D：资料库 MVP
+- Stage 7E：题库 MVP
