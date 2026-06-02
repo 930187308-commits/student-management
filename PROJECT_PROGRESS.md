@@ -687,7 +687,7 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 
 ## 阶段 5：真实 AI 接入边界与多 Agent 流程
 
-状态：5A 前端壳子已完成，5B 后端 AI API 骨架已完成，真实 AI 密钥尚未配置
+状态：5A 前端壳子已完成，5B 后端 AI API 骨架已完成，5C 前端已接 AI API 壳子，5D 真实 AI 安全配置前置已完成，真实 AI 密钥尚未配置
 
 阶段 5 详细规划见：
 
@@ -779,6 +779,37 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - AI 结果只写入 `ai_tasks` 和 `agent_logs`，不写入学员、班级、收费、考勤、成绩、沟通、意向学员等业务表。
 - 不把整包 `/data` 发给模型。
 - 默认日志只记录脱敏摘要和字段范围，不保存完整隐私输入。
+
+### 5C 前端接 AI API 壳子完成内容（2026-06-02）
+
+已完成：
+
+- AI 工作台接入 `/api/ai/status`。
+- 生成按钮改为调用 `/api/ai/generate`。
+- 输出区显示任务 ID、模式、隐私模式等小字。
+- Agent 日志从 `/api/agent-logs` 读取。
+- 学员详情和意向学员 AI 入口携带 `relatedType`、`relatedId`。
+
+明确说明：
+
+- 当前真实 AI 仍未启用。
+- 后端无密钥时返回 `local-template`。
+- 前端失败时回退本地模板。
+
+### 5D 真实 AI 安全配置前置完成内容（2026-06-02）
+
+已完成：
+
+- 服务启动时自动读取 `/Users/bzx/Data/student-ai-console/ai.env`。
+- `/api/ai/status` 返回脱敏 AI 配置状态，包括模式、供应商、缺失配置项。
+- `scripts/status-server.sh` 显示 AI mode 和配置文件加载状态。
+- 新增 `docs/AI_ENV_TEMPLATE.md`，记录 DeepSeek、OpenAI、自定义 OpenAI-compatible 配置示例。
+
+明确说明：
+
+- 真实 `AI_API_KEY` 不进入项目目录、不提交 GitHub。
+- 当前没有填写真实密钥，仍为本地模板模式。
+- `AI_LOG_FULL_INPUT=0` 为推荐默认值，不保存完整隐私输入。
 
 ### 5C 前端接 AI API 壳子完成内容（2026-06-02）
 
@@ -915,3 +946,5 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 2026-06-02：班级保存也接入后端事务动作。新增/编辑班级、组班转正常/已结课时清理意向学员所属组班、结课时按用户确认批量改待续费，均改为后端统一处理，前端只负责表单收集和确认。
 
 2026-06-02：阶段 5B 后端 AI API 骨架完成。新增 AI 配置读取、`server/ai-service.js`、`POST /api/ai/generate`、AI 任务记录、Agent 日志记录、`npm run ai:runtime-check`。真实模型调用按 OpenAI-compatible 接口预留，默认关闭；当前不会把 AI 输出写入业务表。
+
+2026-06-02：阶段 5D 真实 AI 安全配置前置完成。服务支持从 `/Users/bzx/Data/student-ai-console/ai.env` 读取 AI 配置，状态脚本可显示 AI 模式和缺失配置；新增 `docs/AI_ENV_TEMPLATE.md`。当前仍未配置真实密钥。

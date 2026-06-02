@@ -8,6 +8,8 @@
 
 2026-06-02 更新：阶段 5B 后端 AI API 骨架已完成。当前新增 `/api/ai/status`、`/api/ai/generate`、`/api/ai/tasks`、`/api/agent-logs`，默认 `AI_PROVIDER=disabled`，无密钥时返回本地模板并写入 `ai_tasks`、`agent_logs`。真实模型调用能力已预留为 OpenAI-compatible 接口，但尚未配置密钥，也未启用真实 AI。
 
+2026-06-02 更新：阶段 5D 真实 AI 启用前置配置已完成。服务会自动读取 `/Users/bzx/Data/student-ai-console/ai.env`，`scripts/status-server.sh` 会显示 AI 当前模式和缺失配置。配置模板见 `docs/AI_ENV_TEMPLATE.md`。当前仍未写入真实密钥。
+
 第一批真实 AI 能力只解决三类高价值任务：
 
 1. 家长反馈和续费沟通
@@ -225,6 +227,14 @@ AI_LOG_FULL_INPUT=0
 
 默认 `AI_PROVIDER=disabled`，没有密钥时前端仍继续使用本地规则模板。
 
+Mac mini 当前推荐使用数据目录配置文件：
+
+```text
+/Users/bzx/Data/student-ai-console/ai.env
+```
+
+该文件不放在项目目录，不提交 GitHub。
+
 ### 后端接口
 
 第一批只需要一个统一生成接口：
@@ -357,6 +367,17 @@ GET /api/agent-logs
 - 复制体验
 - 历史生成记录查看
 - 更多入口按钮
+
+### 5D 前置：真实 AI 安全启用配置
+
+适合 Codex：
+
+- 让服务读取 Mac mini 数据目录下的 AI 配置文件。
+- 状态脚本显示 AI 模式和缺失配置。
+- 不提交真实密钥。
+- 保持 `AI_LOG_FULL_INPUT=0`。
+
+状态：已完成前置配置，真实密钥尚未填写。
 
 ## 暂不做的事
 

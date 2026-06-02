@@ -1,8 +1,36 @@
+const fs = require('node:fs');
 const path = require('node:path');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const DATA_ROOT = process.env.STUDENT_DATA_DIR || '/Users/bzx/Data/student-ai-console';
 const LOG_ROOT = process.env.STUDENT_LOG_DIR || '/Users/bzx/Logs/student-ai-console';
+const AI_ENV_FILE = process.env.STUDENT_AI_ENV_FILE || path.join(DATA_ROOT, 'ai.env');
+
+function unquoteEnvValue(value) {
+    const trimmed = String(value || '').trim();
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        return trimmed.slice(1, -1);
+    }
+    return trimmed;
+}
+
+function loadLocalEnvFile(filePath) {
+    if (!fs.existsSync(filePath)) return false;
+    const text = fs.readFileSync(filePath, 'utf8');
+    text.split(/\r?\n/).forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) return;
+        const eqIndex = trimmed.indexOf('=');
+        if (eqIndex <= 0) return;
+        const key = trimmed.slice(0, eqIndex).trim();
+        const value = unquoteEnvValue(trimmed.slice(eqIndex + 1));
+        if (!key || Object.prototype.hasOwnProperty.call(process.env, key)) return;
+        process.env[key] = value;
+    });
+    return true;
+}
+
+const aiEnvFileLoaded = loadLocalEnvFile(AI_ENV_FILE);
 
 const config = {
     env: process.env.STUDENT_CONSOLE_ENV || 'production',
@@ -23,7 +51,9 @@ const config = {
         model: process.env.AI_MODEL || '',
         baseUrl: process.env.AI_BASE_URL || '',
         timeoutMs: Number(process.env.AI_TIMEOUT_MS || 30000),
-        logFullInput: process.env.AI_LOG_FULL_INPUT === '1'
+        logFullInput: process.env.AI_LOG_FULL_INPUT === '1',
+        envFile: AI_ENV_FILE,
+        envFileLoaded: aiEnvFileLoaded
     }
 };
 

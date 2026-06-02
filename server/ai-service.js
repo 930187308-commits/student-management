@@ -55,13 +55,23 @@ function normalizeProvider(value) {
 
 function getAiStatus() {
     const provider = normalizeProvider(config.ai.provider);
-    const enabled = provider !== 'disabled' && Boolean(config.ai.apiKey);
+    const model = config.ai.model || getDefaultModel(provider) || '';
+    const endpoint = getProviderEndpoint(provider);
+    const missing = [];
+    if (provider === 'disabled') missing.push('AI_PROVIDER');
+    if (provider !== 'disabled' && !config.ai.apiKey) missing.push('AI_API_KEY');
+    if (provider !== 'disabled' && !model) missing.push('AI_MODEL');
+    if (provider !== 'disabled' && !endpoint) missing.push('AI_BASE_URL');
+    const enabled = missing.length === 0;
     return {
         provider,
         enabled,
         mode: enabled ? 'real-ai' : 'local-template',
-        model: config.ai.model || getDefaultModel(provider) || '',
-        timeoutMs: config.ai.timeoutMs
+        model,
+        timeoutMs: config.ai.timeoutMs,
+        envFileLoaded: Boolean(config.ai.envFileLoaded),
+        envFile: config.ai.envFile,
+        missing
     };
 }
 

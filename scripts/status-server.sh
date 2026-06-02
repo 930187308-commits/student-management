@@ -92,4 +92,15 @@ if (!status.ok) process.exitCode = 1;
     else
         echo "Collection API parity: mismatch"
     fi
+
+    if ai_json="$(curl -fsS "http://localhost:$PORT/api/ai/status" 2>/dev/null)"; then
+        "$PROJECT_ROOT/scripts/node.sh" -e '
+const status = JSON.parse(process.argv[1]);
+const missing = Array.isArray(status.missing) && status.missing.length ? `, missing: ${status.missing.join(",")}` : "";
+console.log(`AI mode: ${status.mode} (${status.provider || "unknown"}${missing})`);
+console.log(`AI env file loaded: ${status.envFileLoaded ? "YES" : "NO"}`);
+' "$ai_json" || echo "AI status: unavailable"
+    else
+        echo "AI status: unavailable"
+    fi
 fi
