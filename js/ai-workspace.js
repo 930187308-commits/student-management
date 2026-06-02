@@ -67,7 +67,7 @@ function getTodayWorkSummary() {
     const todaySessionCount = todaySessions.length;
 
     // 待续费
-    const pendingRenewal = students.filter(s => s.status === 'pending').length;
+    const pendingRenewal = students.filter(s => s.status === 'renewalPending').length;
     const unpaidCount = fees.filter(f => f.status === 'pending').length;
 
     // 意向学员待跟进
@@ -677,7 +677,7 @@ ${monthDetail.length === 0 ? '本月暂无考勤记录' : monthDetail.map(m => `
 【班级状态】
 ${classes.filter(c => c.status !== 'forming').map(c => {
     const cnt = students.filter(s => s.classId === c.id && s.status === 'active').length;
-    const statusText = c.status === 'active' ? '进行中' : c.status === 'completed' ? '已结课' : '组班中';
+    const statusText = c.status === 'active' ? '进行中' : c.status === 'finished' ? '已结课' : '组班中';
     return `• ${c.name}：${statusText} ${getPrivacyVal(cnt)}/${getPrivacyVal(c.maxStudents)} 人`;
 }).join('\n') || '暂无班级'}
 
