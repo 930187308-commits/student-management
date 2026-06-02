@@ -29,23 +29,36 @@ function renderDashboard() {
             </div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th>班级名称</th><th>年级</th><th>上课时间</th><th>人数/满班</th><th>计划课次</th><th>已进行课次</th><th>操作</th></tr></thead>
+                    <thead><tr><th>班级名称</th><th>状态</th><th>年级</th><th>上课时间</th><th>人数/满班</th><th>课次进度</th><th>操作</th></tr></thead>
                     <tbody>
-                        ${classStats.map(c => `
-                            <tr>
-                                <td><strong>${escapeHtml(c.name)}</strong></td>
-                                <td>${escapeHtml(c.grade)}</td>
-                                <td>${escapeHtml(c.schedule)}</td>
-                                <td>${c.currentCount}/${c.maxStudents}</td>
-                                <td>${c.plannedSessions || 16}</td>
-                                <td><strong style="color:#27ae60;">${c.completedSessions}</strong></td>
-                                <td>
-                                    <button class="btn btn-secondary btn-xs" onclick="openClassModal('${escapeHtml(c.id)}')">编辑</button>
-                                    <button class="btn btn-xs" onclick="switchTab('students'); selectClass('${escapeHtml(c.id)}')">查看学员</button>
-                                    <button class="btn btn-xs" onclick="switchTab('attendance'); loadAttendanceClass('${escapeHtml(c.id)}')">考勤</button>
-                                </td>
-                            </tr>
-                        `).join('')}
+                        ${classStats.length === 0 ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">暂无班级</td></tr>' : classStats.map(c => {
+                            const statusBadge = c.status === 'active' ? 'badge-active' : c.status === 'forming' ? 'badge-trial' : 'badge-pending';
+                            const statusText = c.status === 'active' ? '正常' : c.status === 'forming' ? '组班中' : '已结课';
+                            const progressPercent = c.plannedSessions > 0 ? Math.round((c.completedSessions / c.plannedSessions) * 100) : 0;
+                            const isNearEnd = c.status !== 'forming' && c.plannedSessions > 0 && progressPercent >= 90;
+                            const isFinished = c.status === 'finished' || (c.status === 'active' && progressPercent >= 100);
+                            return `
+                                <tr style="${isFinished ? 'opacity:0.7;' : ''}${isNearEnd && !isFinished ? 'background:#fff8e6;' : ''}">
+                                    <td><strong style="color:#3498db;">${escapeHtml(c.name)}</strong></td>
+                                    <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                                    <td>${escapeHtml(c.grade) || '-'}</td>
+                                    <td>${escapeHtml(c.schedule) || '-'}</td>
+                                    <td>${c.currentCount}/${c.maxStudents}</td>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:6px;">
+                                            <strong style="color:#27ae60;">${c.completedSessions}</strong>
+                                            <span style="color:#888;font-size:12px;">/ ${c.plannedSessions || 16}</span>
+                                            <span style="font-size:11px;color:${isFinished ? '#e74c3c' : isNearEnd ? '#f39c12' : '#888'};">${isFinished ? '(已结课)' : isNearEnd ? '(接近结课)' : ''}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-secondary btn-xs" onclick="openClassModal('${escapeHtml(c.id)}')">编辑</button>
+                                        <button class="btn btn-xs" onclick="switchTab('students'); selectClass('${escapeHtml(c.id)}')">学员</button>
+                                        <button class="btn btn-xs" onclick="switchTab('attendance'); loadAttendanceClass('${escapeHtml(c.id)}')">考勤</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -58,17 +71,17 @@ function renderDashboard() {
                     <table>
                         <thead><tr><th>学员</th><th>欠费金额</th><th>操作</th></tr></thead>
                         <tbody>
-                            ${pendingFees.map(f => `<tr class="row-warning"><td>${escapeHtml(f.studentName)}</td><td><strong style="color:#e74c3c">¥${f.amount.toLocaleString()}</strong></td><td><button class="btn btn-success btn-xs" onclick="openFeeModal('${escapeHtml(f.id)}')">去缴费</button></td></tr>`).join('')}
+                            ${pendingFees.map(f => `<tr class="row-warning"><td>${escapeHtml(f.studentName)}</td><td><strong style="color:#e74c3c;font-size:15px;">¥${f.amount.toLocaleString()}</strong></td><td><button class="btn btn-success btn-xs" onclick="openFeeModal('${escapeHtml(f.id)}')" style="padding:4px 10px;">去缴费</button></td></tr>`).join('')}
                         </tbody>
                     </table>
                 `}
             </div>
             <div class="card">
                 <div class="card-header"><span class="card-title">快捷操作</span></div>
-                <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-                    <button class="btn btn-primary" onclick="switchTab('students'); setTimeout(() => openStudentModal(), 100)">+ 新增学员</button>
-                    <button class="btn btn-success" onclick="switchTab('fees'); setTimeout(() => openFeeModal(), 100)">+ 新增缴费</button>
-                    <button class="btn btn-primary" onclick="switchTab('grades'); setTimeout(() => openGradeModal(), 100)">+ 新增成绩</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button class="btn btn-primary" onclick="switchTab('students'); setTimeout(() => openStudentModal(), 100)">新增学员</button>
+                    <button class="btn btn-success" onclick="switchTab('fees'); setTimeout(() => openFeeModal(), 100)">新增缴费</button>
+                    <button class="btn btn-primary" onclick="switchTab('grades'); setTimeout(() => openGradeModal(), 100)">新增成绩</button>
                     <button class="btn btn-secondary" onclick="switchTab('reports')">查看统计报表</button>
                 </div>
             </div>

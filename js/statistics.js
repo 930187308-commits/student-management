@@ -146,10 +146,10 @@ function renderReports() {
     let html = `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="card">
-                <div class="card-header"><span class="card-title">课消统计（按月）</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
+                <div class="card-header"><span class="card-title">月课消统计</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
                 <div class="table-wrapper">
                     <table><thead><tr><th>月份</th><th>已消课时</th><th>估算课消金额</th></tr></thead><tbody>
-                        ${monthlyConsumption.map(row => `<tr><td>${escapeHtml(row.month)}</td><td><strong style="color:#27ae60;">${row.sessions}</strong></td><td><strong style="color:#27ae60;">¥${Number(row.amount || 0).toLocaleString()}</strong></td></tr>`).join('') || '<tr><td colspan="3">暂无数据</td></tr>'}
+                        ${monthlyConsumption.length > 0 ? monthlyConsumption.map(row => `<tr><td>${escapeHtml(row.month)}</td><td><strong style="color:#27ae60;">${row.sessions}</strong></td><td><strong style="color:#27ae60;">¥${Number(row.amount || 0).toLocaleString()}</strong></td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px;">暂无课消数据</td></tr>'}
                     </tbody></table>
                 </div>
             </div>
@@ -185,7 +185,7 @@ function renderReports() {
 
             <div class="card" style="grid-column: 1 / -1;">
                 <div class="card-header">
-                    <span class="card-title">课消统计（剩余课时）</span>
+                    <span class="card-title">课消明细（剩余课时）</span>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <select id="reportClassFilter" onchange="switchReportClass(this.value)" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;">
                             <option value="">全部班级</option>
@@ -195,13 +195,13 @@ function renderReports() {
                     </div>
                 </div>
                 <div class="table-wrapper">
-                    <table><thead><tr><th>学员</th><th>年级</th><th>总课时</th><th>已消</th><th>请假</th><th>剩余</th><th>状态</th></tr></thead><tbody>
-                        ${studentConsumptionSummary.map(s => {
+                    <table><thead><tr><th>学员</th><th>年级</th><th>已缴课时</th><th>已消课时</th><th>请假次数</th><th>剩余课时</th><th>状态</th></tr></thead><tbody>
+                        ${studentConsumptionSummary.length > 0 ? studentConsumptionSummary.map(s => {
                             const status = s.remainingHours <= 5 ? 'row-warning' : '';
                             const badge = s.remainingHours <= 5 ? 'badge-pending' : 'badge-active';
                             const text = s.statusText || (s.remainingHours <= 5 ? '需续费' : '正常');
                             return `<tr class="${status}"><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.grade)}</td><td>${s.totalHours}</td><td><strong style="color:#27ae60;">${s.usedHours}</strong></td><td><strong style="color:#f39c12;">${s.absentHours}</strong></td><td><strong>${s.remainingHours}</strong></td><td><span class="badge ${badge}">${text}</span></td></tr>`;
-                        }).join('') || '<tr><td colspan="7">暂无数据</td></tr>'}
+                        }).join('') : '<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">暂无课消数据</td></tr>'}
                     </tbody></table>
                 </div>
             </div>
@@ -361,9 +361,10 @@ function exportConsumptionSummary() {
         });
         return [s.name, s.grade, totalHours, usedHours, totalHours - usedHours, totalHours - usedHours <= 5 ? '需续费' : '正常'];
     });
-    const ws = XLSX.utils.aoa_to_sheet([['学员', '年级', '总课时', '已消课时', '剩余课时', '状态'], ...studentConsumptionSummary]);
+    const ws = XLSX.utils.aoa_to_sheet([['学员', '年级', '已缴课时', '已消课时', '请假次数', '剩余课时', '状态'], ...studentConsumptionSummary]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '课消统计');
     XLSX.writeFile(wb, '课消统计.xlsx');
+    if (studentConsumptionSummary.length === 0) { showToast('当前筛选条件下无数据可导出'); return; }
     showToast('导出成功');
 }

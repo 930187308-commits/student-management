@@ -36,7 +36,7 @@ function renderFees() {
             <div class="table-wrapper">
 	                <table><thead><tr>${feeBatchMode ? '<th><input type="checkbox" onchange="toggleAllFeeSelection(this)"></th>' : ''}<th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
 	            </div>
-	            <div style="margin-top: 16px; display: flex; gap: 12px;">
+	            <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
 	                <button class="btn btn-secondary" onclick="exportFees()">导出Excel</button>
 	                ${feeBatchMode ? '<button class="btn btn-secondary" onclick="exportSelectedFees()">导出选中</button><button class="btn btn-danger" onclick="deleteSelectedFees()">删除选中</button>' : ''}
 	            </div>
