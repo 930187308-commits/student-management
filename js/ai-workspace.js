@@ -343,7 +343,7 @@ function renderAIWorkspace() {
                         <div id="taskRecordInfo" class="ai-task-record" style="display:none;"></div>
 
                         <!-- 本次引用资料 -->
-                        <div id="contextRefsArea" style="display:none;margin-top:12px;padding:12px;background:var(--hover-bg);border-radius:8px;">
+                        <div id="contextRefsArea" class="ai-context-refs-area" style="display:none;margin-top:12px;padding:12px;background:var(--hover-bg);border-radius:8px;">
                             <div style="font-size:12px;font-weight:600;margin-bottom:8px;">📚 本次引用资料</div>
                             <div id="contextRefsContent"></div>
                         </div>
@@ -609,6 +609,7 @@ function renderAIWorkspace() {
             }
             @media (max-width: 390px) {
                 .ai-task-card-grid { grid-template-columns: 1fr !important; }
+                .ai-context-refs-area { overflow-x: auto; }
             }
         </style>
     `;
@@ -1049,8 +1050,12 @@ function doRunAgentTask(input, agentNames, taskNames) {
             warningsEl.style.display = response.warnings?.length > 0 ? 'block' : 'none';
         }
 
+        const hasContextRefs = response.contextRefs && response.contextRefs.length > 0;
         const modeNote = response.mode === 'real-ai'
-            ? '<div style="font-size:12px;color:#27ae60;margin-bottom:8px;">✅ 本次由真实 AI 生成，内容需老师确认后使用。</div>'
+            ? `<div style="font-size:12px;margin-bottom:8px;">
+                <span style="color:#27ae60;">✅ 真实 AI</span>
+                <span style="color:${hasContextRefs ? '#27ae60' : '#f39c12'};margin-left:8px;">· ${hasContextRefs ? '已引用知识库' : '未引用知识库'}</span>
+               </div>`
             : '<div style="font-size:12px;color:#888;margin-bottom:8px;">📋 本次由本地模板生成，真实 AI 尚未启用。</div>';
         output.innerHTML = `<div class="ai-output-text">${renderMarkdown(response.result || '')}</div>${modeNote}`;
 
@@ -1466,12 +1471,17 @@ function renderContextRefs(contextRefs, mode) {
     let html = '';
     Object.entries(grouped).forEach(([type, refs]) => {
         const label = typeLabels[type] || type;
-        html += `<div style="margin-bottom:8px;">
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">📂 ${escapeHtml(label)}（${refs.length}条）</div>`;
-        refs.forEach(ref => {
-            html += `<div style="font-size:12px;padding:4px 8px;background:var(--card-bg);border-radius:4px;margin-bottom:4px;">
-                <div style="font-weight:600;color:var(--text-primary);margin-bottom:2px;">${escapeHtml(ref.title || ref.name || '未命名')}</div>
-                ${ref.summary ? `<div style="font-size:11px;color:var(--text-muted);line-height:1.4;">${escapeHtml(ref.summary.substring(0, 80))}${ref.summary.length > 80 ? '...' : ''}</div>` : ''}
+        html += `<div style="margin-bottom:10px;">
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;font-weight:600;">📂 ${escapeHtml(label)}（${refs.length}条）</div>`;
+        refs.forEach((ref, idx) => {
+            const refId = `ctx-ref-${type}-${idx}`;
+            const titleText = escapeHtml(ref.title || ref.name || '未命名');
+            const summaryText = ref.summary ? escapeHtml(ref.summary) : '';
+            const hasLongContent = summaryText.length > 80;
+
+            html += `<div style="font-size:12px;padding:6px 8px;background:var(--card-bg);border-radius:4px;margin-bottom:4px;">
+                <div style="font-weight:600;color:var(--text-primary);margin-bottom:2px;">${titleText}</div>
+                ${summaryText ? `<div style="font-size:11px;color:var(--text-muted);line-height:1.4;">${hasLongContent ? summaryText.substring(0, 80) + '...' : summaryText}</div>` : ''}
             </div>`;
         });
         html += '</div>';

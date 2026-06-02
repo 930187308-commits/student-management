@@ -38,8 +38,35 @@ function renderKnowledge() {
 
             <div class="card" id="knowledgeEmptyHint" style="display:none;padding:16px;text-align:center;">
                 <div style="font-size:28px;margin-bottom:8px;">📭</div>
-                <div style="font-size:14px;color:var(--text-secondary);margin-bottom:4px;">知识库还没有录入内容</div>
-                <div style="font-size:12px;color:var(--text-muted);">AI 目前只能使用临时输入和业务数据。<br>请到下方各标签页录入风格样本、资料或题目。</div>
+                <div style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">知识库还没有录入内容</div>
+                <div style="font-size:12px;color:var(--text-muted);text-align:left;max-width:400px;margin:0 auto;">
+                    <div style="margin-bottom:6px;">1. 可以到下方各 tab 手动新增</div>
+                    <div style="margin-bottom:6px;">2. 可以先运行 dry-run 检查 Obsidian 导入：<br><code style="font-size:10px;">npm run knowledge:import-obsidian -- --dry-run</code></div>
+                    <div>3. 确认后可让 Codex 执行 apply 写入知识库</div>
+                </div>
+            </div>
+
+            <div class="card knowledge-obsidian-guide" id="obsidianGuideCard">
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                    <div style="font-size:24px;flex-shrink:0;">📦</div>
+                    <div style="flex:1;">
+                        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">Obsidian 导入说明</div>
+                        <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px;">
+                            Obsidian 是你的素材库，不是业务数据库。导入命令：
+                        </div>
+                        <div style="background:var(--hover-bg);padding:8px 10px;border-radius:6px;margin-bottom:6px;">
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">1. 先 dry-run 预览（不写入）：</div>
+                            <code style="font-size:11px;color:#27ae60;">npm run knowledge:import-obsidian -- --dry-run</code>
+                        </div>
+                        <div style="background:var(--hover-bg);padding:8px 10px;border-radius:6px;margin-bottom:6px;">
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">2. 确认后再 apply（写入知识库）：</div>
+                            <code style="font-size:11px;color:#27ae60;">npm run knowledge:import-obsidian -- --apply</code>
+                        </div>
+                        <div style="font-size:11px;color:var(--text-muted);">
+                            默认 Obsidian 路径：<code style="font-size:10px;">/Users/bzx/Library/Mobile Documents/com~apple~CloudDocs/ObsidianVaults/AI 教培工作台</code>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="card knowledge-tabs-card">
@@ -318,6 +345,8 @@ function renderKnowledge() {
                 .knowledge-stat-grid { grid-template-columns: repeat(2, 1fr); }
                 .knowledge-sub-tabs { flex-wrap: wrap; }
                 .knowledge-sub-tab { font-size: 12px; padding: 8px; }
+                .knowledge-obsidian-guide { padding: 12px; }
+                .knowledge-obsidian-guide code { word-break: break-all; }
             }
             @media (max-width: 390px) {
                 .knowledge-stat-grid { grid-template-columns: 1fr 1fr; }
