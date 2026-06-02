@@ -39,7 +39,7 @@
 阶段 2：Mac mini 服务器化 + SQLite
 阶段 3：前端逐步接 API
 阶段 4：AI 控制台首页与 AI 工作台
-阶段 5：多 Agent 流程
+阶段 5：真实 AI 接入边界与多 Agent 流程
 ```
 
 ## 阶段 0：协作与环境整理
@@ -509,6 +509,7 @@
 
 ## 阶段 4：AI 控制台首页与 AI 工作台
 
+<<<<<<< HEAD
 状态：进行中（第四轮完成）
 
 ### 第四轮完成内容（2026-06-02）
@@ -658,6 +659,8 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 
 （内容同前，此处省略详见前版）
 
+状态：进行中（第四轮完成）
+
 计划模块：
 
 - 首页总览
@@ -682,9 +685,13 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - AI 输出先让老师确认，不自动改收费、考勤、删除类数据。
 - AI 输出记录进 `agent_logs` 或后续任务表。
 
-## 阶段 5：多 Agent 流程
+## 阶段 5：真实 AI 接入边界与多 Agent 流程
 
-状态：未开始
+状态：边界规划中
+
+阶段 5 详细规划见：
+
+- `docs/STAGE_5_REAL_AI_BOUNDARY_PLAN.md`
 
 计划 Agent：
 
@@ -698,6 +705,8 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 
 - 每个 Agent 必须有明确输入、输出、确认步骤。
 - 先建议，后半自动，最后才考虑自动执行。
+- 第一批真实 AI 接入只做“只读生成 + 老师确认 + 日志留痕”。
+- 默认脱敏，不把整包 `/data` 或全量学生隐私直接发送给模型。
 
 ## 当前风险与注意事项
 
