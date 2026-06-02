@@ -7,6 +7,7 @@ const { openDatabase, getData, getDataFromEntityTables, getDataFromEntityColumns
 const { createReconciliationReport } = require('./reconcile-sqlite-split');
 const { createSqliteMetricsReport, createReportsSummary, createDashboardSummary } = require('./sqlite-metrics');
 const { createDataHealthReport } = require('./data-health');
+const { convertProspectToStudent, finishClass, archiveClass, unarchiveClass, permanentlyDeleteArchivedClass, cleanSafeDataHealthIssues } = require('./actions');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -310,6 +311,71 @@ async function handleApi(req, res, pathname) {
     const restoreMatch = pathname.match(/^\/api\/backups\/(\d+)\/restore$/);
     if (req.method === 'POST' && restoreMatch) {
         const result = restoreBackup(Number(restoreMatch[1]));
+        sendJson(res, 200, result, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
+    const convertProspectMatch = pathname.match(/^\/api\/actions\/prospects\/([^/]+)\/convert$/);
+    if (req.method === 'POST' && convertProspectMatch) {
+        if (!ensureClientDataVersion(req, res)) return true;
+        const rawBody = await readRequestBody(req).catch(() => '');
+        const parsed = rawBody ? JSON.parse(rawBody) : {};
+        const result = convertProspectToStudent(decodeURIComponent(convertProspectMatch[1]), parsed);
+        sendJson(res, 200, result, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
+    const finishClassMatch = pathname.match(/^\/api\/actions\/classes\/([^/]+)\/finish$/);
+    if (req.method === 'POST' && finishClassMatch) {
+        if (!ensureClientDataVersion(req, res)) return true;
+        const rawBody = await readRequestBody(req).catch(() => '');
+        const parsed = rawBody ? JSON.parse(rawBody) : {};
+        const result = finishClass(decodeURIComponent(finishClassMatch[1]), parsed);
+        sendJson(res, 200, result, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
+    const archiveClassMatch = pathname.match(/^\/api\/actions\/classes\/([^/]+)\/archive$/);
+    if (req.method === 'POST' && archiveClassMatch) {
+        if (!ensureClientDataVersion(req, res)) return true;
+        const result = archiveClass(decodeURIComponent(archiveClassMatch[1]));
+        sendJson(res, 200, result, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
+    const unarchiveClassMatch = pathname.match(/^\/api\/actions\/classes\/([^/]+)\/unarchive$/);
+    if (req.method === 'POST' && unarchiveClassMatch) {
+        if (!ensureClientDataVersion(req, res)) return true;
+        const result = unarchiveClass(decodeURIComponent(unarchiveClassMatch[1]));
+        sendJson(res, 200, result, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
+    const deleteArchivedClassMatch = pathname.match(/^\/api\/actions\/classes\/([^/]+)$/);
+    if (req.method === 'DELETE' && deleteArchivedClassMatch) {
+        if (!ensureClientDataVersion(req, res)) return true;
+        const result = permanentlyDeleteArchivedClass(decodeURIComponent(deleteArchivedClassMatch[1]));
+        sendJson(res, 200, result, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/actions/data-health/clean-safe') {
+        const rawBody = await readRequestBody(req).catch(() => '');
+        const parsed = rawBody ? JSON.parse(rawBody) : {};
+        if (!parsed.dryRun && !ensureClientDataVersion(req, res)) return true;
+        const result = cleanSafeDataHealthIssues(parsed);
         sendJson(res, 200, result, {
             'X-Data-Updated-At': getDataUpdatedAt() || ''
         });

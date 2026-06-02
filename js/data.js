@@ -629,6 +629,74 @@ async function deleteCollectionItemFromApi(collectionName, id) {
     return payload.deleted;
 }
 
+async function runActionToApi(path, options = {}) {
+    if (!options.skipUndo && lastSavedDataSnapshot) {
+        undoDataSnapshot = cloneData(lastSavedDataSnapshot);
+    }
+    const method = options.method || 'POST';
+    const body = options.body || {};
+    const response = await fetch(`${SERVER_URL}${path}`, {
+        method,
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Base-Data-Updated-At': serverDataUpdatedAt || ''
+        },
+        body: method === 'GET' ? undefined : JSON.stringify(body)
+    });
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || `操作失败：${response.status}`);
+    }
+    const payload = await response.json();
+    serverDataUpdatedAt = response.headers.get('X-Data-Updated-At') || payload.updatedAt || serverDataUpdatedAt;
+    (options.collections || []).forEach(collectionName => {
+        if (Array.isArray(payload[collectionName])) {
+            data[collectionName] = payload[collectionName];
+        }
+    });
+    invalidateReportsSummaryCache();
+    data.lastModified = payload.updatedAt || new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    lastSavedDataSnapshot = cloneData(data);
+    lastSaveTime = new Date();
+    dataModified = false;
+    updateAutoSaveIndicator();
+    updateUndoButton();
+    return payload;
+}
+
+async function convertProspectToStudentFromApi(id) {
+    return runActionToApi(`/api/actions/prospects/${encodeURIComponent(id)}/convert`, {
+        collections: ['students', 'prospects']
+    });
+}
+
+async function archiveClassFromApi(id) {
+    return runActionToApi(`/api/actions/classes/${encodeURIComponent(id)}/archive`, {
+        collections: ['classes', 'prospects']
+    });
+}
+
+async function unarchiveClassFromApi(id) {
+    return runActionToApi(`/api/actions/classes/${encodeURIComponent(id)}/unarchive`, {
+        collections: ['classes']
+    });
+}
+
+async function permanentlyDeleteArchivedClassFromApi(id) {
+    return runActionToApi(`/api/actions/classes/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        collections: ['classes', 'attendance', 'students', 'prospects']
+    });
+}
+
+async function cleanSafeHealthIssuesFromApi() {
+    return runActionToApi('/api/actions/data-health/clean-safe', {
+        collections: ['attendance', 'fees']
+    });
+}
+
 function getAllCollectionsPayload() {
     return Object.fromEntries(API_COLLECTION_NAMES.map(collectionName => [collectionName, data[collectionName] || []]));
 }

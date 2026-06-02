@@ -318,30 +318,14 @@ function openPendingFeeFromHealth(studentId, suggestedHours = 1, type = 'negativ
 }
 
 async function cleanSafeHealthIssues() {
-    const report = getDataHealthReport();
-    const orphanIds = new Set(report.orphanAttendance.map(a => a.id));
-    const orphanFeeIds = new Set(report.orphanFees.map(f => f.id));
-    const studentIds = new Set((data.students || []).map(s => s.id));
-    const beforeAttendance = (data.attendance || []).length;
-    const beforeFees = (data.fees || []).length;
-    let removedRecordRefs = 0;
-
-    data.attendance = (data.attendance || []).filter(a => !orphanIds.has(a.id));
-    data.fees = (data.fees || []).filter(f => !orphanFeeIds.has(f.id));
-    data.attendance.forEach(session => {
-        Object.keys(session.records || {}).forEach(studentId => {
-            if (!studentIds.has(studentId)) {
-                delete session.records[studentId];
-                removedRecordRefs++;
-            }
-        });
-    });
-
-    const removedAttendance = beforeAttendance - data.attendance.length;
-    const removedFees = beforeFees - data.fees.length;
-    await createServerBackup('数据体检清理前自动备份');
-    await saveCollectionsToApi({ attendance: data.attendance, fees: data.fees });
-    showToast(`已清理考勤 ${removedAttendance} 条，无效学员记录 ${removedRecordRefs} 个，收费 ${removedFees} 条`);
+    let result;
+    try {
+        result = await cleanSafeHealthIssuesFromApi();
+    } catch (error) {
+        showToast('清理失败：' + error.message);
+        return;
+    }
+    showToast(`已清理考勤 ${result.removedAttendance} 条，无效学员记录 ${result.removedRecordRefs} 个，收费 ${result.removedFees} 条`);
     openDataHealthCheck();
 }
 

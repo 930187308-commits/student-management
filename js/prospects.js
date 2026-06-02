@@ -276,44 +276,8 @@ async function convertProspect(id) {
     const prospect = (data.prospects || []).find(p => p.id === id);
     if (!prospect) return;
     if (!confirm(`确定将"${escapeHtml(prospect.name)}"转为正式学员？`)) return;
-
-    // 构建备注：微信+来源+目前成绩
-    const wechatNote = prospect.wechat ? `微信：${escapeHtml(prospect.wechat)}；` : '';
-    const sourceNote = prospect.source ? `来源：${escapeHtml(prospect.source)}；` : '';
-    const intentNote = prospect.intent ? `目前成绩：${escapeHtml(prospect.intent)}` : '';
-    const remark = wechatNote + sourceNote + intentNote;
-
-    // 级别推断：优先用 grade，否则从 intent 推断
-    let inferredGrade = prospect.grade || '';
-    if (!inferredGrade && prospect.intent) {
-        if (prospect.intent.includes('小升初')) inferredGrade = '六年级';
-        else if (prospect.intent.includes('中考')) inferredGrade = '初三';
-        // 其他情况 inferredGrade 保持空
-    }
-
-    // 创建正式学员
-    const targetClassId = prospect.classId || '';
-    const studentData = {
-        id: generateId(),
-        name: prospect.name,
-        gender: '',
-        grade: inferredGrade,
-        classId: targetClassId,
-        teacher: '白老师',
-        enrollDate: new Date().toISOString().split('T')[0],
-        phone: prospect.phone || '',
-        emergencyContact: '',
-        status: 'active',
-        remark: remark
-    };
-    data.students.push(studentData);
-
-    // 更新意向学员状态：成交、组班状态清除
-    prospect.dealStatus = 'deal';
-    prospect.trialStatus = 'deal';
-    prospect.classId = '';
     try {
-        await saveCollectionsToApi({ students: data.students, prospects: data.prospects });
+        await convertProspectToStudentFromApi(id);
     } catch (error) {
         showToast('转正式失败：' + error.message);
         return;

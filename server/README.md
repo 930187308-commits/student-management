@@ -145,6 +145,21 @@ npm run sqlite:attendance-record-read-parity
 
 This verifies that `attendance_sessions` plus `attendance_records` can reconstruct the same attendance JSON shape used by the frontend.
 
+Cross-collection action APIs are also checked by the backend baseline. To run them directly:
+
+```bash
+npm run actions:runtime-check
+```
+
+These action APIs keep multi-collection changes on the server side:
+
+- `POST /api/actions/prospects/{id}/convert`
+- `POST /api/actions/classes/{id}/finish`
+- `POST /api/actions/classes/{id}/archive`
+- `POST /api/actions/classes/{id}/unarchive`
+- `DELETE /api/actions/classes/{id}`
+- `POST /api/actions/data-health/clean-safe`
+
 Reconcile the app-state snapshot against SQLite entity tables:
 
 ```bash

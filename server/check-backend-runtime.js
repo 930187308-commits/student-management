@@ -47,6 +47,10 @@ const CHECKS = [
     {
         name: 'Single item API runtime',
         script: 'server/check-single-item-api-runtime.js'
+    },
+    {
+        name: 'Action API runtime',
+        script: 'server/check-action-api-runtime.js'
     }
 ];
 

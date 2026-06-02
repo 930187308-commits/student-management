@@ -371,15 +371,8 @@ async function archiveClass(id) {
         return;
     }
     if (!confirm(`确定归档班级“${cls.name}”吗？\n\n归档后会从班级主列表移到“归档班级”，历史考勤和学员轨迹会保留。班级状态不会自动改为已结课。`)) return;
-    cls.archivedStudentSnapshot = createArchivedClassStudentSnapshot(id);
-    cls.archived = true;
-    cls.archivedAt = new Date().toISOString();
-    (data.prospects || []).forEach(p => {
-        if (p.classId === id && p.dealStatus !== 'deal') p.classId = '';
-    });
     try {
-        const updates = { classes: data.classes, prospects: data.prospects };
-        await saveCollectionsToApi(updates);
+        await archiveClassFromApi(id);
     } catch (error) {
         showToast('归档失败：' + error.message);
         return;
@@ -575,10 +568,8 @@ async function unarchiveClass(classId) {
         return;
     }
     if (!confirm(`确定把“${cls.name}”放回班级主列表吗？`)) return;
-    cls.archived = false;
-    delete cls.archivedAt;
     try {
-        await saveClassesToApi(data.classes);
+        await unarchiveClassFromApi(classId);
     } catch (error) {
         showToast('取消归档失败：' + error.message);
         return;
@@ -600,26 +591,8 @@ async function permanentlyDeleteArchivedClass(classId) {
     const prospectCount = (data.prospects || []).filter(p => p.classId === classId).length;
     if (!confirm(`确定彻底删除归档班级“${cls.name}”吗？\n\n将同时清理：\n- 该班级资料\n- 该班级考勤课次 ${attendanceCount} 条\n- 学员/意向学员中的班级关联 ${studentCount + prospectCount} 条\n\n此操作适合清理测试数据。真实历史班级不建议删除。`)) return;
     if (!confirm('最后确认：彻底删除后只能通过服务器备份恢复。确定继续？')) return;
-
-    data.classes = (data.classes || []).filter(c => c.id !== classId);
-    data.attendance = (data.attendance || []).filter(a => a.classId !== classId);
-    (data.students || []).forEach(s => {
-        if (s.classId === classId) s.classId = '';
-        if (s.classJoinSessions) delete s.classJoinSessions[classId];
-        if (s.classLeaveSessions) delete s.classLeaveSessions[classId];
-    });
-    (data.prospects || []).forEach(p => {
-        if (p.classId === classId) p.classId = '';
-    });
-
     try {
-        await createServerBackup('彻底删除归档班级前自动备份');
-        await saveCollectionsToApi({
-            classes: data.classes,
-            attendance: data.attendance,
-            students: data.students,
-            prospects: data.prospects
-        });
+        await permanentlyDeleteArchivedClassFromApi(classId);
     } catch (error) {
         showToast('彻底删除失败：' + error.message);
         return;
