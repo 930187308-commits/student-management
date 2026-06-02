@@ -19,21 +19,27 @@ function renderKnowledge() {
                 <div class="knowledge-stat-grid">
                     <div class="knowledge-stat-item">
                         <div class="knowledge-stat-num" id="statKnowledgeCount">-</div>
-                        <div class="knowledge-stat-label">资料数</div>
+                        <div class="knowledge-stat-label">资料来源</div>
                     </div>
                     <div class="knowledge-stat-item">
                         <div class="knowledge-stat-num" id="statStyleCount">-</div>
-                        <div class="knowledge-stat-label">风格数</div>
+                        <div class="knowledge-stat-label">风格配置</div>
                     </div>
                     <div class="knowledge-stat-item">
                         <div class="knowledge-stat-num" id="statSampleCount">-</div>
-                        <div class="knowledge-stat-label">样本数</div>
+                        <div class="knowledge-stat-label">风格样本</div>
                     </div>
                     <div class="knowledge-stat-item">
                         <div class="knowledge-stat-num" id="statQuestionCount">-</div>
                         <div class="knowledge-stat-label">题目数</div>
                     </div>
                 </div>
+            </div>
+
+            <div class="card" id="knowledgeEmptyHint" style="display:none;padding:16px;text-align:center;">
+                <div style="font-size:28px;margin-bottom:8px;">📭</div>
+                <div style="font-size:14px;color:var(--text-secondary);margin-bottom:4px;">知识库还没有录入内容</div>
+                <div style="font-size:12px;color:var(--text-muted);">AI 目前只能使用临时输入和业务数据。<br>请到下方各标签页录入风格样本、资料或题目。</div>
             </div>
 
             <div class="card knowledge-tabs-card">
@@ -46,6 +52,9 @@ function renderKnowledge() {
 
             <!-- 风格库 Tab -->
             <div id="ktabStyle" class="knowledge-subtab-content">
+                <div class="card" style="padding:10px 12px;background:#fffbe6;border-radius:8px;margin-bottom:8px;">
+                    <div style="font-size:11px;color:#856404;">💡 录入提示：可从 Obsidian 的"AI教培工作台/风格库/白老师风格规则.md"复制规则，或从"内容样本.md"复制样本内容。</div>
+                </div>
                 <div class="card">
                     <div class="knowledge-section-header">
                         <span>🎨 风格配置</span>
@@ -75,6 +84,9 @@ function renderKnowledge() {
 
             <!-- 资料库 Tab -->
             <div id="ktabSource" class="knowledge-subtab-content" style="display:none;">
+                <div class="card" style="padding:10px 12px;background:#fffbe6;border-radius:8px;margin-bottom:8px;">
+                    <div style="font-size:11px;color:#856404;">💡 录入提示：可从 Obsidian 的"AI教培工作台/资料库/小升初资料.md、中考资料.md、家长常见问题.md"复制摘要进来。</div>
+                </div>
                 <div class="card">
                     <div class="knowledge-section-header">
                         <span>📄 资料来源</span>
@@ -103,6 +115,9 @@ function renderKnowledge() {
 
             <!-- 题库 Tab -->
             <div id="ktabQuestion" class="knowledge-subtab-content" style="display:none;">
+                <div class="card" style="padding:10px 12px;background:#fffbe6;border-radius:8px;margin-bottom:8px;">
+                    <div style="font-size:11px;color:#856404;">💡 录入提示：可参考 Obsidian 的"AI教培工作台/题库素材/题库标签体系.md"，手工录入或后续支持 Excel 批量导入。</div>
+                </div>
                 <div class="card">
                     <div class="knowledge-section-header">
                         <span>📝 数学题库 MVP</span>
@@ -336,12 +351,21 @@ function loadKnowledgeSummary() {
             document.getElementById('statStyleCount').textContent = data.styleProfileCount || 0;
             document.getElementById('statSampleCount').textContent = data.styleSampleCount || 0;
             document.getElementById('statQuestionCount').textContent = data.questionCount || 0;
+
+            // 显示空状态提示
+            const total = (data.knowledgeCount || 0) + (data.styleProfileCount || 0) + (data.styleSampleCount || 0) + (data.questionCount || 0);
+            const emptyHint = document.getElementById('knowledgeEmptyHint');
+            if (emptyHint) {
+                emptyHint.style.display = total === 0 ? 'block' : 'none';
+            }
         })
         .catch(() => {
             document.getElementById('statKnowledgeCount').textContent = '0';
             document.getElementById('statStyleCount').textContent = '0';
             document.getElementById('statSampleCount').textContent = '0';
             document.getElementById('statQuestionCount').textContent = '0';
+            const emptyHint = document.getElementById('knowledgeEmptyHint');
+            if (emptyHint) emptyHint.style.display = 'block';
         });
 }
 
@@ -363,6 +387,8 @@ function renderStyleProfiles(profiles) {
     area.innerHTML = profiles.map(p => {
         const platformBadge = { general: '通用', wechat: '公众号', xiaohongshu: '小红书', video: '视频号', parent: '家长沟通' }[p.platform] || p.platform || '通用';
         const defaultBadge = p.is_default ? '<span class="knowledge-badge knowledge-badge-default">默认</span>' : '';
+        const rulesText = p.rules_text || '';
+        const rulesShort = rulesText ? escapeHtml(rulesText.substring(0, 80)) + (rulesText.length > 80 ? '...' : '') : '';
         return `<div class="knowledge-item">
             <div class="knowledge-item-header">
                 <div>
@@ -373,11 +399,12 @@ function renderStyleProfiles(profiles) {
                     </div>
                 </div>
                 <div style="display:flex;gap:4px;">
+                    ${rulesText ? `<button class="btn btn-secondary btn-xs" onclick="copyKnowledgeText(this, '${escapeHtml(p.id)}')">复制</button>` : ''}
                     <button class="btn btn-secondary btn-xs" onclick="editStyleProfile('${p.id}')">编辑</button>
                     <button class="btn btn-danger btn-xs" onclick="deleteStyleProfile('${p.id}')">删除</button>
                 </div>
             </div>
-            ${p.rules_text ? `<div class="knowledge-item-content">${escapeHtml(p.rules_text.substring(0, 100))}${p.rules_text.length > 100 ? '...' : ''}</div>` : ''}
+            ${rulesShort ? `<div class="knowledge-item-content" data-full-text="${escapeHtml(rulesText)}">${rulesShort}</div>` : ''}
         </div>`;
     }).join('');
 }
@@ -1088,6 +1115,15 @@ function deleteQuestion(questionId) {
         .catch(() => showToast('删除失败'));
 }
 
+// ========== 辅助函数 ==========
+function copyKnowledgeText(btn, itemId) {
+    const item = btn.closest('.knowledge-item');
+    const contentEl = item?.querySelector('.knowledge-item-content');
+    const text = contentEl?.getAttribute('data-full-text') || contentEl?.innerText;
+    if (!text) { showToast('无内容可复制'); return; }
+    navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => showToast('复制失败'));
+}
+
 // ========== Window 暴露 ==========
 window.switchKnowledgeTab = switchKnowledgeTab;
 window.loadStyleProfiles = loadStyleProfiles;
@@ -1110,3 +1146,4 @@ window.openQuestionModal = openQuestionModal;
 window.saveQuestion = saveQuestion;
 window.editQuestion = editQuestion;
 window.deleteQuestion = deleteQuestion;
+window.copyKnowledgeText = copyKnowledgeText;

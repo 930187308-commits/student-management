@@ -310,6 +310,7 @@ function renderAIWorkspace() {
                     <!-- 生成按钮 -->
                     <div class="ai-btn-group" style="flex-wrap:wrap;">
                         <button class="btn btn-primary" id="generateBtn" onclick="runAgentTask()">生成结果</button>
+                        <button class="btn btn-secondary" onclick="previewContextRefs()">🔍 预览引用</button>
                         <button class="btn btn-secondary" onclick="clearAgentInput()">清空输入</button>
                         <button class="btn btn-secondary" onclick="clearAgentOutput()">清空</button>
                     </div>
@@ -340,6 +341,12 @@ function renderAIWorkspace() {
                         </div>
 
                         <div id="taskRecordInfo" class="ai-task-record" style="display:none;"></div>
+
+                        <!-- 本次引用资料 -->
+                        <div id="contextRefsArea" style="display:none;margin-top:12px;padding:12px;background:var(--hover-bg);border-radius:8px;">
+                            <div style="font-size:12px;font-weight:600;margin-bottom:8px;">📚 本次引用资料</div>
+                            <div id="contextRefsContent"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1054,6 +1061,9 @@ function doRunAgentTask(input, agentNames, taskNames) {
             ? '<span style="font-size:11px;color:#e74c3c;margin-right:6px;">⚠️ 带姓名</span>'
             : '<span style="font-size:11px;color:#888;margin-right:6px;">🔒 脱敏</span>';
 
+        // 渲染引用资料
+        renderContextRefs(response.contextRefs, response.mode);
+
         showToast(`${agentNames[currentAgentId]} · ${taskNames[currentTaskType] || currentTaskType} 已生成`);
         loadAgentLogsFromServer();
         loadAITasksFromServer();
@@ -1425,6 +1435,141 @@ function copyAgentOutput() {
     const text = output.innerText || '';
     if (!text || text.includes('选择左侧任务卡片')) { showToast('暂无可复制内容'); return; }
     navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => showToast('复制失败'));
+}
+
+// ========== 上下文引用 ==========
+function renderContextRefs(contextRefs, mode) {
+    const area = document.getElementById('contextRefsArea');
+    const content = document.getElementById('contextRefsContent');
+    if (!area || !content) return;
+
+    if (!contextRefs || contextRefs.length === 0) {
+        area.style.display = 'block';
+        content.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">本次未引用知识库资料，仅使用当前输入和业务数据。</div>';
+        return;
+    }
+
+    const typeLabels = {
+        'style': '风格规则',
+        'style-sample': '风格样本',
+        'source': '资料',
+        'question': '题库'
+    };
+
+    const grouped = {};
+    contextRefs.forEach(ref => {
+        const type = ref.refType || ref.type || 'unknown';
+        if (!grouped[type]) grouped[type] = [];
+        grouped[type].push(ref);
+    });
+
+    let html = '';
+    Object.entries(grouped).forEach(([type, refs]) => {
+        const label = typeLabels[type] || type;
+        html += `<div style="margin-bottom:8px;">
+            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">📂 ${escapeHtml(label)}（${refs.length}条）</div>`;
+        refs.forEach(ref => {
+            html += `<div style="font-size:12px;padding:4px 8px;background:var(--card-bg);border-radius:4px;margin-bottom:4px;">
+                <div style="font-weight:600;color:var(--text-primary);margin-bottom:2px;">${escapeHtml(ref.title || ref.name || '未命名')}</div>
+                ${ref.summary ? `<div style="font-size:11px;color:var(--text-muted);line-height:1.4;">${escapeHtml(ref.summary.substring(0, 80))}${ref.summary.length > 80 ? '...' : ''}</div>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+    });
+
+    content.innerHTML = html;
+    area.style.display = 'block';
+}
+
+function previewContextRefs() {
+    if (!currentTaskType) {
+        showToast('请先选择一个任务类型');
+        return;
+    }
+
+    const taskNames = getTaskNames();
+    const input = document.getElementById('agentInput')?.value?.trim() || '';
+
+    const modal = document.getElementById('modal');
+    const titleEl = document.getElementById('modalTitle');
+    const bodyEl = document.getElementById('modalBody');
+    if (!modal || !titleEl || !bodyEl) return;
+
+    titleEl.textContent = '🔍 上下文预览';
+    bodyEl.innerHTML = `
+        <div style="padding:16px;text-align:center;">
+            <div style="font-size:16px;margin-bottom:12px;">⏳ 加载引用预览...</div>
+        </div>
+    `;
+    modal.classList.add('show');
+
+    const payload = {
+        agent: currentAgentId,
+        task: currentTaskType,
+        userInstruction: input || '(空)',
+    };
+
+    fetch('/api/ai/context-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    })
+    .then(res => res.json())
+    .then(data => {
+        const typeLabels = {
+            'style': '🎨 风格规则',
+            'style-sample': '📝 风格样本',
+            'source': '📄 资料',
+            'question': '📚 题库'
+        };
+
+        let html = `<div style="max-height:400px;overflow-y:auto;">
+            <div style="margin-bottom:16px;padding:8px 12px;background:var(--hover-bg);border-radius:8px;">
+                <div style="font-size:12px;color:var(--text-muted);">当前任务</div>
+                <div style="font-size:14px;font-weight:600;">${escapeHtml(taskNames[currentTaskType] || currentTaskType)}</div>
+            </div>`;
+
+        if (!data.refs || data.refs.length === 0) {
+            html += `<div style="text-align:center;padding:24px;color:var(--text-muted);">
+                <div style="font-size:32px;margin-bottom:8px;">📭</div>
+                <div style="font-size:13px;">知识库暂无可引用资料</div>
+                <div style="font-size:12px;margin-top:4px;">可先到知识库录入风格样本或资料</div>
+            </div>`;
+        } else {
+            const grouped = {};
+            data.refs.forEach(ref => {
+                const type = ref.refType || ref.type || 'unknown';
+                if (!grouped[type]) grouped[type] = [];
+                grouped[type].push(ref);
+            });
+
+            Object.entries(grouped).forEach(([type, refs]) => {
+                const label = typeLabels[type] || type;
+                html += `<div style="margin-bottom:12px;">
+                    <div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text-secondary);">${label}（${refs.length}条）</div>`;
+                refs.forEach(ref => {
+                    html += `<div style="padding:8px;background:var(--card-bg);border-radius:6px;margin-bottom:6px;">
+                        <div style="font-size:13px;font-weight:600;margin-bottom:2px;">${escapeHtml(ref.title || ref.name || '未命名')}</div>
+                        ${ref.summary ? `<div style="font-size:11px;color:var(--text-muted);line-height:1.4;">${escapeHtml(ref.summary.substring(0, 100))}${ref.summary.length > 100 ? '...' : ''}</div>` : ''}
+                    </div>`;
+                });
+                html += '</div>';
+            });
+        }
+
+        html += `<div style="margin-top:16px;display:flex;gap:12px;justify-content:center;">
+            <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+        </div></div>`;
+
+        bodyEl.innerHTML = html;
+    })
+    .catch(err => {
+        bodyEl.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);">
+            <div style="font-size:24px;margin-bottom:8px;">❌</div>
+            <div>预览失败：${escapeHtml(err.message || '未知错误')}</div>
+            <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeModal()">关闭</button>
+        </div>`;
+    });
 }
 
 // ========== 外部跳转 ==========
