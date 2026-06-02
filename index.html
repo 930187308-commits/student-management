@@ -36,57 +36,76 @@
     </div>
 
     <div class="container">
-        <!-- 统计卡片 -->
-        <div class="stat-grid" id="statGrid"></div>
+        <div class="app-shell">
+            <aside class="app-sidebar">
+                <div class="nav-section">
+                    <div class="nav-section-title">工作台</div>
+                    <button class="tab nav-item active" data-tab="dashboard">首页</button>
+                    <button class="tab nav-item" data-tab="reports">统计报表</button>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">教务管理</div>
+                    <button class="tab nav-item" data-tab="classes">班级管理</button>
+                    <button class="tab nav-item" data-tab="attendance">考勤记录</button>
+                    <button class="tab nav-item" data-tab="fees">收费记录</button>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">学员与招生</div>
+                    <button class="tab nav-item" data-tab="students">学员管理</button>
+                    <button class="tab nav-item" data-tab="grades">成绩记录</button>
+                    <button class="tab nav-item" data-tab="communications">沟通记录</button>
+                    <button class="tab nav-item" data-tab="prospects">意向学员</button>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">AI 与知识</div>
+                    <button class="tab nav-item" data-tab="ai-workspace">AI 工作台</button>
+                    <button class="tab nav-item" data-tab="knowledge">知识库</button>
+                </div>
+            </aside>
 
-        <!-- 标签页 -->
-        <div class="tabs">
-            <button class="tab active" data-tab="dashboard">首页</button>
-            <button class="tab" data-tab="classes">班级管理</button>
-            <button class="tab" data-tab="students">学员管理</button>
-            <button class="tab" data-tab="prospects">意向学员</button>
-            <button class="tab" data-tab="fees">收费记录</button>
-            <button class="tab" data-tab="attendance">考勤记录</button>
-            <button class="tab" data-tab="grades">成绩记录</button>
-            <button class="tab" data-tab="communications">沟通记录</button>
-            <button class="tab" data-tab="reports">统计报表</button>
-            <button class="tab" data-tab="knowledge">知识库</button>
-            <button class="tab" data-tab="ai-workspace">AI 工作台</button>
+            <main class="app-main">
+                <!-- 统计卡片 -->
+                <div class="stat-grid" id="statGrid"></div>
+
+                <!-- 首页 -->
+                <div class="tab-content active" id="tab-dashboard"></div>
+
+                <!-- 班级管理 -->
+                <div class="tab-content" id="tab-classes"></div>
+
+                <!-- 学员管理 -->
+                <div class="tab-content" id="tab-students"></div>
+
+                <!-- 意向学员 -->
+                <div class="tab-content" id="tab-prospects"></div>
+
+                <!-- 收费记录 -->
+                <div class="tab-content" id="tab-fees"></div>
+
+                <!-- 考勤记录 -->
+                <div class="tab-content" id="tab-attendance"></div>
+
+                <!-- 成绩记录 -->
+                <div class="tab-content" id="tab-grades"></div>
+
+                <!-- 沟通记录 -->
+                <div class="tab-content" id="tab-communications"></div>
+
+                <!-- 统计报表 -->
+                <div class="tab-content" id="tab-reports"></div>
+
+                <!-- 知识库 -->
+                <div class="tab-content" id="tab-knowledge"></div>
+
+                <!-- AI 工作台 -->
+                <div class="tab-content" id="tab-ai-workspace"></div>
+            </main>
         </div>
-
-        <!-- 首页 -->
-        <div class="tab-content active" id="tab-dashboard"></div>
-
-        <!-- 班级管理 -->
-        <div class="tab-content" id="tab-classes"></div>
-
-        <!-- 学员管理 -->
-        <div class="tab-content" id="tab-students"></div>
-
-        <!-- 意向学员 -->
-        <div class="tab-content" id="tab-prospects"></div>
-
-        <!-- 收费记录 -->
-        <div class="tab-content" id="tab-fees"></div>
-
-        <!-- 考勤记录 -->
-        <div class="tab-content" id="tab-attendance"></div>
-
-        <!-- 成绩记录 -->
-        <div class="tab-content" id="tab-grades"></div>
-
-        <!-- 沟通记录 -->
-        <div class="tab-content" id="tab-communications"></div>
-
-        <!-- 统计报表 -->
-        <div class="tab-content" id="tab-reports"></div>
-
-        <!-- 知识库 -->
-        <div class="tab-content" id="tab-knowledge"></div>
-
-        <!-- AI 工作台 -->
-        <div class="tab-content" id="tab-ai-workspace"></div>
     </div>
+
+    <!-- 移动端导航遮罩 -->
+    <div class="mobile-nav-overlay" id="mobileNavOverlay" onclick="toggleMobileNav()"></div>
+    <button class="mobile-nav-toggle" id="mobileNavToggle" onclick="toggleMobileNav()">☰</button>
 
     <!-- 通用模态框 -->
     <div class="modal" id="modal">

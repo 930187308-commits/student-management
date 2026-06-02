@@ -58,3 +58,15 @@ function unbindLicense() {
     localStorage.removeItem('licenseKey');
     location.reload();
 }
+
+// 移动端导航切换
+function toggleMobileNav() {
+    const sidebar = document.querySelector('.app-sidebar');
+    const overlay = document.getElementById('mobileNavOverlay');
+    if (sidebar) {
+        sidebar.classList.toggle('open');
+        if (overlay) {
+            overlay.classList.toggle('show');
+        }
+    }
+}
