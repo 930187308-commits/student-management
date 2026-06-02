@@ -687,7 +687,7 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 
 ## 阶段 5：真实 AI 接入边界与多 Agent 流程
 
-状态：5A 前端壳子已完成，5B 后端 AI API 骨架已完成，5C 前端已接 AI API 壳子，5D 真实 AI 安全配置前置已完成，真实 AI 密钥尚未配置
+状态：5A 前端壳子已完成，5B 后端 AI API 骨架已完成，5C 前端已接 AI API 壳子，5D 真实 AI 已启用并通过运行检查
 
 阶段 5 详细规划见：
 
@@ -796,7 +796,7 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - 后端无密钥时返回 `local-template`。
 - 前端失败时回退本地模板。
 
-### 5D 真实 AI 安全配置前置完成内容（2026-06-02）
+### 5D 真实 AI 安全配置与启用完成内容（2026-06-02）
 
 已完成：
 
@@ -804,12 +804,15 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - `/api/ai/status` 返回脱敏 AI 配置状态，包括模式、供应商、缺失配置项。
 - `scripts/status-server.sh` 显示 AI mode 和配置文件加载状态。
 - 新增 `docs/AI_ENV_TEMPLATE.md`，记录 DeepSeek、OpenAI、自定义 OpenAI-compatible 配置示例。
+- 已配置 MiniMax `MiniMax-M2.7-highspeed`。
+- 中国区 endpoint 使用 `https://api.minimaxi.com/v1`。
+- `npm run ai:runtime-check` 已通过，当前 mode 为 `real-ai`。
 
 明确说明：
 
 - 真实 `AI_API_KEY` 不进入项目目录、不提交 GitHub。
-- 当前没有填写真实密钥，仍为本地模板模式。
 - `AI_LOG_FULL_INPUT=0` 为推荐默认值，不保存完整隐私输入。
+- 当前 AI 输出仍然只生成文本，不自动修改业务数据。
 
 ### 5C 前端接 AI API 壳子完成内容（2026-06-02）
 
@@ -947,7 +950,7 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 
 2026-06-02：阶段 5B 后端 AI API 骨架完成。新增 AI 配置读取、`server/ai-service.js`、`POST /api/ai/generate`、AI 任务记录、Agent 日志记录、`npm run ai:runtime-check`。真实模型调用按 OpenAI-compatible 接口预留，默认关闭；当前不会把 AI 输出写入业务表。
 
-2026-06-02：阶段 5D 真实 AI 安全配置前置完成。服务支持从 `/Users/bzx/Data/student-ai-console/ai.env` 读取 AI 配置，状态脚本可显示 AI 模式和缺失配置；新增 `docs/AI_ENV_TEMPLATE.md`。当前仍未配置真实密钥。
+2026-06-02：阶段 5D 真实 AI 安全配置与启用完成。服务支持从 `/Users/bzx/Data/student-ai-console/ai.env` 读取 AI 配置，状态脚本可显示 AI 模式和缺失配置；新增 `docs/AI_ENV_TEMPLATE.md`。MiniMax `MiniMax-M2.7-highspeed` 已启用并通过 `npm run ai:runtime-check`。
 ### 5C/5D 前端体验优化完成内容（2026-06-02）
 
 **目标**：AI 工作台前端体验优化，8 个任务 A-H。
@@ -998,5 +1001,4 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - **真实 AI 密钥仍未配置**，当前为 local-template 模式
 - **未改后端逻辑**，未改 SQLite，未改业务数据
 - 前端只做 UI 优化和接口联通
-
 

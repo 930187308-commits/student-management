@@ -78,12 +78,14 @@ function getAiStatus() {
 function getDefaultBaseUrl(provider) {
     if (provider === 'openai') return 'https://api.openai.com/v1';
     if (provider === 'deepseek') return 'https://api.deepseek.com/v1';
+    if (provider === 'minimax') return 'https://api.minimax.io/v1';
     return config.ai.baseUrl || '';
 }
 
 function getDefaultModel(provider) {
     if (provider === 'openai') return 'gpt-4.1-mini';
     if (provider === 'deepseek') return 'deepseek-chat';
+    if (provider === 'minimax') return 'MiniMax-M2.7-highspeed';
     return config.ai.model || '';
 }
 
@@ -100,6 +102,10 @@ function maskStudentName(name) {
 
 function displayName(name, privacyMode) {
     return privacyMode === 'named' ? String(name || '') : maskStudentName(name);
+}
+
+function stripThinkTags(text) {
+    return String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 }
 
 function getStudentConsumption(data, studentId) {
@@ -317,6 +323,7 @@ function buildPrompt(context) {
         '你是一个个人教培机构的 AI 助手。',
         '请根据给定的脱敏业务上下文生成中文内容。',
         '必须遵守：只输出建议或文案，不声称已经修改系统，不自动发送给家长。',
+        '不要输出思考过程，不要输出 <think> 标签内容。',
         `任务：${context.taskName || context.task}`,
         `隐私模式：${context.privacyMode}`,
         `读取范围：${context.dataRange.join('、')}`,
@@ -354,7 +361,8 @@ async function callRealAI(context) {
                     { role: 'system', content: '你是谨慎的教培业务助手，输出必须简洁、可复制、不过度承诺。' },
                     { role: 'user', content: buildPrompt(context) }
                 ],
-                temperature: 0.4
+                temperature: 0.4,
+                reasoning_split: true
             }),
             signal: controller.signal
         });
@@ -364,7 +372,7 @@ async function callRealAI(context) {
         }
         const result = parsed.choices?.[0]?.message?.content;
         if (!result) throw new Error('AI 返回内容为空');
-        return result;
+        return stripThinkTags(result);
     } finally {
         clearTimeout(timer);
     }

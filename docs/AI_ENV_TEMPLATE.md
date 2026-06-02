@@ -43,6 +43,30 @@ AI_TIMEOUT_MS=30000
 AI_LOG_FULL_INPUT=0
 ```
 
+## MiniMax 示例
+
+国际区：
+
+```text
+AI_PROVIDER=minimax
+AI_API_KEY=你的真实密钥
+AI_MODEL=MiniMax-M2.7-highspeed
+AI_BASE_URL=https://api.minimax.io/v1
+AI_TIMEOUT_MS=30000
+AI_LOG_FULL_INPUT=0
+```
+
+中国区：
+
+```text
+AI_PROVIDER=minimax
+AI_API_KEY=你的真实密钥
+AI_MODEL=MiniMax-M2.7-highspeed
+AI_BASE_URL=https://api.minimaxi.com/v1
+AI_TIMEOUT_MS=30000
+AI_LOG_FULL_INPUT=0
+```
+
 ## 自定义 OpenAI-compatible 接口
 
 ```text

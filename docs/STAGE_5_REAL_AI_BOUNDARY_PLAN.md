@@ -8,7 +8,9 @@
 
 2026-06-02 更新：阶段 5B 后端 AI API 骨架已完成。当前新增 `/api/ai/status`、`/api/ai/generate`、`/api/ai/tasks`、`/api/agent-logs`，默认 `AI_PROVIDER=disabled`，无密钥时返回本地模板并写入 `ai_tasks`、`agent_logs`。真实模型调用能力已预留为 OpenAI-compatible 接口，但尚未配置密钥，也未启用真实 AI。
 
-2026-06-02 更新：阶段 5D 真实 AI 启用前置配置已完成。服务会自动读取 `/Users/bzx/Data/student-ai-console/ai.env`，`scripts/status-server.sh` 会显示 AI 当前模式和缺失配置。配置模板见 `docs/AI_ENV_TEMPLATE.md`。当前仍未写入真实密钥。
+2026-06-02 更新：阶段 5D 真实 AI 启用前置配置已完成。服务会自动读取 `/Users/bzx/Data/student-ai-console/ai.env`，`scripts/status-server.sh` 会显示 AI 当前模式和缺失配置。配置模板见 `docs/AI_ENV_TEMPLATE.md`。
+
+2026-06-02 更新：真实 AI 已使用 MiniMax `MiniMax-M2.7-highspeed` 启用并通过 `npm run ai:runtime-check`。当前使用中国区 OpenAI-compatible endpoint：`https://api.minimaxi.com/v1`。真实密钥只保存在 Mac mini 数据目录的 `ai.env`，不进入 GitHub。
 
 第一批真实 AI 能力只解决三类高价值任务：
 
