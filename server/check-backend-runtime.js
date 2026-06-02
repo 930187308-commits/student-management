@@ -17,6 +17,10 @@ const CHECKS = [
         script: 'server/check-sqlite-field-read-parity.js'
     },
     {
+        name: 'Attendance record read parity',
+        script: 'server/check-attendance-record-read-parity.js'
+    },
+    {
         name: 'SQLite column read parity',
         script: 'server/check-sqlite-column-read-runtime.js'
     },

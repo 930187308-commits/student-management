@@ -137,6 +137,14 @@ npm run backend:check
 
 This runs the SQLite read path, field coverage, field/read parity, metrics, reports, dashboard, data-health, collection API, and single-record API checks together.
 
+Attendance read-path parity can also be checked directly:
+
+```bash
+npm run sqlite:attendance-record-read-parity
+```
+
+This verifies that `attendance_sessions` plus `attendance_records` can reconstruct the same attendance JSON shape used by the frontend.
+
 Reconcile the app-state snapshot against SQLite entity tables:
 
 ```bash

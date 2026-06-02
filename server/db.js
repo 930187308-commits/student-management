@@ -380,6 +380,37 @@ function getCollectionFromEntityTable(collectionName) {
     return rows.map(row => JSON.parse(row.raw_json || '{}'));
 }
 
+function getAttendanceFromRecordColumns() {
+    const database = getDb();
+    const sessions = database.prepare('SELECT * FROM attendance_sessions ORDER BY rowid').all();
+    const records = database.prepare(`
+        SELECT session_id, student_id, status
+        FROM attendance_records
+        ORDER BY id
+    `).all();
+    const recordsBySession = new Map();
+    records.forEach(row => {
+        if (!recordsBySession.has(row.session_id)) {
+            recordsBySession.set(row.session_id, {});
+        }
+        const sessionRecords = recordsBySession.get(row.session_id);
+        sessionRecords[String(row.student_id)] = row.status === null || row.status === undefined ? null : Number(row.status);
+    });
+
+    return sessions.map(row => {
+        const item = parseRawJson(row.raw_json);
+        assignIfPresent(item, 'id', row.id || '');
+        assignIfPresent(item, 'classId', row.class_id || '');
+        assignIfPresent(item, 'date', row.date || '');
+        assignIfPresent(item, 'sessionName', row.session_name || '');
+        if (Object.prototype.hasOwnProperty.call(item, 'name') && !Object.prototype.hasOwnProperty.call(item, 'sessionName')) {
+            item.name = row.session_name || '';
+        }
+        item.records = recordsBySession.get(row.id) || {};
+        return item;
+    });
+}
+
 function parseRawJson(value, fallback = {}) {
     if (!value) return fallback;
     try {
@@ -529,6 +560,10 @@ function getCollectionFromEntityColumns(collectionName) {
         });
     }
 
+    if (collectionName === 'attendance') {
+        return getAttendanceFromRecordColumns();
+    }
+
     return getCollectionFromEntityTable(collectionName);
 }
 
@@ -540,7 +575,7 @@ function getDataFromEntityColumns() {
         students: getCollectionFromEntityColumns('students'),
         prospects: getCollectionFromEntityColumns('prospects'),
         fees: getCollectionFromEntityColumns('fees'),
-        attendance: getCollectionFromEntityTable('attendance'),
+        attendance: getCollectionFromEntityColumns('attendance'),
         grades: getCollectionFromEntityColumns('grades'),
         communications: getCollectionFromEntityColumns('communications')
     };
@@ -965,6 +1000,8 @@ module.exports = {
     getData,
     getDataFromEntityTables,
     getDataFromEntityColumns,
+    getCollectionFromEntityTable,
+    getAttendanceFromRecordColumns,
     getDataUpdatedAt,
     setData,
     getCollection,

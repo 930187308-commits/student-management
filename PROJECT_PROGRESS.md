@@ -611,3 +611,5 @@
 ## 后端运行验收基线
 
 2026-06-02：进入后端阶段后，新增统一后端运行检查命令 `npm run backend:check`。该命令会串联验证 SQLite 读路径、字段覆盖、字段读取一致性、指标、报表、首页汇总、数据体检、集合 API、单条 API，作为后续 SQLite 拆表和后端改动前后的固定验收基线。
+
+2026-06-02：考勤读取继续拆表推进。新增 `npm run sqlite:attendance-record-read-parity`，用于验证 `attendance_sessions` + `attendance_records` 是否能还原当前前端使用的考勤 JSON 结构。当前真实数据已验证一致，字段化 `/data` 读路径中的考勤已改为从考勤记录表还原，仍保留每节课 `raw_json` 作为结构兜底。
