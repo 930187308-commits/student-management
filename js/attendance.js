@@ -63,18 +63,30 @@ function loadAttendanceClass(classId) {
     // 获取所有有记录的日期
     const allDates = [...new Set(sessions.map(s => s.date))].sort();
 
+    // 班级基本信息栏
+    const classInfoBar = `
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 12px; background: var(--hover-bg); border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
+            <div><span style="color:#888;">班级：</span><strong>${escapeHtml(cls?.name || '')}</strong></div>
+            <div><span style="color:#888;">年级：</span>${escapeHtml(cls?.grade || '')}</div>
+            <div><span style="color:#888;">上课时间：</span>${escapeHtml(cls?.schedule || '-')}</div>
+            <div><span style="color:#888;">计划课次：</span><strong>${cls?.plannedSessions || 16}</strong></div>
+            <div><span style="color:#888;">已登记：</span><strong style="color:#27ae60;">${sessions.length}</strong> 次</div>
+            <div><span style="color:#888;">在读学员：</span><strong>${data.students.filter(s => s.classId === classId && s.status === 'active').length}</strong> 人</div>
+        </div>
+    `;
+
     let tableHtml = '';
     if (students.length === 0) {
         tableHtml = '<div class="empty-state">该班级暂无学员</div>';
     } else if (allDates.length === 0) {
-        tableHtml = '<div class="empty-state">暂无考勤记录，请点击"新增课次"添加上课日期</div>';
+        tableHtml = '<div class="empty-state">暂无考勤课次<br><span style="font-size:12px;color:#888;">点击上方「+ 新增课次」或「导入考勤」添加</span></div>';
     } else {
         tableHtml = `
             <div class="attendance-scroll">
             <table class="attendance-table">
                 <thead>
                     <tr>
-                        <th style="min-width:80px;">学员</th>
+                        <th style="min-width:80px;position:sticky;left:0;background:var(--card-bg);z-index:2;">学员</th>
                         ${allDates.map((d, i) => {
                             const sess = sessions.find(s => s.date === d);
                             return `<th style="min-width:60px;">
@@ -109,7 +121,7 @@ function loadAttendanceClass(classId) {
                         });
                         return `
                             <tr>
-                                <td>${escapeHtml(s.name)}${studentMarker ? `<br><span style="font-size:10px;color:#888;">${studentMarker}</span>` : ''}</td>
+                                <td style="position:sticky;left:0;background:var(--card-bg);z-index:1;">${escapeHtml(s.name)}${studentMarker ? `<br><span style="font-size:10px;color:#888;">${studentMarker}</span>` : ''}</td>
                                 ${allDates.map((date, i) => {
                                     const session = sessions.find(sess => sess.date === date);
                                     const status = session?.records?.[s.id];
@@ -125,7 +137,7 @@ function loadAttendanceClass(classId) {
             </table>
             </div>
             <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center;">
-                <span style="font-size: 12px; color: #888;">说明：1=正常出勤 0=请假，空=未记录</span>
+                <span style="font-size: 12px; color: #888;">说明：1=正常出勤 0=请假，空=未记录。停课/转出/转入标记在姓名旁。</span>
                 <button class="btn btn-secondary btn-sm" onclick="exportAttendance()">导出Excel</button>
             </div>
         `;
@@ -134,7 +146,7 @@ function loadAttendanceClass(classId) {
     // 显示临时学员
     const tempStudentsSection = sessions.length > 0 && allDates.length > 0 ? renderTemporaryStudentsSection(classId, sessions, allDates) : '';
 
-    content.innerHTML = tableHtml + tempStudentsSection;
+    content.innerHTML = classInfoBar + tableHtml + tempStudentsSection;
 }
 
 function getStudentJoinSessionForClass(student, classId) {
@@ -478,6 +490,9 @@ function openEditAttendanceSession(sessionId) {
     document.getElementById('modalTitle').textContent = '编辑课次';
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveEditAttendanceSession(event, '${sessionId}')">
+            <div style="margin-bottom: 12px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 13px; color: #2980b9;">
+                编辑课次名称/日期后，学员出勤状态（1/0/空）保持不变。
+            </div>
             <div class="form-row">
                 <div class="form-group" style="flex:2;">
                     <label>课程名称</label>
@@ -524,13 +539,14 @@ async function saveEditAttendanceSession(e, sessionId) {
     }
     closeModal();
     loadAttendanceClass(currentAttendanceClassId);
-    showToast('已保存');
+    showToast('已保存课次信息');
 }
 
 async function deleteAttendanceSession(sessionId) {
-    if (!confirm('确定删除本次考勤记录吗？此操作不可恢复。')) return;
     const session = data.attendance.find(a => a.id === sessionId);
     if (!session) return;
+    const recordCount = Object.keys(session.records || {}).length;
+    if (!confirm(`确定删除「${session.sessionName || session.date}」吗？\n\n将删除该课次所有 ${recordCount} 名学员的考勤记录，此操作不可恢复。`)) return;
 
     data.attendance = data.attendance.filter(a => a.id !== sessionId);
     await createServerBackup('删除考勤课次前自动备份');
