@@ -72,6 +72,43 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+// ========== 隐私隐藏 ==========
+let privacyHidden = localStorage.getItem('studentManagePrivacyHidden') === '1';
+
+function getPrivacyVal(val, unit) {
+    if (privacyHidden) return '***';
+    if (val == null) return '0';
+    return unit ? val + unit : val;
+}
+
+function getPrivacyAmount(val) {
+    if (privacyHidden) return '***';
+    if (val == null || val === 0) return '0';
+    return '¥' + Number(val).toLocaleString();
+}
+
+function maskStudentName(name) {
+    if (!name) return '未知';
+    const s = String(name);
+    if (s.length <= 1) return s + '*';
+    return s[0] + '*'.repeat(Math.min(s.length - 1, 2));
+}
+
+function togglePrivacy() {
+    privacyHidden = !privacyHidden;
+    localStorage.setItem('studentManagePrivacyHidden', privacyHidden ? '1' : '0');
+    renderStats();
+    renderDashboard();
+    if (typeof renderAIWorkspace === 'function') renderAIWorkspace();
+    updatePrivacyBtnLabel();
+    showToast(privacyHidden ? '数据已隐藏' : '数据已显示');
+}
+
+function updatePrivacyBtnLabel() {
+    const btn = document.getElementById('privacyToggleBtn');
+    if (btn) btn.textContent = privacyHidden ? '🔒' : '👁';
+}
+
 // ========== 姓名规范化（用于匹配） ==========
 // trim；去掉所有空格；中文、数字、字母都保留；其他字符也保留（用户原始显示不受影响）
 function normalizeNameForMatch(name) {
@@ -1062,21 +1099,21 @@ function renderStats() {
             <div style="position: relative; width: 70px; height: 70px; flex-shrink: 0;">
                 <canvas id="hoursRingChart" width="140" height="140" style="width: 70px; height: 70px;"></canvas>
                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                    <div style="font-size: 14px; font-weight: 700; color: #2c3e50;">${remainingHours}</div>
+                    <div style="font-size: 14px; font-weight: 700; color: #2c3e50;">${getPrivacyVal(remainingHours)}</div>
                     <div style="font-size: 9px; color: #888;">剩余</div>
                 </div>
             </div>
             <div style="flex: 1; display: flex; align-items: center; gap: 40px;">
-                <div><span style="color: #888; font-size: 11px; display: block;">总课时</span><strong style="font-size: 22px;">${totalHours}</strong></div>
-                <div><span style="color: #888; font-size: 11px; display: block;">已消</span><strong style="font-size: 22px; color: #27ae60;">${usedHours}</strong></div>
-                <div><span style="color: #888; font-size: 11px; display: block;">请假</span><strong style="font-size: 22px; color: #f39c12;">${absentHours}</strong></div>
-                <div><span style="color: #888; font-size: 11px; display: block;">消耗率</span><strong style="font-size: 22px;">${usageRate}%</strong></div>
+                <div><span style="color: #888; font-size: 11px; display: block;">总课时</span><strong style="font-size: 22px;">${getPrivacyVal(totalHours)}</strong></div>
+                <div><span style="color: #888; font-size: 11px; display: block;">已消</span><strong style="font-size: 22px; color: #27ae60;">${getPrivacyVal(usedHours)}</strong></div>
+                <div><span style="color: #888; font-size: 11px; display: block;">请假</span><strong style="font-size: 22px; color: #f39c12;">${getPrivacyVal(absentHours)}</strong></div>
+                <div><span style="color: #888; font-size: 11px; display: block;">消耗率</span><strong style="font-size: 22px;">${getPrivacyVal(usageRate)}%</strong></div>
             </div>
         </div>
-        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">${activeStudents}</div><div class="label" style="font-size: 12px;">在读学员</div></div>
-        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">${totalClasses}</div><div class="label" style="font-size: 12px;">班级数量</div></div>
-        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">¥${Number(totalRevenue || 0).toLocaleString()}</div><div class="label" style="font-size: 12px;">已收学费</div></div>
-        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">¥${Number(pendingAmount || 0).toLocaleString()}</div><div class="label" style="font-size: 12px;">欠费金额</div></div>
+        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">${getPrivacyVal(activeStudents)}</div><div class="label" style="font-size: 12px;">在读学员</div></div>
+        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">${getPrivacyVal(totalClasses)}</div><div class="label" style="font-size: 12px;">班级数量</div></div>
+        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">${getPrivacyAmount(totalRevenue)}</div><div class="label" style="font-size: 12px;">已收学费</div></div>
+        <div class="stat-card" style="padding: 8px; text-align: center; display: flex; flex-direction: column; justify-content: center;"><div class="value" style="font-size: 26px;">${getPrivacyAmount(pendingAmount)}</div><div class="label" style="font-size: 12px;">欠费金额</div></div>
     `;
 
     setTimeout(() => drawHoursRingChart(usedHours, remainingHours), 10);

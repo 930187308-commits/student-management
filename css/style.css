@@ -309,3 +309,312 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
 }
+
+/* ==================== AI 工作台样式 ==================== */
+.ai-workspace-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 16px;
+    min-height: 600px;
+}
+
+.ai-agent-sidebar {
+    padding: 0 !important;
+    overflow: hidden;
+}
+.ai-agent-sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+#agentList { padding: 0; }
+
+.agent-item-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+.agent-item-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.ai-workspace-main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* 业务快照 */
+.ai-snapshot-card {}
+.ai-snapshot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.ai-snapshot-title {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.ai-snapshot-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.ai-snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+.ai-snapshot-item {
+    background: var(--hover-bg);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+.ai-snapshot-num {
+    font-size: 22px;
+    font-weight: 700;
+}
+.ai-snapshot-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.ai-snapshot-footer {
+    margin-top: 10px;
+    text-align: center;
+}
+.ai-snapshot-comm {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.ai-snapshot-comm-num {
+    font-size: 15px;
+    font-weight: 700;
+    color: #3498db;
+    margin-left: 8px;
+}
+.ai-snapshot-comm-unit {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Agent 工作区 */
+.ai-agent-workspace {}
+.ai-workspace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.ai-agent-name {
+    margin: 0;
+    color: var(--text-primary);
+}
+.ai-agent-desc {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.ai-form-group {
+    margin-bottom: 16px;
+}
+.ai-form-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    display: block;
+}
+.ai-form-select,
+.ai-form-textarea {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+.ai-form-textarea {
+    max-width: 600px;
+    resize: vertical;
+    box-sizing: border-box;
+}
+.ai-btn-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.ai-output-area {
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+}
+.ai-output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.ai-output-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.ai-output-content {
+    background: var(--hover-bg);
+    border-radius: 8px;
+    padding: 16px;
+    min-height: 120px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+.ai-output-text { white-space: pre-wrap; }
+.ai-output-placeholder {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+}
+
+/* 日志 */
+.ai-log-card {}
+.ai-log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.ai-log-title {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.ai-log-content {
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.8;
+}
+.ai-log-item { margin-bottom: 2px; }
+.ai-log-empty {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+/* 移动端 */
+@media (max-width: 700px) {
+    .ai-workspace-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==================== 首页工作台样式 ==================== */
+.dashboard-workspace {}
+.workspace-body {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+.workspace-reminders { flex: 1; }
+.workspace-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 100px;
+}
+
+.reminder-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+.reminder-item {
+    background: var(--hover-bg);
+    border-radius: 8px;
+    padding: 14px 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: center;
+}
+.reminder-item:hover {
+    background: #e8f4fd;
+}
+body.dark-mode .reminder-item:hover {
+    background: #2a3a4a;
+}
+.reminder-icon {
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+.reminder-num {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.reminder-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* 待办 */
+.dashboard-todo {}
+#todoList { display: flex; flex-direction: column; gap: 6px; }
+.todo-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 12px;
+}
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: var(--hover-bg);
+    border-radius: 6px;
+    font-size: 13px;
+}
+.todo-item input[type="checkbox"] { cursor: pointer; }
+.todo-text {
+    flex: 1;
+    color: var(--text-primary);
+}
+.todo-done .todo-text {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+.todo-cat {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--hover-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+/* 移动端首页 */
+@media (max-width: 700px) {
+    .workspace-body {
+        flex-direction: column;
+    }
+    .workspace-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+        min-width: unset;
+    }
+    .reminder-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 400px) {
+    .reminder-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

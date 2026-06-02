@@ -3,8 +3,11 @@
 let currentAgentId = 'admin-agent';
 let agentLogs = [];
 
-// ==================== 数据感知函数（不接后端，基于本地 data）====================
+// ========== 姓名脱敏 ==========
+// maskStudentName is defined in data.js, aliased here for local use
+// (data.js loads before ai-workspace.js, so maskStudentName is available)
 
+// ========== 数据感知函数 ==========
 function getAIWorkspaceSummary() {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -12,28 +15,21 @@ function getAIWorkspaceSummary() {
     const today = now.toISOString().split('T')[0];
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    const activeStudents = (data.students || []).filter(s => s.status === 'active' || s.status === 'pending');
-    const pendingRenewal = (data.students || []).filter(s => s.status === 'pending');
+    const activeStudents = (data.students || []).filter(s => s.status === 'active');
+    const pendingRenewal = (data.students || []).filter(s => s.status === 'renewalPending');
     const prospects = data.prospects || [];
     const fees = data.fees || [];
     const attendance = data.attendance || [];
     const communications = data.communications || [];
 
-    // 在读学员数
     const activeStudentCount = activeStudents.length;
-
-    // 待续费学员数
     const pendingRenewalCount = pendingRenewal.length;
-
-    // 意向学员数
     const prospectCount = prospects.length;
 
-    // 欠费记录数和欠费金额
-    const unpaidFees = fees.filter(f => f.status === 'unpaid');
+    const unpaidFees = fees.filter(f => f.status === 'pending');
     const unpaidCount = unpaidFees.length;
     const unpaidAmount = unpaidFees.reduce((sum, f) => sum + (f.amount || 0), 0);
 
-    // 本月已消课时（attendance 中本月所有 records 里的 1 的总和）
     let monthConsumedHours = 0;
     attendance.forEach(session => {
         const sessionDate = session.date || '';
@@ -43,7 +39,6 @@ function getAIWorkspaceSummary() {
         }
     });
 
-    // 最近一周新增沟通记录数
     const recentComms = communications.filter(c => c.contactDate && c.contactDate >= weekAgo);
     const recentCommCount = recentComms.length;
 
@@ -58,17 +53,41 @@ function getAIWorkspaceSummary() {
     };
 }
 
-// ==================== 渲染 AI 工作台 ====================
+// ========== 首页工作台数据（dashboard 用）==========
+function getTodayWorkSummary() {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const attendance = data.attendance || [];
+    const students = data.students || [];
+    const fees = data.fees || [];
+    const prospects = data.prospects || [];
 
+    // 今日课次
+    const todaySessions = attendance.filter(a => a.date === today);
+    const todaySessionCount = todaySessions.length;
+
+    // 待续费
+    const pendingRenewal = students.filter(s => s.status === 'pending').length;
+    const unpaidCount = fees.filter(f => f.status === 'pending').length;
+
+    // 意向学员待跟进
+    const pendingProspects = prospects.filter(p =>
+        p.trialStatus === 'pending' || p.trialStatus === 'contacted'
+    ).length;
+
+    return { todaySessionCount, pendingRenewal, unpaidCount, pendingProspects };
+}
+
+// ========== 渲染 AI 工作台 ==========
 function renderAIWorkspace() {
     const container = document.getElementById('tab-ai-workspace');
     const summary = getAIWorkspaceSummary();
 
     container.innerHTML = `
-        <div style="display: grid; grid-template-columns: 240px 1fr; gap: 16px; min-height: 600px;">
+        <div class="ai-workspace-layout">
             <!-- 左侧：Agent 列表 -->
-            <div class="card" style="padding: 0; overflow: hidden;">
-                <div style="padding: 16px; border-bottom: 1px solid var(--border-color); font-weight: 600; color: var(--text-primary);">AI Agent</div>
+            <div class="card ai-agent-sidebar">
+                <div class="ai-agent-sidebar-header">AI Agent</div>
                 <div id="agentList">
                     ${renderAgentItem('admin-agent', '教务 Agent', '处理排课、调课、考勤异常等教务工作', true)}
                     ${renderAgentItem('learning-agent', '学情沟通 Agent', '生成学情反馈、续费沟通话术', false)}
@@ -79,63 +98,60 @@ function renderAIWorkspace() {
             </div>
 
             <!-- 右侧：工作区 -->
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="ai-workspace-main">
                 <!-- 当前业务快照 -->
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <span style="font-weight: 600; color: var(--text-primary);">当前业务快照</span>
-                        <span style="font-size: 11px; color: var(--text-muted);">实时汇总</span>
+                <div class="card ai-snapshot-card">
+                    <div class="ai-snapshot-header">
+                        <span class="ai-snapshot-title">当前业务快照</span>
+                        <span class="ai-snapshot-meta">实时汇总</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                        <div style="background: var(--hover-bg); border-radius: 8px; padding: 12px; text-align: center;">
-                            <div style="font-size: 22px; font-weight: 700; color: #3498db;">${summary.activeStudentCount}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">在读学员</div>
+                    <div class="ai-snapshot-grid">
+                        <div class="ai-snapshot-item">
+                            <div class="ai-snapshot-num" style="color:#3498db;">${getPrivacyVal(summary.activeStudentCount)}</div>
+                            <div class="ai-snapshot-label">在读学员</div>
                         </div>
-                        <div style="background: var(--hover-bg); border-radius: 8px; padding: 12px; text-align: center;">
-                            <div style="font-size: 22px; font-weight: 700; color: #f39c12;">${summary.pendingRenewalCount}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">待续费</div>
+                        <div class="ai-snapshot-item">
+                            <div class="ai-snapshot-num" style="color:#f39c12;">${getPrivacyVal(summary.pendingRenewalCount)}</div>
+                            <div class="ai-snapshot-label">待续费</div>
                         </div>
-                        <div style="background: var(--hover-bg); border-radius: 8px; padding: 12px; text-align: center;">
-                            <div style="font-size: 22px; font-weight: 700; color: #9b59b6;">${summary.prospectCount}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">意向学员</div>
+                        <div class="ai-snapshot-item">
+                            <div class="ai-snapshot-num" style="color:#9b59b6;">${getPrivacyVal(summary.prospectCount)}</div>
+                            <div class="ai-snapshot-label">意向学员</div>
                         </div>
-                        <div style="background: var(--hover-bg); border-radius: 8px; padding: 12px; text-align: center;">
-                            <div style="font-size: 22px; font-weight: 700; color: #e74c3c;">${summary.unpaidCount}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">欠费记录</div>
+                        <div class="ai-snapshot-item">
+                            <div class="ai-snapshot-num" style="color:#e74c3c;">${getPrivacyVal(summary.unpaidCount)}</div>
+                            <div class="ai-snapshot-label">欠费记录</div>
                         </div>
-                        <div style="background: var(--hover-bg); border-radius: 8px; padding: 12px; text-align: center;">
-                            <div style="font-size: 22px; font-weight: 700; color: #e74c3c;">¥${(summary.unpaidAmount || 0).toLocaleString()}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">欠费金额</div>
+                        <div class="ai-snapshot-item">
+                            <div class="ai-snapshot-num" style="color:#e74c3c;">${getPrivacyAmount(summary.unpaidAmount)}</div>
+                            <div class="ai-snapshot-label">欠费金额</div>
                         </div>
-                        <div style="background: var(--hover-bg); border-radius: 8px; padding: 12px; text-align: center;">
-                            <div style="font-size: 22px; font-weight: 700; color: #27ae60;">${summary.monthConsumedHours}</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">本月课消</div>
+                        <div class="ai-snapshot-item">
+                            <div class="ai-snapshot-num" style="color:#27ae60;">${getPrivacyVal(summary.monthConsumedHours)}</div>
+                            <div class="ai-snapshot-label">本月课消</div>
                         </div>
                     </div>
-                    <div style="margin-top: 10px; text-align: center;">
-                        <div style="display: inline-block; background: var(--hover-bg); border-radius: 8px; padding: 8px 16px;">
-                            <span style="font-size: 13px; color: var(--text-muted);">近一周沟通</span>
-                            <span style="font-size: 15px; font-weight: 700; color: #3498db; margin-left: 8px;">${summary.recentCommCount}</span>
-                            <span style="font-size: 12px; color: var(--text-muted);">条</span>
-                        </div>
+                    <div class="ai-snapshot-footer">
+                        <span class="ai-snapshot-comm">近一周沟通</span>
+                        <span class="ai-snapshot-comm-num">${getPrivacyVal(summary.recentCommCount)}</span>
+                        <span class="ai-snapshot-comm-unit">条</span>
                     </div>
                 </div>
 
                 <!-- 当前 Agent 工作区 -->
-                <div class="card" style="flex: 1;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="card ai-agent-workspace">
+                    <div class="ai-workspace-header">
                         <div>
-                            <h3 id="agentTitle" style="margin: 0; color: var(--text-primary);">教务 Agent</h3>
-                            <p id="agentDesc" style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">处理排课、调课、考勤异常等教务工作</p>
+                            <h3 id="agentTitle" class="ai-agent-name">教务 Agent</h3>
+                            <p id="agentDesc" class="ai-agent-desc">处理排课、调课、考勤异常等教务工作</p>
                         </div>
                         <span id="agentStatus" class="badge badge-trial">待接入</span>
                     </div>
 
                     <div id="agentTaskArea">
-                        <!-- 任务类型选择 -->
-                        <div style="margin-bottom: 16px;">
-                            <label style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; display: block;">任务类型</label>
-                            <select id="agentTaskType" onchange="onAgentTaskTypeChange()" style="width: 100%; max-width: 400px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; background: var(--input-bg); color: var(--text-primary);">
+                        <div class="ai-form-group">
+                            <label class="ai-form-label">任务类型</label>
+                            <select id="agentTaskType" onchange="onAgentTaskTypeChange()" class="ai-form-select">
                                 <option value="">请选择任务类型</option>
                                 <option value="schedule-conflict">调课冲突检测</option>
                                 <option value="attendance-anomaly">考勤异常处理</option>
@@ -144,40 +160,37 @@ function renderAIWorkspace() {
                             </select>
                         </div>
 
-                        <!-- 输入区 -->
-                        <div style="margin-bottom: 16px;">
-                            <label style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; display: block;">任务描述 / 补充说明</label>
-                            <textarea id="agentInput" rows="4" placeholder="描述你的需求，例如：检查六年级培优A班本周考勤异常..." style="width: 100%; max-width: 600px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; resize: vertical; box-sizing: border-box; background: var(--input-bg); color: var(--text-primary);"></textarea>
+                        <div class="ai-form-group">
+                            <label class="ai-form-label">任务描述 / 补充说明</label>
+                            <textarea id="agentInput" rows="4" placeholder="描述你的需求，例如：检查六年级培优A班本周考勤异常..." class="ai-form-textarea"></textarea>
                         </div>
 
-                        <!-- 生成按钮 -->
-                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
-                            <button class="btn btn-primary" onclick="runAgentTask()">
-                                生成结果
-                            </button>
-                            <button class="btn btn-secondary" onclick="clearAgentOutput()">
-                                清空
-                            </button>
+                        <div class="ai-btn-group">
+                            <button class="btn btn-primary" onclick="runAgentTask()">生成结果</button>
+                            <button class="btn btn-secondary" onclick="clearAgentInput()">清空输入</button>
+                            <button class="btn btn-secondary" onclick="clearAgentOutput()">清空</button>
                         </div>
 
-                        <!-- 输出结果区 -->
-                        <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
-                            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">生成结果</div>
-                            <div id="agentOutput" style="background: var(--hover-bg); border-radius: 8px; padding: 16px; min-height: 120px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; color: var(--text-primary);">
-选择任务类型并填写说明后，点击「生成结果」查看 AI 输出。
+                        <div class="ai-output-area">
+                            <div class="ai-output-header">
+                                <span class="ai-output-label">生成结果</span>
+                                <button class="btn btn-secondary btn-xs" id="copyOutputBtn" onclick="copyAgentOutput()">复制结果</button>
+                            </div>
+                            <div id="agentOutput" class="ai-output-content">
+选择任务类型并填写说明后，点击「生成结果」查看输出。
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Agent 日志 -->
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <span style="font-weight: 600; color: var(--text-primary);">Agent 日志</span>
+                <div class="card ai-log-card">
+                    <div class="ai-log-header">
+                        <span class="ai-log-title">Agent 日志</span>
                         <button class="btn btn-secondary btn-xs" onclick="clearAgentLogs()">清空日志</button>
                     </div>
-                    <div id="agentLogArea" style="max-height: 160px; overflow-y: auto; font-size: 12px; color: var(--text-muted); line-height: 1.8;">
-                        <div style="color: var(--text-muted); opacity: 0.5;">暂无 Agent 调用记录</div>
+                    <div id="agentLogArea" class="ai-log-content">
+                        <div class="ai-log-empty">暂无 Agent 调用记录</div>
                     </div>
                 </div>
             </div>
@@ -186,22 +199,35 @@ function renderAIWorkspace() {
         <!-- 移动端适配 -->
         <style>
             @media (max-width: 700px) {
-                #tab-ai-workspace .grid-2col {
+                .ai-workspace-layout {
                     grid-template-columns: 1fr !important;
                 }
-                #tab-ai-workspace .card:first-child .agent-list-card {
+                .ai-agent-sidebar {
+                    flex-direction: row !important;
+                    overflow-x: auto;
+                }
+                .ai-agent-sidebar .ai-agent-sidebar-header {
+                    writing-mode: horizontal-tb;
+                    border-bottom: none;
+                    border-right: 1px solid var(--border-color);
+                    min-width: 60px;
+                    text-align: center;
+                }
+                #agentList {
                     display: flex;
+                    flex-direction: row;
                     overflow-x: auto;
                     gap: 8px;
                     padding: 8px;
+                    flex: 1;
                 }
-                #tab-ai-workspace .agent-item {
-                    min-width: 120px;
+                #agentList .agent-item {
+                    min-width: 100px;
                     border-left: none !important;
-                    border-bottom: 3px solid transparent;
+                    border-bottom: 3px solid transparent !important;
                     background: transparent !important;
                 }
-                #tab-ai-workspace .agent-item.active-mobile {
+                #agentList .agent-item.active-mobile {
                     border-bottom-color: #3498db !important;
                     background: var(--hover-bg) !important;
                 }
@@ -209,7 +235,7 @@ function renderAIWorkspace() {
         </style>
     `;
 
-    // Mobile: convert left sidebar to horizontal scroll
+    // Mobile JS adapt
     if (window.innerWidth <= 700) {
         const agentList = document.getElementById('agentList');
         if (agentList) {
@@ -219,7 +245,7 @@ function renderAIWorkspace() {
             agentList.style.padding = '8px';
             const items = agentList.querySelectorAll('.agent-item');
             items.forEach(item => {
-                item.style.minWidth = '120px';
+                item.style.minWidth = '100px';
                 item.style.borderLeft = 'none';
                 item.style.borderBottom = '3px solid transparent';
             });
@@ -233,8 +259,8 @@ function renderAgentItem(id, name, desc, isActive) {
         : 'border-left: 3px solid transparent;';
     return `
         <div class="agent-item" onclick="selectAgent('${id}')" data-agent="${id}" style="padding: 12px 16px; cursor: pointer; transition: background 0.2s; ${activeStyle}">
-            <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">${escapeHtml(name)}</div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${escapeHtml(desc)}</div>
+            <div class="agent-item-name">${escapeHtml(name)}</div>
+            <div class="agent-item-desc">${escapeHtml(desc)}</div>
         </div>
     `;
 }
@@ -282,7 +308,6 @@ function selectAgent(agentId) {
     const taskSelect = document.getElementById('agentTaskType');
     taskSelect.innerHTML = `<option value="">请选择任务类型</option>${agent.tasks.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}`;
 
-    // Update agent list highlight
     document.querySelectorAll('.agent-item').forEach(el => {
         el.style.background = 'transparent';
         el.style.borderLeft = '3px solid transparent';
@@ -295,11 +320,8 @@ function selectAgent(agentId) {
         selected.classList.add('active-mobile');
     }
 
-    // Clear output when switching agents
     const output = document.getElementById('agentOutput');
-    if (output) {
-        output.innerHTML = '选择任务类型并填写说明后，点击「生成结果」查看 AI 输出。';
-    }
+    if (output) output.innerHTML = '选择任务类型并填写说明后，点击「生成结果」查看输出。';
 }
 
 function onAgentTaskTypeChange() {
@@ -329,7 +351,264 @@ function onAgentTaskTypeChange() {
     input.placeholder = taskPlaceholders[taskType] || '描述你的需求...';
 }
 
-// ==================== 本地占位内容生成 ====================
+// ========== 本地占位内容生成 ==========
+
+function generateAdminAgentContent(taskType, input) {
+    const classes = data.classes || [];
+    const students = data.students || [];
+    const attendance = data.attendance || [];
+    const fees = data.fees || [];
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+
+    if (taskType === 'schedule-conflict') {
+        const inputClass = input.trim();
+        let targetClasses = classes.filter(c => c.status === 'active');
+        if (inputClass) {
+            targetClasses = targetClasses.filter(c => c.name.includes(inputClass));
+        }
+        if (targetClasses.length === 0) return '未找到相关班级，请检查输入。\n\n当前为本地规则生成，后续接入 AI 后可进行更精准的冲突检测。';
+
+        return `【本地规则】调课冲突检测
+━━━━━━━━━━━━━━━━━━
+检测范围：${inputClass || '全部在读班级'}
+班级数量：${getPrivacyVal(targetClasses.length)} 个
+
+【班级上课时间】
+${targetClasses.slice(0, 8).map(c => `• ${c.name}：${c.schedule || '未设置'}`).join('\n') || '暂无班级'}
+
+【冲突检测结果】
+未检测到明显时间冲突（本地规则，仅检测同日期同时段）。
+
+【建议】
+• 调课前检查两个班级的时间是否重叠
+• 确认调课日期学员无其他班级课程
+
+━━━━━━━━━━━━━━━━━━
+当前为本地规则生成，后续接入 AI 后可结合学员课表进行智能冲突检测。`;
+    }
+
+    if (taskType === 'attendance-anomaly') {
+        const todaySessions = attendance.filter(a => a.date === today);
+        const allStudents = students.filter(s => s.status === 'active');
+
+        let anomalyCount = 0;
+        const anomalies = [];
+        todaySessions.forEach(session => {
+            const cls = classes.find(c => c.id === session.classId);
+            const records = session.records || {};
+            allStudents.forEach(s => {
+                if (s.classId === session.classId && records[s.id] == null) {
+                    anomalyCount++;
+                    anomalies.push({ student: maskStudentName(s.name), class: cls?.name || '未知班级' });
+                }
+            });
+        });
+
+        return `【本地规则】考勤异常处理
+━━━━━━━━━━━━━━━━━━
+日期：${today}
+今日课次：${getPrivacyVal(todaySessions.length)}
+
+【考勤异常情况】
+${anomalyCount === 0 ? '未检测到明显考勤异常。' : `共发现 ${getPrivacyVal(anomalyCount)} 条未录入考勤的学员：\n${anomalies.slice(0, 10).map(a => `• ${a.student}（${a.class}）`).join('\n')}`}
+
+【处理建议】
+• 有考勤记录的学员：出勤记 1，请假记 0
+• 未分班学员可忽略，不计入异常
+
+━━━━━━━━━━━━━━━━━━
+当前为本地规则生成，后续接入 AI 后可结合学员历史记录智能判断异常。`;
+    }
+
+    if (taskType === 'class-full-check') {
+        const inputClass = input.trim();
+        let targetClasses = classes.filter(c => c.status === 'active');
+        if (inputClass) {
+            targetClasses = targetClasses.filter(c => c.name.includes(inputClass));
+        }
+
+        const fullClasses = [];
+        const nearFullClasses = [];
+        targetClasses.forEach(c => {
+            const cnt = students.filter(s => s.classId === c.id && s.status === 'active').length;
+            if (cnt >= c.maxStudents) {
+                fullClasses.push({ name: c.name, current: cnt, max: c.maxStudents });
+            } else if (cnt >= c.maxStudents * 0.85) {
+                nearFullClasses.push({ name: c.name, current: cnt, max: c.maxStudents });
+            }
+        });
+
+        return `【本地规则】班级满班预警
+━━━━━━━━━━━━━━━━━━
+检测班级：${inputClass || '全部在读班级'}
+
+${fullClasses.length > 0 ? `【已满班班级】\n${fullClasses.map(c => `⚠️ ${c.name}：${getPrivacyVal(c.current)}/${getPrivacyVal(c.max)} 已满员`).join('\n')}` : '【已满班班级】无'}
+${nearFullClasses.length > 0 ? `【接近满班班级】\n${nearFullClasses.map(c => `⚡ ${c.name}：${getPrivacyVal(c.current)}/${getPrivacyVal(c.max)} 接近满员`).join('\n')}` : '【接近满班班级】无'}
+${fullClasses.length === 0 && nearFullClasses.length === 0 ? '各班级尚有余位。' : ''}
+
+━━━━━━━━━━━━━━━━━━
+当前为本地规则生成，后续接入 AI 后可结合历史报名数据预测满班时间。`;
+    }
+
+    if (taskType === 'renewal-reminder') {
+        const pendingStudents = students.filter(s => s.status === 'renewalPending');
+        const unpaidFees = fees.filter(f => f.status === 'pending');
+
+        return `【本地规则】续费到期提醒
+━━━━━━━━━━━━━━━━━━
+待续费学员：${getPrivacyVal(pendingStudents.length)} 人
+欠费记录：${getPrivacyVal(unpaidFees.length)} 条
+
+${pendingStudents.length > 0 ? `【待续费学员名单】\n${pendingStudents.slice(0, 10).map(s => `• ${maskStudentName(s.name)}（${s.grade || ''}）`).join('\n')}${pendingStudents.length > 10 ? `\n…还有 ${getPrivacyVal(pendingStudents.length - 10)} 人` : ''}` : '【待续费学员名单】无'}
+
+${unpaidFees.length > 0 ? `【欠费记录】\n${unpaidFees.slice(0, 5).map(f => `• ${maskStudentName(f.studentName)}：${getPrivacyAmount(f.amount)}`).join('\n')}${unpaidFees.length > 5 ? `\n…还有 ${getPrivacyVal(unpaidFees.length - 5)} 条` : ''}` : '【欠费记录】无'}
+
+【建议】
+1. 及时跟进待续费学员，确认续费意愿
+2. 欠费学员优先确认缴费时间
+3. 后续接入 AI 可自动生成催费话术
+
+━━━━━━━━━━━━━━━━━━
+当前为本地规则生成，后续接入 AI 后可自动生成个性化催费方案。`;
+    }
+
+    return null;
+}
+
+function generateTeachingAgentContent(taskType, input) {
+    const students = data.students || [];
+    const classes = data.classes || [];
+    const grades = data.grades || [];
+
+    if (taskType === 'lesson-plan') {
+        const inputLines = input.split('\n');
+        const topic = inputLines[0]?.trim() || '[请在输入框填写课程主题]';
+        const grade = inputLines[1]?.trim() || '[请填写年级]';
+        const hours = inputLines[2]?.trim() || '2';
+
+        return `【本地规则】教案生成模板
+━━━━━━━━━━━━━━━━━━
+课程主题：${escapeHtml(topic)}
+年级：${escapeHtml(grade)}
+课时数：${escapeHtml(hours)} 小时
+
+【教学目标】
+• 掌握本次课核心知识点
+• 能够运用相关方法解题
+• 培养逻辑思维能力
+
+【教学重点】
+• 重点知识点的讲解与练习
+• 易错点的分析与纠正
+
+【教学过程】
+1. 导入（5分钟）：回顾上节课内容，引出新课题
+2. 知识讲解（40分钟）：系统讲解本次课知识点
+3. 例题演练（30分钟）：典型例题分析与练习
+4. 课堂总结（10分钟）：梳理本节重点内容
+5. 作业布置：根据学生水平布置适量练习
+
+【课后跟进】
+• 完成作业情况跟踪
+• 薄弱环节针对性辅导
+
+━━━━━━━━━━━━━━━━━━
+当前为本地规则模板，后续接入 AI 可根据学员水平定制教案。`;
+    }
+
+    if (taskType === 'exercise-recommend') {
+        const inputLines = input.split('\n');
+        const grade = inputLines[0]?.trim() || '[请填写年级]';
+        const weakPoints = inputLines.slice(1).join('\n').trim();
+
+        return `【本地规则】练习题推荐模板
+━━━━━━━━━━━━━━━━━━
+年级：${escapeHtml(grade)}
+薄弱点：${weakPoints ? escapeHtml(weakPoints) : '[根据学员情况自行填写]'}
+
+【推荐练习方向】
+• 基础题：巩固基本概念和公式
+• 进阶题：提升解题技巧和方法
+• 综合题：综合运用多个知识点
+
+【练习建议】
+• 每天坚持练习 30 分钟
+• 重点攻克薄弱知识点
+• 错题及时整理复习
+
+【题目来源建议】
+• 学校配套练习册
+• 学而思培优教材
+• 历年真题卷
+
+━━━━━━━━━━━━━━━━━━
+当前为本地规则模板，后续接入 AI 可根据学员历史错题自动推荐针对性练习。`;
+    }
+
+    if (taskType === 'learning-path') {
+        const inputLines = input.split('\n');
+        const currentGrade = inputLines[0]?.trim() || '[请填写当前年级]';
+        const goal = inputLines.slice(1).join('\n').trim() || '[请填写学习目标]';
+
+        return `【本地规则】学习路径规划模板
+━━━━━━━━━━━━━━━━━━
+当前年级：${escapeHtml(currentGrade)}
+学习目标：${escapeHtml(goal)}
+
+【阶段一：夯实基础】
+• 系统复习当前年级核心知识点
+• 查漏补缺，巩固基础
+
+【阶段二：能力提升】
+• 掌握解题技巧和方法
+• 提升解题速度和准确率
+
+【阶段三：冲刺突破】
+• 综合运用知识解决难题
+• 针对目标学校进行专项训练
+
+【推荐学习周期】
+• 短期目标：1-3 个月
+• 中期目标：3-6 个月
+• 长期目标：6-12 个月
+
+━━━━━━━━━━━━━━━━━━
+当前为本地规则模板，后续接入 AI 可根据学员测评结果生成个性化学习路径。`;
+    }
+
+    if (taskType === 'exam-analysis') {
+        const inputLines = input.split('\n');
+        const examName = inputLines[0]?.trim() || '[请填写试卷名称]';
+        const grade = inputLines[1]?.trim() || '[请填写年级]';
+
+        const gradeStudents = students.filter(s => s.grade === grade);
+        const gradeGrades = grades.filter(g => gradeStudents.some(s => s.studentId === s.id));
+
+        return `【本地规则】试卷分析模板
+━━━━━━━━━━━━━━━━━━
+试卷名称：${escapeHtml(examName)}
+年级：${escapeHtml(grade)}
+本年级学员：${getPrivacyVal(gradeStudents.length)} 人
+已有成绩记录：${getPrivacyVal(gradeGrades.length)} 条
+
+【分析维度】
+• 各题得分率统计
+• 知识点掌握情况
+• 易错题分析
+• 进步空间评估
+
+【建议】
+• 根据成绩分布针对性布置练习
+• 对低分段学员加强基础训练
+• 整理典型错题供全班复习
+
+━━━━━━━━━━━━━━━━━━
+当前为本地规则模板，后续接入 AI 可自动分析试卷得失分原因并生成改进建议。`;
+    }
+
+    return null;
+}
 
 function generateBizAgentContent(taskType, input) {
     const summary = getAIWorkspaceSummary();
@@ -338,14 +617,12 @@ function generateBizAgentContent(taskType, input) {
     const fees = data.fees || [];
     const attendance = data.attendance || [];
 
-    const pendingStudents = students.filter(s => s.status === 'pending');
-    const activeStudents = students.filter(s => s.status === 'active');
-    const unpaidFees = fees.filter(f => f.status === 'unpaid');
+    const pendingStudents = students.filter(s => s.status === 'renewalPending');
+    const unpaidFees = fees.filter(f => f.status === 'pending');
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
-    // 本月课消明细
     let monthDetail = [];
     attendance.forEach(session => {
         const sd = session.date || '';
@@ -358,53 +635,54 @@ function generateBizAgentContent(taskType, input) {
     });
 
     if (taskType === 'weekly-report') {
-        return `【本地占位分析】本週經營週報
+        return `【本地规则】本周经营周报
 ━━━━━━━━━━━━━━━━━━
-📅 日期：${now.toLocaleDateString('zh-CN')}
-👨‍🎓 在讀學員：${summary.activeStudentCount} 人
-⏳ 待續費：${summary.pendingRenewalCount} 人
-💰 欠費記錄：${summary.unpaidCount} 條（¥${(summary.unpaidAmount || 0).toLocaleString()}）
-📚 本月課消：${summary.monthConsumedHours} 課次
-💬 近一週溝通：${summary.recentCommCount} 條
+日期：${now.toLocaleDateString('zh-CN')}
+在读学员：${getPrivacyVal(summary.activeStudentCount)} 人
+待续费：${getPrivacyVal(summary.pendingRenewalCount)} 人
+欠费记录：${getPrivacyVal(summary.unpaidCount)} 条（${getPrivacyAmount(summary.unpaidAmount)}）
+本月课消：${getPrivacyVal(summary.monthConsumedHours)} 课次
+近一周沟通：${getPrivacyVal(summary.recentCommCount)} 条
 
-【班級概覽】
+【班级概况】
 ${classes.filter(c => c.status === 'active').map(c => {
-    const cnt = (data.students || []).filter(s => s.classId === c.id && s.status === 'active').length;
-    return `• ${c.name}：${cnt}/${c.maxStudents} 人`;
-}).join('\n') || '暫無在讀班級'}
+    const cnt = students.filter(s => s.classId === c.id && s.status === 'active').length;
+    return `• ${c.name}：${getPrivacyVal(cnt)}/${getPrivacyVal(c.maxStudents)} 人`;
+}).join('\n') || '暂无在读班级'}
 
-【待續費學員】
-${pendingStudents.length === 0 ? '無' : pendingStudents.slice(0, 5).map(s => `• ${s.name}（${s.grade || ''}）`).join('\n')}
-${pendingStudents.length > 5 ? `…還有 ${pendingStudents.length - 5} 人` : ''}
+【待续费学员】
+${pendingStudents.length === 0 ? '无' : pendingStudents.slice(0, 5).map(s => `• ${maskStudentName(s.name)}（${s.grade || ''}）`).join('\n')}
+${pendingStudents.length > 5 ? `…还有 ${getPrivacyVal(pendingStudents.length - 5)} 人` : ''}
 
-【欠費提醒】
-${unpaidFees.length === 0 ? '無欠費記錄' : unpaidFees.slice(0, 5).map(f => `• ${f.studentName || '未知'}：¥${(f.amount || 0).toLocaleString()}`).join('\n')}
-${unpaidFees.length > 5 ? `…還有 ${unpaidFees.length - 5} 條` : ''}
+【欠费提醒】
+${unpaidFees.length === 0 ? '无欠费记录' : unpaidFees.slice(0, 5).map(f => `• ${maskStudentName(f.studentName)}：${getPrivacyAmount(f.amount)}`).join('\n')}
+${unpaidFees.length > 5 ? `…还有 ${getPrivacyVal(unpaidFees.length - 5)} 条` : ''}
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位分析，後續接入 AI 後可生成更完整的經營建議。`;
+当前为本地规则生成，后续接入 AI 后可生成更完整的经营建议。`;
     }
 
     if (taskType === 'monthly-report') {
-        return `【本地占位分析】本月經營報告
+        return `【本地规则】本月经营报告
 ━━━━━━━━━━━━━━━━━━
-📅 月份：${currentYear} 年 ${currentMonth} 月
-👨‍🎓 在讀學員：${summary.activeStudentCount} 人
-⏳ 待續費：${summary.pendingRenewalCount} 人
-💰 欠費記錄：${summary.unpaidCount} 條（¥${(summary.unpaidAmount || 0).toLocaleString()}）
-📚 本月課消：${summary.monthConsumedHours} 課次
+月份：${currentYear} 年 ${currentMonth} 月
+在读学员：${getPrivacyVal(summary.activeStudentCount)} 人
+待续费：${getPrivacyVal(summary.pendingRenewalCount)} 人
+欠费记录：${getPrivacyVal(summary.unpaidCount)} 条（${getPrivacyAmount(summary.unpaidAmount)}）
+本月课消：${getPrivacyVal(summary.monthConsumedHours)} 课次
 
-【本月授課記錄】
-${monthDetail.length === 0 ? '本月暫無考勤記錄' : monthDetail.map(m => `• ${m.class}（${m.date}）：出勤 ${m.attended} 人`).join('\n')}
+【本月授课记录】
+${monthDetail.length === 0 ? '本月暂无考勤记录' : monthDetail.map(m => `• ${m.class}（${m.date}）：出勤 ${getPrivacyVal(m.attended)} 人`).join('\n')}
 
-【班級狀態】
+【班级状态】
 ${classes.filter(c => c.status !== 'forming').map(c => {
-    const cnt = (data.students || []).filter(s => s.classId === c.id && s.status === 'active').length;
-    return `• ${c.name}：${c.status === 'active' ? '進行中' : c.status === 'completed' ? '已結課' : '組班中'} ${cnt}/${c.maxStudents} 人`;
-}).join('\n') || '暫無班級'}
+    const cnt = students.filter(s => s.classId === c.id && s.status === 'active').length;
+    const statusText = c.status === 'active' ? '进行中' : c.status === 'completed' ? '已结课' : '组班中';
+    return `• ${c.name}：${statusText} ${getPrivacyVal(cnt)}/${getPrivacyVal(c.maxStudents)} 人`;
+}).join('\n') || '暂无班级'}
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位分析，後續接入 AI 後可生成更完整的月度經營報告。`;
+当前为本地规则生成，后续接入 AI 后可生成更完整的月度经营报告。`;
     }
 
     if (taskType === 'class-consumption') {
@@ -416,9 +694,9 @@ ${classes.filter(c => c.status !== 'forming').map(c => {
         if (!targetClass) {
             targetClass = classes.find(c => c.status === 'active');
         }
-        if (!targetClass) return '暫無班級數據';
+        if (!targetClass) return '暂无班级数据。\n\n当前为本地规则生成，后续接入 AI 后可生成更完整的课消分析。';
 
-        const clsStudents = students.filter(s => s.classId === targetClass.id && (s.status === 'active' || s.status === 'pending'));
+        const clsStudents = students.filter(s => s.classId === targetClass.id && s.status === 'active');
         const clsFees = fees.filter(f => clsStudents.some(s => s.id === f.studentId));
         const paidHours = clsFees.reduce((sum, f) => sum + (f.hours || 0), 0);
         let consumedHours = 0;
@@ -429,16 +707,16 @@ ${classes.filter(c => c.status !== 'forming').map(c => {
         });
         const remaining = paidHours - consumedHours;
 
-        return `【本地占位分析】班級課消分析
+        return `【本地规则】班级课消分析
 ━━━━━━━━━━━━━━━━━━
-📚 班級：${targetClass.name}
-👨‍🎓 在讀學員：${clsStudents.length} 人
-💰 已繳課時：${paidHours} 課
-📉 已消課時：${consumedHours} 課
-📈 剩餘課時：${remaining} 課
+班级：${targetClass.name}
+在读学员：${getPrivacyVal(clsStudents.length)} 人
+已缴课时：${getPrivacyVal(paidHours)} 课
+已消课时：${getPrivacyVal(consumedHours)} 课
+剩余课时：${getPrivacyVal(remaining)} 课
 
-【學員課時餘額】
-${clsStudents.length === 0 ? '暫無學員' : clsStudents.map(s => {
+【学员课时余额】
+${clsStudents.length === 0 ? '暂无学员' : clsStudents.map(s => {
     const sf = fees.filter(f => f.studentId === s.id);
     const purchased = sf.reduce((sum, f) => sum + (f.hours || 0), 0);
     let consumed = 0;
@@ -446,62 +724,58 @@ ${clsStudents.length === 0 ? '暫無學員' : clsStudents.map(s => {
         if (session.records && session.records[s.id] === 1) consumed++;
     });
     const rem = purchased - consumed;
-    const status = rem < 0 ? '⚠️ 餘額不足' : rem < 5 ? '⚡ 建議續費' : '✓ 正常';
-    return `• ${s.name}：已消 ${consumed} / 已繳 ${purchased} → 剩餘 ${rem} ${status}`;
+    const status = rem < 0 ? '余额不足' : rem < 5 ? '建议续费' : '正常';
+    return `• ${maskStudentName(s.name)}：已消 ${getPrivacyVal(consumed)} / 已缴 ${getPrivacyVal(purchased)} → 剩余 ${getPrivacyVal(rem)} [${status}]`;
 }).join('\n')}
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位分析，後續接入 AI 後可結合學員表現生成針對性建議。`;
+当前为本地规则生成，后续接入 AI 后可结合学员表现生成针对性建议。`;
     }
 
     if (taskType === 'tuition-warning') {
-        return `【本地占位分析】欠費與續費預警匯總
+        return `【本地规则】欠费与续费预警汇总
 ━━━━━━━━━━━━━━━━━━
-💰 欠費記錄：${summary.unpaidCount} 條（共 ¥${(summary.unpaidAmount || 0).toLocaleString()}）
-⏳ 待續費學員：${summary.pendingRenewalCount} 人
-👨‍🎓 在讀學員總數：${summary.activeStudentCount} 人
+欠费记录：${getPrivacyVal(summary.unpaidCount)} 条（${getPrivacyAmount(summary.unpaidAmount)}）
+待续费学员：${getPrivacyVal(summary.pendingRenewalCount)} 人
+在读学员总数：${getPrivacyVal(summary.activeStudentCount)} 人
 
-${unpaidFees.length > 0 ? `【欠費明細】
-${unpaidFees.map(f => `• ${f.studentName || '未知'}：欠 ¥${(f.amount || 0).toLocaleString()}（${f.paymentDate || ''}）`).join('\n')}` : '【欠費明細】無欠費記錄 ✓'}
+${unpaidFees.length > 0 ? `【欠费明细】\n${unpaidFees.map(f => `• ${maskStudentName(f.studentName)}：欠 ${getPrivacyAmount(f.amount)}（${f.paymentDate || ''}）`).join('\n')}` : '【欠费明细】无欠费记录'}
 
-${pendingStudents.length > 0 ? `【待續費學員】
-${pendingStudents.map(s => `• ${s.name}（${s.grade || ''}）`).join('\n')}` : '【待續費學員】無待續費學員 ✓'}
+${pendingStudents.length > 0 ? `【待续费学员】\n${pendingStudents.map(s => `• ${maskStudentName(s.name)}（${s.grade || ''}）`).join('\n')}` : '【待续费学员】无待续费学员'}
 
-【後續建議】
-1. 及時跟進欠費家長，確認繳費意願
-2. 課時不足 5 課的學員提前溝通續費
-3. 後續接入 AI 可自動生成催費話術和續費方案
+【后续建议】
+1. 及时跟进欠费家长，确认缴费意愿
+2. 课时不足 5 课的学员提前沟通续费
+3. 后续接入 AI 可自动生成催费话术和续费方案
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位分析，後續接入 AI 後可自動生成針對性催費話術。`;
+当前为本地规则生成，后续接入 AI 后可自动生成针对性催费话术。`;
     }
 
     return null;
 }
 
 function generateLearningAgentContent(taskType, input) {
-    const summary = getAIWorkspaceSummary();
-
     if (taskType === 'student-feedback') {
         const inputLines = input.split('\n');
         const studentName = inputLines[0]?.trim() || '';
         const feedbackContent = inputLines.slice(1).join('\n').trim();
 
-        return `【本地占位分析】學情反饋模板
+        return `【本地规则】学情反馈模板
 ━━━━━━━━━━━━━━━━━━
-${studentName ? `📋 學員：${escapeHtml(studentName)}` : '📋 學員：[請在輸入框填寫學員姓名]'}
+${studentName ? `学员：${escapeHtml(studentName)}` : '学员：[请在输入框填写学员姓名]'}
 
-【家長你好，現反饋近期學習情況】
-本次課堂整體表現穩定，知識點掌握情況良好。
-${feedbackContent ? `\n【用戶補充信息】\n${escapeHtml(feedbackContent)}` : ''}
+【家长你好，现反馈近期学习情况】
+本次课堂整体表现稳定，知识点的掌握情况良好。
+${feedbackContent ? `\n【用户补充信息】\n${escapeHtml(feedbackContent)}` : ''}
 
-【學習建議】
-• 建議家長配合督促學員按時完成作業
-• 薄弱環節建議針對性練習
-• 保持當前學習節奏，及時複習
+【学习建议】
+• 建议家长配合督促学员按时完成作业
+• 薄弱环节建议针对性练习
+• 保持当前学习节奏，及时复习
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位模板，後續接入 AI 可結合成績、考勤、溝通記錄生成針對性學情報告。`;
+当前为本地规则模板，后续接入 AI 可结合成绩、考勤、沟通记录生成针对性学情报告。`;
     }
 
     if (taskType === 'renewal-script') {
@@ -509,52 +783,52 @@ ${feedbackContent ? `\n【用戶補充信息】\n${escapeHtml(feedbackContent)}`
         const studentName = inputLines[0]?.trim() || '';
         const context = inputLines.slice(1).join('\n').trim();
 
-        return `【本地占位分析】續費溝通話術
+        return `【本地规则】续费沟通话术
 ━━━━━━━━━━━━━━━━━━
-${studentName ? `📋 學員：${escapeHtml(studentName)}` : '📋 學員：[請在輸入框填寫學員姓名]'}
+${studentName ? `学员：${escapeHtml(studentName)}` : '学员：[请在输入框填写学员姓名]'}
 
-【開場】
-家長您好，我是 ${data.students?.[0]?.teacher || '老師'}，想跟您溝通一下孩子的續費問題。
+【开场】
+家长您好，我是老师，想跟您沟通一下孩子的续费问题。
 
-【情況說明】
-孩子在我們這裡學習已有一段時間，整體表現${context || '良好'}。
+【情况说明】
+孩子在我们这里学习已有一段时间，整体表现${context || '良好'}。
 
-【續費理由】
-• 教學進度穩定，孩子已適應當前班級
-• 後續課程銜接緊密，中斷會影響學習效果
-• 我們的課程性價比高，值得繼續
+【续费理由】
+• 教学进度稳定，孩子已适应当前班级
+• 后续课程衔接紧密，中断会影响学习效果
+• 我们的课程性价比高，值得继续
 
-【家長可能顧慮】
-• 價格問題 → 可說明當前優惠政策
-• 時間安排 → 可調整上課時間
-• 學習效果 → 可展示進步記錄
+【家长可能顾虑】
+• 价格问题 → 可说明当前优惠政策
+• 时间安排 → 可调整上课时间
+• 学习效果 → 可展示进步记录
 
-${context ? `\n【用戶補充背景】\n${escapeHtml(context)}` : ''}
+${context ? `\n【用户补充背景】\n${escapeHtml(context)}` : ''}
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位話術，後續接入 AI 可根據學員實際課時、成績、溝通記錄生成個性化話術。`;
+当前为本地规则话术，后续接入 AI 可根据学员实际课时、成绩、沟通记录生成个性化话术。`;
     }
 
     if (taskType === 'parent-greeting') {
         const inputText = input.trim() || '平日';
-        const festival = inputText.includes('節') ? inputText : `${inputText}問候`;
+        const festival = inputText.includes('节') ? inputText : `${inputText}问候`;
 
-        return `【本地占位分析】家長問候模板
+        return `【本地规则】家长问候模板
 ━━━━━━━━━━━━━━━━━━
-🎉 主題：${escapeHtml(festival)}
+主题：${escapeHtml(festival)}
 
-【問候語模板】
-家長您好！${festival}即將來臨，在此祝您節日快樂！
+【问候语模板】
+家长您好！${festival}即将来临，在此祝您节日快乐！
 
-孩子這段時間在學習上${['保持穩定', '進步明顯', '狀態良好'][Math.floor(Math.random() * 3)]}，感謝您一直以來的配合與支持。
+孩子这段时间在学习上${['保持稳定', '进步明显', '状态良好'][Math.floor(Math.random() * 3)]}，感谢您一直以来的配合与支持。
 
-如有任何問題，歡迎隨時與我溝通。
+如有任何问题，欢迎随时与我沟通。
 
-—— ${data.students?.[0]?.teacher || '老師'}
+—— 老师
 ${new Date().toLocaleDateString('zh-CN')}
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位模板，後續接入 AI 可結合節日、學員表現生成個性化問候。`;
+当前为本地规则模板，后续接入 AI 可结合节日、学员表现生成个性化问候。`;
     }
 
     return null;
@@ -568,109 +842,105 @@ function generateRecruitAgentContent(taskType, input) {
     const forming = prospects.filter(p => p.trialStatus === 'forming');
 
     if (taskType === 'trial-report') {
-        return `【本地占位分析】試聽報告模板
+        return `【本地规则】试听报告模板
 ━━━━━━━━━━━━━━━━━━
-📋 試課學員：${input ? escapeHtml(input) : '[請填寫試課學員信息]'}
+试听学员：${input ? escapeHtml(input) : '[请填写试听学员信息]'}
 
-【試課表現】
-• 課堂參與度：[待評估]
-• 知識掌握度：[待評估]
-• 學習態度：[待評估]
+【试听表现】
+• 课堂参与度：[待评估]
+• 知识掌握度：[待评估]
+• 学习态度：[待评估]
 
-【授課老師建議】
-根據試課情況，建議：
-• [ ] 適合加入基礎班
-• [ ] 適合加入拔高班
-• [ ] 建議一段時間後再試
+【授课老师建议】
+根据试听情况，建议：
+• [ ] 适合加入基础班
+• [ ] 适合加入拔高班
+• [ ] 建议一段时间后再试
 
-【家長反饋】
-[待溝通]
+【家长反馈】
+[待沟通]
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位模板，後續接入 AI 可結合試課表現、學員背景生成專業試聽報告。`;
+当前为本地规则模板，后续接入 AI 可结合试听表现、学员背景生成专业试听报告。`;
     }
 
     if (taskType === 'conversion-script') {
-        return `【本地占位分析】試聽轉化話術
+        return `【本地规则】试听转化话术
 ━━━━━━━━━━━━━━━━━━
-【開場破冰】
-家長您好，孩子今天試課感覺怎麼樣？
+【开场破冰】
+家长您好，孩子今天试听感觉怎么样？
 
-【課程價值傳遞】
-我們的課程有以下優勢：
-• 小班教學，老師能關注到每個孩子
-• 體系完整，從基礎到拔高全覆盖
-• 師資專業，都有多年教學經驗
+【课程价值传递】
+我们的课程有以下优势：
+• 小班教学，老师能关注到每个孩子
+• 体系完整，从基础到拔高全覆盖
+• 师资专业，都有多年教学经验
 
-【解決家長顧慮】
-• 顧慮價格 → 說明性價比，可提供優惠
-• 顧慮時間 → 可調整上課時間
-• 顧慮效果 → 可先試讀一段時間
+【解决家长顾虑】
+• 顾虑价格 → 说明性价比，可提供优惠
+• 顾虑时间 → 可调整上课时间
+• 顾虑效果 → 可先试读一段时间
 
-【逼單環節】
-今天報名可以享受 [優惠內容]，名額有限建議提前鎖定。
+【逼单环节】
+今天报名可以享受 [优惠内容]，名额有限建议提前锁定。
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位話術，後續接入 AI 可根據家長背景、課程特點生成針對性話術。`;
+当前为本地规则话术，后续接入 AI 可根据家长背景、课程特点生成针对性话术。`;
     }
 
     if (taskType === 'moment-content') {
-        return `【本地占位分析】朋友圈招生文案
+        return `【本地规则】朋友圈招生文案
 ━━━━━━━━━━━━━━━━━━
 📣 招生文案模板
 
 【模板一：成果展示型】
-🎓 學而思培優體系 | 小班教學
-孩子數學進步了嗎？
-我們專注中小學數學，5年教學經驗
-📍 [地點] | 咨詢請私信
+学而思培优体系 | 小班教学
+孩子数学进步了吗？
+我们专注中小学数学，5年教学经验
+📍 [地点] | 咨询请私信
 
-【模板二：家長推薦型】
-📢 感謝家長推薦！
-新老師入職歡迎會圓滿結束
-新學期班位預定中，歡迎預約試聽
-📞 [聯繫方式]
+【模板二：家长推荐型】
+感谢家长推荐！
+新老师入职欢迎会圆满结束
+新学期班位预定中，欢迎预约试听
+📞 [联系方式]
 
-【模板三：活動型】
-🎁 新學期優惠來啦！
-試聽免費，報名享折扣
-名額有限，先到先得
-💬 私信咨詢
+【模板三：活动型】
+新学期优惠来啦！
+试听免费，报名享折扣
+名额有限，先到先得
+💬 私信咨询
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位文案，後續接入 AI 可結合時事、課程亮點生成更有吸引力的招生內容。`;
+当前为本地规则文案，后续接入 AI 可结合时事、课程亮点生成更有吸引力的招生内容。`;
     }
 
     if (taskType === 'follow-reminder') {
-        return `【本地占位分析】意向學員跟進提醒
+        return `【本地规则】意向学员跟进提醒
 ━━━━━━━━━━━━━━━━━━
-📊 意向學員概況：
-• 待跟進：${pending.length} 人
-• 試課中：${trial.length} 人
-• 組班中：${forming.length} 人
-• 已成交：${deal.length} 人
+📊 意向学员概况：
+• 待跟进：${getPrivacyVal(pending.length)} 人
+• 试课中：${getPrivacyVal(trial.length)} 人
+• 组班中：${getPrivacyVal(forming.length)} 人
+• 已成交：${getPrivacyVal(deal.length)} 人
 
-${pending.length > 0 ? `【待跟進名單】
-${pending.slice(0, 5).map(p => `• ${p.name || '未知'}（${p.grade || ''}）`).join('\n')}
-${pending.length > 5 ? `…還有 ${pending.length - 5} 人` : ''}` : '【待跟進名單】無待跟進學員 ✓'}
+${pending.length > 0 ? `【待跟进名单】\n${pending.slice(0, 5).map(p => `• ${maskStudentName(p.name)}（${p.grade || ''}）`).join('\n')}${pending.length > 5 ? `\n…还有 ${getPrivacyVal(pending.length - 5)} 人` : ''}` : '【待跟进名单】无待跟进学员'}
 
-${trial.length > 0 ? `【試課中學員】
-${trial.slice(0, 5).map(p => `• ${p.name || '未知'}（${p.grade || ''}）`).join('\n')}
-${trial.length > 5 ? `…還有 ${trial.length - 5} 人` : ''}` : '【試課中學員】無試課中學員 ✓'}
+${trial.length > 0 ? `【试课中学员】\n${trial.slice(0, 5).map(p => `• ${maskStudentName(p.name)}（${p.grade || ''}）`).join('\n')}${trial.length > 5 ? `\n…还有 ${getPrivacyVal(trial.length - 5)} 人` : ''}` : '【试课中学员】无试课中学员'}
 
-【跟進建議】
-1. 待跟進學員建議 3 天內聯繫
-2. 試課結束後及時與家長溝通報讀意向
-3. 已成交學員做好服務，建立口碑
+【跟进建议】
+1. 待跟进学员建议 3 天内联系
+2. 试课结束后及时与家长沟通报读意向
+3. 已成交学员做好服务，建立口碑
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ 本內容為本地占位分析，後續接入 AI 可自動生成跟進計劃和溝通話術。`;
+当前为本地规则分析，后续接入 AI 可自动生成跟进计划和沟通话术。`;
     }
 
     return null;
 }
 
-// ==================== 任務執行 ====================
+// ========== 任务执行 ==========
 
 function runAgentTask() {
     const taskType = document.getElementById('agentTaskType').value;
@@ -678,44 +948,43 @@ function runAgentTask() {
     const output = document.getElementById('agentOutput');
 
     if (!taskType) {
-        showToast('請先選擇任務類型');
+        showToast('请先选择任务类型');
         return;
     }
 
     const agentNames = {
-        'admin-agent': '教務 Agent',
-        'learning-agent': '學情溝通 Agent',
-        'recruit-agent': '招生跟進 Agent',
+        'admin-agent': '教务 Agent',
+        'learning-agent': '学情沟通 Agent',
+        'recruit-agent': '招生跟进 Agent',
         'teaching-agent': '教研 Agent',
-        'biz-agent': '經營分析 Agent',
+        'biz-agent': '经营分析 Agent',
     };
 
     const taskNames = {
-        'schedule-conflict': '調課衝突檢測',
-        'attendance-anomaly': '考勤異常處理',
-        'class-full-check': '班級滿班預警',
-        'renewal-reminder': '續費到期提醒',
-        'student-feedback': '生成學情反饋',
-        'renewal-script': '生成續費溝通話術',
-        'parent-greeting': '生成家長問候模板',
-        'trial-report': '生成試聽報告',
-        'conversion-script': '生成轉化話術',
+        'schedule-conflict': '调课冲突检测',
+        'attendance-anomaly': '考勤异常处理',
+        'class-full-check': '班级满班预警',
+        'renewal-reminder': '续费到期提醒',
+        'student-feedback': '生成学情反馈',
+        'renewal-script': '生成续费沟通话术',
+        'parent-greeting': '生成家长问候模板',
+        'trial-report': '生成试听报告',
+        'conversion-script': '生成转化话术',
         'moment-content': '生成朋友圈招生文案',
-        'follow-reminder': '意向學員跟進提醒',
+        'follow-reminder': '意向学员跟进提醒',
         'lesson-plan': '生成教案',
-        'exercise-recommend': '推薦練習題',
-        'learning-path': '規劃學習路徑',
-        'exam-analysis': '試卷分析',
-        'weekly-report': '生成本週經營週報',
-        'monthly-report': '生成本月經營報告',
-        'class-consumption': '班級課消分析',
-        'tuition-warning': '欠費與續費預警匯總',
+        'exercise-recommend': '推荐练习题',
+        'learning-path': '规划学习路径',
+        'exam-analysis': '试卷分析',
+        'weekly-report': '生成本周经营周报',
+        'monthly-report': '生成本月经营报告',
+        'class-consumption': '班级课消分析',
+        'tuition-warning': '欠费与续费预警汇总',
     };
 
-    // 只在點擊生成時記錄日誌
-    logAgentEvent(`調用 ${agentNames[currentAgentId]} · ${taskNames[taskType]}`);
+    // 只在点击生成时记录日志，不记录用户输入
+    logAgentEvent(`${agentNames[currentAgentId]} · ${taskNames[taskType]}`);
 
-    // 嘗試生成本地占位內容
     let localContent = null;
     if (currentAgentId === 'biz-agent') {
         localContent = generateBizAgentContent(taskType, input);
@@ -723,28 +992,52 @@ function runAgentTask() {
         localContent = generateLearningAgentContent(taskType, input);
     } else if (currentAgentId === 'recruit-agent') {
         localContent = generateRecruitAgentContent(taskType, input);
+    } else if (currentAgentId === 'admin-agent') {
+        localContent = generateAdminAgentContent(taskType, input);
+    } else if (currentAgentId === 'teaching-agent') {
+        localContent = generateTeachingAgentContent(taskType, input);
     }
 
     if (localContent) {
-        output.innerHTML = `<div style="white-space: pre-wrap; font-size: 13px; line-height: 1.8; color: var(--text-primary);">${escapeHtml(localContent)}</div>`;
-        showToast(`${agentNames[currentAgentId]} · ${taskNames[taskType]} 已生成（本地占位）`);
+        output.innerHTML = `<div class="ai-output-text">${escapeHtml(localContent)}</div>`;
+        showToast(`${agentNames[currentAgentId]} · ${taskNames[taskType]} 已生成`);
     } else {
-        // 其餘 Agent 顯示通用占位
-        output.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">
-<div style="font-size: 24px; margin-bottom: 8px;">🤖</div>
-<div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px;">AI Agent 後續接入</div>
-<div style="font-size: 13px;">當前任務：${taskNames[taskType]}</div>
-<div style="font-size: 13px; margin-top: 8px; opacity: 0.7;">輸入內容已記錄，待 Agent API 接入後可生成結果。</div>
-${input ? `<div style="margin-top: 12px; text-align: left; background: var(--hover-bg); border-radius: 6px; padding: 10px; font-size: 12px; color: var(--text-secondary);">已記錄輸入：${escapeHtml(input)}</div>` : ''}
-<div style="margin-top: 12px; font-size: 11px; opacity: 0.5;">Agent ID: ${currentAgentId} · Task: ${taskType}</div>
+        output.innerHTML = `<div class="ai-output-placeholder">
+<div style="font-size:24px;margin-bottom:8px;">🤖</div>
+<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">当前为本地规则生成</div>
+<div style="color:var(--text-muted);">后续接入 AI 后可生成更完整内容。</div>
+<div style="margin-top:8px;font-size:13px;">当前任务：${taskNames[taskType]}</div>
+${input ? `<div style="margin-top:12px;text-align:left;background:var(--hover-bg);border-radius:6px;padding:10px;font-size:12px;color:var(--text-secondary);">已记录输入：${escapeHtml(input)}</div>` : ''}
 </div>`;
-        showToast(`${agentNames[currentAgentId]} · ${taskNames[taskType]} 已記錄`);
+        showToast(`${agentNames[currentAgentId]} · ${taskNames[taskType]} 已记录`);
     }
 }
 
 function clearAgentOutput() {
-    document.getElementById('agentOutput').innerHTML = '選擇任務類型並填寫說明後，點擊「生成結果」查看 AI 輸出。';
-    showToast('輸出已清空');
+    const output = document.getElementById('agentOutput');
+    if (output) output.innerHTML = '选择任务类型并填写说明后，点击「生成结果」查看输出。';
+    showToast('输出已清空');
+}
+
+function clearAgentInput() {
+    const input = document.getElementById('agentInput');
+    if (input) input.value = '';
+    showToast('输入已清空');
+}
+
+function copyAgentOutput() {
+    const output = document.getElementById('agentOutput');
+    if (!output) return;
+    const text = output.innerText || output.textContent || '';
+    if (!text || text === '选择任务类型并填写说明后，点击「生成结果」查看输出。') {
+        showToast('暂无可复制内容');
+        return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('已复制');
+    }).catch(() => {
+        showToast('复制失败');
+    });
 }
 
 function logAgentEvent(msg) {
@@ -753,13 +1046,13 @@ function logAgentEvent(msg) {
     if (agentLogs.length > 50) agentLogs = agentLogs.slice(0, 50);
     const logArea = document.getElementById('agentLogArea');
     if (logArea) {
-        logArea.innerHTML = agentLogs.map(log => `<div style="margin-bottom: 2px;">${escapeHtml(log)}</div>`).join('');
+        logArea.innerHTML = agentLogs.map(log => `<div class="ai-log-item">${escapeHtml(log)}</div>`).join('');
     }
 }
 
 function clearAgentLogs() {
     agentLogs = [];
     const logArea = document.getElementById('agentLogArea');
-    if (logArea) logArea.innerHTML = '<div style="color: var(--text-muted); opacity: 0.5;">暫無 Agent 調用記錄</div>';
-    showToast('日誌已清空');
+    if (logArea) logArea.innerHTML = '<div class="ai-log-empty">暂无 Agent 调用记录</div>';
+    showToast('日志已清空');
 }
