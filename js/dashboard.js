@@ -86,6 +86,31 @@ function renderDashboard() {
                     <button class="btn btn-secondary" onclick="switchTab('reports')">查看统计报表</button>
                 </div>
             </div>
+        <div class="card" style="margin-top: 20px;">
+                <div class="card-header"><span class="card-title">工作提醒</span></div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    <div onclick="switchTab('ai-workspace')" style="padding: 16px; background: var(--hover-bg); border-radius: 8px; cursor: pointer; transition: background 0.2s; text-align: center;" onmouseover="this.style.background='#e8f4fd'" onmouseout="this.style.background='var(--hover-bg)'">
+                        <div style="font-size: 24px; margin-bottom: 6px;">📋</div>
+                        <div style="font-weight: 600; font-size: 13px; color: #2c3e50;">教务提醒</div>
+                        <div style="font-size: 11px; color: #888; margin-top: 4px;">调课 · 考勤异常</div>
+                    </div>
+                    <div onclick="switchTab('prospects')" style="padding: 16px; background: var(--hover-bg); border-radius: 8px; cursor: pointer; transition: background 0.2s; text-align: center;" onmouseover="this.style.background='#e8f4fd'" onmouseout="this.style.background='var(--hover-bg)'">
+                        <div style="font-size: 24px; margin-bottom: 6px;">👨‍👩‍👧</div>
+                        <div style="font-weight: 600; font-size: 13px; color: #2c3e50;">招生跟进</div>
+                        <div style="font-size: 11px; color: #888; margin-top: 4px;">意向学员 · 试课</div>
+                    </div>
+                    <div onclick="switchTab('communications')" style="padding: 16px; background: var(--hover-bg); border-radius: 8px; cursor: pointer; transition: background 0.2s; text-align: center;" onmouseover="this.style.background='#e8f4fd'" onmouseout="this.style.background='var(--hover-bg)'">
+                        <div style="font-size: 24px; margin-bottom: 6px;">💬</div>
+                        <div style="font-weight: 600; font-size: 13px; color: #2c3e50;">学情沟通</div>
+                        <div style="font-size: 11px; color: #888; margin-top: 4px;">待沟通 · 家长反馈</div>
+                    </div>
+                    <div onclick="switchTab('reports')" style="padding: 16px; background: var(--hover-bg); border-radius: 8px; cursor: pointer; transition: background 0.2s; text-align: center;" onmouseover="this.style.background='#e8f4fd'" onmouseout="this.style.background='var(--hover-bg)'">
+                        <div style="font-size: 24px; margin-bottom: 6px;">📊</div>
+                        <div style="font-weight: 600; font-size: 13px; color: #2c3e50;">经营复盘</div>
+                        <div style="font-size: 11px; color: #888; margin-top: 4px;">周报 · 课消分析</div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
     container.innerHTML = html;

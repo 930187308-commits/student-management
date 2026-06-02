@@ -1027,6 +1027,7 @@ function render() {
     renderCommunications();
     renderProspects();
     renderReports();
+    renderAIWorkspace();
 }
 
 // 渲染统计卡片
