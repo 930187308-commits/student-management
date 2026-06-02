@@ -32,11 +32,12 @@ function renderDashboard() {
                     <thead><tr><th>班级名称</th><th>状态</th><th>年级</th><th>上课时间</th><th>人数/满班</th><th>课次进度</th><th>操作</th></tr></thead>
                     <tbody>
                         ${classStats.length === 0 ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">暂无班级</td></tr>' : classStats.map(c => {
-                            const statusBadge = c.status === 'active' ? 'badge-active' : c.status === 'forming' ? 'badge-trial' : 'badge-pending';
-                            const statusText = c.status === 'active' ? '正常' : c.status === 'forming' ? '组班中' : '已结课';
+                            const classStatus = c.status || 'active';
+                            const statusBadge = classStatus === 'active' ? 'badge-active' : classStatus === 'forming' ? 'badge-trial' : 'badge-pending';
+                            const statusText = classStatus === 'active' ? '正常' : classStatus === 'forming' ? '组班中' : '已结课';
                             const progressPercent = c.plannedSessions > 0 ? Math.round((c.completedSessions / c.plannedSessions) * 100) : 0;
-                            const isNearEnd = c.status !== 'forming' && c.plannedSessions > 0 && progressPercent >= 90;
-                            const isFinished = c.status === 'finished' || (c.status === 'active' && progressPercent >= 100);
+                            const isNearEnd = classStatus !== 'forming' && c.plannedSessions > 0 && progressPercent >= 90;
+                            const isFinished = classStatus === 'finished' || (classStatus === 'active' && progressPercent >= 100);
                             return `
                                 <tr style="${isFinished ? 'opacity:0.7;' : ''}${isNearEnd && !isFinished ? 'background:#fff8e6;' : ''}">
                                     <td><strong style="color:#3498db;">${escapeHtml(c.name)}</strong></td>
@@ -87,6 +88,7 @@ function renderDashboard() {
             </div>
         </div>
     `;
+    container.innerHTML = html;
 }
 
 function switchTab(tab) {
