@@ -208,6 +208,7 @@ function renderStudentDetail() {
 
         <!-- 课时进度条 -->
         <div style="margin-bottom: 20px; padding: 16px; background: var(--hover-bg); border-radius: 12px;">
+            ${totalPaidHours === 0 ? '<div class="empty-state" style="padding:12px;text-align:center;">暂无收费记录</div>' : `
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                 <span style="font-size: 13px; color: #888;">课时消耗进度</span>
                 <span style="font-size: 13px; font-weight: 600;">${usageRate}%</span>
@@ -218,12 +219,12 @@ function renderStudentDetail() {
             <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px;">
                 <span>已消 <strong style="color:#27ae60">${usedHours}</strong> 课时</span>
                 <span>请假 <strong style="color:#f39c12">${absentHours}</strong> 课时</span>
-                <span>剩余 <strong style="color:#3498db">${remainingHours}</strong> 课时</span>
-            </div>
+                <span>剩余 <strong style="color:${remainingHours < 0 ? '#e74c3c' : remainingHours <= 2 ? '#f39c12' : '#3498db'}">${remainingHours}</strong> 课时</span>
+            </div>`}
         </div>
 
         <div class="detail-grid">
-            <div class="detail-item"><div class="label">已缴课时</div><div class="value">${totalPaidHours} 课时 <span style="font-size:12px;color:#888;">¥${totalPaidAmount.toLocaleString()}</span></div></div>
+            <div class="detail-item"><div class="label">已缴课时</div><div class="value">${totalPaidHours > 0 ? totalPaidHours + ' 课时 <span style="font-size:12px;color:#888;">¥' + totalPaidAmount.toLocaleString() : '---暂无收费记录'}</div></div>
             <div class="detail-item"><div class="label">性别</div><div class="value">${escapeHtml(student.gender)}</div></div>
             <div class="detail-item"><div class="label">授课老师</div><div class="value">${escapeHtml(student.teacher)}</div></div>
             <div class="detail-item"><div class="label">就读学校</div><div class="value">${escapeHtml(student.school) || '-'}</div></div>

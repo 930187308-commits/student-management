@@ -65,28 +65,26 @@ function loadAttendanceClass(classId) {
 
     // 班级基本信息栏
     const classInfoBar = `
-        <div style="display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 12px; background: var(--hover-bg); border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; padding: 8px 12px; background: var(--hover-bg); border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
             <div><span style="color:#888;">班级：</span><strong>${escapeHtml(cls?.name || '')}</strong></div>
-            <div><span style="color:#888;">年级：</span>${escapeHtml(cls?.grade || '')}</div>
-            <div><span style="color:#888;">上课时间：</span>${escapeHtml(cls?.schedule || '-')}</div>
-            <div><span style="color:#888;">计划课次：</span><strong>${cls?.plannedSessions || 16}</strong></div>
-            <div><span style="color:#888;">已登记：</span><strong style="color:#27ae60;">${sessions.length}</strong> 次</div>
-            <div><span style="color:#888;">在读学员：</span><strong>${data.students.filter(s => s.classId === classId && s.status === 'active').length}</strong> 人</div>
+            <div><span style="color:#888;">上课：</span>${escapeHtml(cls?.schedule || '-')}</div>
+            <div><span style="color:#888;">课次：</span><strong style="color:#27ae60;">${sessions.length}</strong><span style="color:#888;">/${cls?.plannedSessions || 16}</span></div>
+            <div><span style="color:#888;">学员：</span><strong>${data.students.filter(s => s.classId === classId && s.status === 'active').length}</strong><span style="color:#888;">人</span></div>
         </div>
     `;
 
     let tableHtml = '';
     if (students.length === 0) {
-        tableHtml = '<div class="empty-state">该班级暂无学员</div>';
+        tableHtml = '<div class="empty-state" style="padding:24px;text-align:center;color:#888;">暂无学员，请先在班级管理中添加学员。</div>';
     } else if (allDates.length === 0) {
-        tableHtml = '<div class="empty-state">暂无考勤课次<br><span style="font-size:12px;color:#888;">点击上方「+ 新增课次」或「导入考勤」添加</span></div>';
+        tableHtml = '<div class="empty-state" style="padding:24px;text-align:center;color:#888;">暂无考勤课次，请先新增课次或导入考勤。</div>';
     } else {
         tableHtml = `
             <div class="attendance-scroll">
             <table class="attendance-table">
                 <thead>
                     <tr>
-                        <th style="min-width:80px;position:sticky;left:0;background:var(--card-bg);z-index:2;">学员</th>
+                        <th style="min-width:80px;position:sticky;left:0;background:#fafafa;z-index:2;border-right:1px solid var(--table-border);">学员</th>
                         ${allDates.map((d, i) => {
                             const sess = sessions.find(s => s.date === d);
                             return `<th style="min-width:60px;">
@@ -121,7 +119,7 @@ function loadAttendanceClass(classId) {
                         });
                         return `
                             <tr>
-                                <td style="position:sticky;left:0;background:var(--card-bg);z-index:1;">${escapeHtml(s.name)}${studentMarker ? `<br><span style="font-size:10px;color:#888;">${studentMarker}</span>` : ''}</td>
+                                <td style="position:sticky;left:0;background:#fafafa;z-index:1;border-right:1px solid var(--table-border);">${escapeHtml(s.name)}${studentMarker ? `<br><span style="font-size:10px;color:#888;">${studentMarker}</span>` : ''}</td>
                                 ${allDates.map((date, i) => {
                                     const session = sessions.find(sess => sess.date === date);
                                     const status = session?.records?.[s.id];
