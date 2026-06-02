@@ -85,6 +85,7 @@ function renderProspectList() {
             <td>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
                 <button class="btn btn-success btn-xs" onclick="convertProspect('${p.id}')">转正式</button>
+                <button class="btn btn-xs" style="background:#9b59b6;color:white;" onclick="jumpToAIAgent('recruit-agent','follow-reminder')">AI 话术</button>
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
             </td>
         </tr>`;

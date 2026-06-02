@@ -3,9 +3,11 @@
 let currentAgentId = 'admin-agent';
 let agentLogs = [];
 
+// 全局隐私模式状态
+let aiPrivacyMode = 'masked'; // 'masked' | 'named'
+let aiPrivacyModeLocked = false; // 当全局隐私开启时锁定为脱敏
+
 // ========== 姓名脱敏 ==========
-// maskStudentName is defined in data.js, aliased here for local use
-// (data.js loads before ai-workspace.js, so maskStudentName is available)
 
 // ========== 数据感知函数 ==========
 function getAIWorkspaceSummary() {
@@ -145,7 +147,10 @@ function renderAIWorkspace() {
                             <h3 id="agentTitle" class="ai-agent-name">教务 Agent</h3>
                             <p id="agentDesc" class="ai-agent-desc">处理排课、调课、考勤异常等教务工作</p>
                         </div>
-                        <span id="agentStatus" class="badge badge-trial">待接入</span>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                            <span id="agentStatus" class="badge" style="background:#95a5a6;color:white;">本地模板</span>
+                            <span id="aiModeLabel" style="font-size:11px;color:var(--text-muted);">未接入真实 AI</span>
+                        </div>
                     </div>
 
                     <div id="agentTaskArea">
@@ -153,16 +158,29 @@ function renderAIWorkspace() {
                             <label class="ai-form-label">任务类型</label>
                             <select id="agentTaskType" onchange="onAgentTaskTypeChange()" class="ai-form-select">
                                 <option value="">请选择任务类型</option>
-                                <option value="schedule-conflict">调课冲突检测</option>
-                                <option value="attendance-anomaly">考勤异常处理</option>
-                                <option value="class-full-check">班级满班预警</option>
-                                <option value="renewal-reminder">续费到期提醒</option>
                             </select>
                         </div>
 
                         <div class="ai-form-group">
                             <label class="ai-form-label">任务描述 / 补充说明</label>
                             <textarea id="agentInput" rows="4" placeholder="描述你的需求，例如：检查六年级培优A班本周考勤异常..." class="ai-form-textarea"></textarea>
+                        </div>
+
+                        <div class="ai-privacy-row">
+                            <div class="ai-privacy-label">隐私模式：</div>
+                            <label class="ai-privacy-option">
+                                <input type="radio" name="aiPrivacyMode" value="masked" checked onchange="onPrivacyModeChange()">
+                                <span>脱敏生成</span>
+                            </label>
+                            <label class="ai-privacy-option">
+                                <input type="radio" name="aiPrivacyMode" value="named" onchange="onPrivacyModeChange()">
+                                <span>带姓名生成</span>
+                            </label>
+                        </div>
+
+                        <div id="dataRangeInfo" class="ai-data-range" style="display:none;">
+                            <span class="ai-data-range-title">本次读取数据范围</span>
+                            <div id="dataRangeContent"></div>
                         </div>
 
                         <div class="ai-btn-group">
@@ -174,7 +192,10 @@ function renderAIWorkspace() {
                         <div class="ai-output-area">
                             <div class="ai-output-header">
                                 <span class="ai-output-label">生成结果</span>
-                                <button class="btn btn-secondary btn-xs" id="copyOutputBtn" onclick="copyAgentOutput()">复制结果</button>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span id="outputPrivacyTag" style="font-size:11px;color:var(--text-muted);"></span>
+                                    <button class="btn btn-secondary btn-xs" id="copyOutputBtn" onclick="copyAgentOutput()">复制结果</button>
+                                </div>
                             </div>
                             <div id="agentOutput" class="ai-output-content">
 选择任务类型并填写说明后，点击「生成结果」查看输出。
@@ -279,19 +300,19 @@ function selectAgent(agentId) {
             { value: 'renewal-script', label: '生成续费沟通话术' },
             { value: 'parent-greeting', label: '生成家长问候模板' },
         ]},
-        'recruit-agent': { name: '招生跟进 Agent', desc: '处理试听转化、朋友圈内容生成', tasks: [
-            { value: 'trial-report', label: '生成试听报告' },
+        'recruit-agent': { name: '招生跟进 Agent', desc: '处理试听转化、跟进话术、招生文案', tasks: [
+            { value: 'follow-reminder', label: '意向跟进话术' },
             { value: 'conversion-script', label: '生成转化话术' },
-            { value: 'moment-content', label: '生成朋友圈招生文案' },
-            { value: 'follow-reminder', label: '意向学员跟进提醒' },
+            { value: 'trial-report', label: '生成试听报告' },
+            { value: 'moment-content', label: '招生文案', isLater: true },
         ]},
-        'teaching-agent': { name: '教研 Agent', desc: '生成教案、习题推荐、学习路径规划', tasks: [
-            { value: 'lesson-plan', label: '生成教案' },
-            { value: 'exercise-recommend', label: '推荐练习题' },
-            { value: 'learning-path', label: '规划学习路径' },
-            { value: 'exam-analysis', label: '试卷分析' },
+        'teaching-agent': { name: '教研 Agent', desc: '教案、练习题、学习路径', tasks: [
+            { value: 'lesson-plan', label: '生成教案', isLater: true },
+            { value: 'exercise-recommend', label: '推荐练习题', isLater: true },
+            { value: 'learning-path', label: '规划学习路径', isLater: true },
+            { value: 'exam-analysis', label: '试卷分析', isLater: true },
         ]},
-        'biz-agent': { name: '经营分析 Agent', desc: '生成本周经营周报、课消分析', tasks: [
+        'biz-agent': { name: '经营分析 Agent', desc: '生成本周/月经营报告、课消与欠费分析', tasks: [
             { value: 'weekly-report', label: '生成本周经营周报' },
             { value: 'monthly-report', label: '生成本月经营报告' },
             { value: 'class-consumption', label: '班级课消分析' },
@@ -303,10 +324,15 @@ function selectAgent(agentId) {
 
     document.getElementById('agentTitle').textContent = agent.name;
     document.getElementById('agentDesc').textContent = agent.desc;
-    document.getElementById('agentStatus').textContent = '待接入';
+    document.getElementById('agentStatus').textContent = '本地模板';
+    document.getElementById('agentStatus').style.background = '#95a5a6';
+    document.getElementById('aiModeLabel').textContent = '未接入真实 AI';
 
     const taskSelect = document.getElementById('agentTaskType');
     taskSelect.innerHTML = `<option value="">请选择任务类型</option>${agent.tasks.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}`;
+
+    updatePrivacyModeUI();
+    updateDataRangeInfo();
 
     document.querySelectorAll('.agent-item').forEach(el => {
         el.style.background = 'transparent';
@@ -349,6 +375,122 @@ function onAgentTaskTypeChange() {
     };
     const input = document.getElementById('agentInput');
     input.placeholder = taskPlaceholders[taskType] || '描述你的需求...';
+    updateDataRangeInfo();
+}
+
+function updatePrivacyModeUI() {
+    const radioMasked = document.querySelector('input[name="aiPrivacyMode"][value="masked"]');
+    const radioNamed = document.querySelector('input[name="aiPrivacyMode"][value="named"]');
+    if (!radioMasked || !radioNamed) return;
+
+    // 如果是教研 Agent 或经营 Agent，强制脱敏，锁定带姓名选项
+    const forceMaskedAgents = ['teaching-agent', 'biz-agent'];
+    if (forceMaskedAgents.includes(currentAgentId)) {
+        radioMasked.checked = true;
+        radioNamed.disabled = true;
+        aiPrivacyMode = 'masked';
+    } else {
+        radioNamed.disabled = false;
+        if (aiPrivacyMode === 'named') {
+            radioNamed.checked = true;
+        } else {
+            radioMasked.checked = true;
+        }
+    }
+}
+
+function onPrivacyModeChange() {
+    const selected = document.querySelector('input[name="aiPrivacyMode"]:checked');
+    aiPrivacyMode = selected ? selected.value : 'masked';
+    updateDataRangeInfo();
+}
+
+function updateDataRangeInfo() {
+    const taskType = document.getElementById('agentTaskType')?.value;
+    const rangeInfo = document.getElementById('dataRangeInfo');
+    const rangeContent = document.getElementById('dataRangeContent');
+    if (!rangeInfo || !rangeContent) return;
+
+    if (!taskType) {
+        rangeInfo.style.display = 'none';
+        return;
+    }
+
+    const agentNames = {
+        'admin-agent': '教务 Agent',
+        'learning-agent': '学情沟通 Agent',
+        'recruit-agent': '招生跟进 Agent',
+        'teaching-agent': '教研 Agent',
+        'biz-agent': '经营分析 Agent',
+    };
+
+    const taskNames = {
+        'schedule-conflict': '调课冲突检测',
+        'attendance-anomaly': '考勤异常处理',
+        'class-full-check': '班级满班预警',
+        'renewal-reminder': '续费到期提醒',
+        'student-feedback': '生成学情反馈',
+        'renewal-script': '生成续费沟通话术',
+        'parent-greeting': '生成家长问候模板',
+        'trial-report': '生成试听报告',
+        'conversion-script': '生成转化话术',
+        'moment-content': '生成朋友圈招生文案',
+        'follow-reminder': '意向学员跟进提醒',
+        'lesson-plan': '生成教案',
+        'exercise-recommend': '推荐练习题',
+        'learning-path': '规划学习路径',
+        'exam-analysis': '试卷分析',
+        'weekly-report': '生成本周经营周报',
+        'monthly-report': '生成本月经营报告',
+        'class-consumption': '班级课消分析',
+        'tuition-warning': '欠费与续费预警汇总',
+    };
+
+    const range = taskDescriptions[taskType] || '未定义';
+    const isNamed = aiPrivacyMode === 'named';
+
+    rangeContent.innerHTML = `
+        <div class="ai-data-range-item"><span class="ai-data-range-key">当前 Agent</span><span class="ai-data-range-val">${agentNames[currentAgentId] || ''}</span></div>
+        <div class="ai-data-range-item"><span class="ai-data-range-key">当前任务</span><span class="ai-data-range-val">${taskNames[taskType] || ''}</span></div>
+        <div class="ai-data-range-item"><span class="ai-data-range-key">读取范围</span><span class="ai-data-range-val">${escapeHtml(range)}</span></div>
+        <div class="ai-data-range-item"><span class="ai-data-range-key">隐私模式</span><span class="ai-data-range-val">${isNamed ? '带姓名（已脱敏）' : '脱敏生成'}</span></div>
+        <div class="ai-data-range-note">不会读取电话/微信/学校等敏感字段</div>
+    `;
+    rangeInfo.style.display = 'block';
+}
+
+function showPrivacyConfirm(callback) {
+    const modal = document.getElementById('modal');
+    const titleEl = document.getElementById('modalTitle');
+    const bodyEl = document.getElementById('modalBody');
+    if (!modal || !titleEl || !bodyEl) return;
+
+    titleEl.textContent = '确认带姓名生成';
+    bodyEl.innerHTML = `
+        <div style="padding: 16px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 12px;">⚠️</div>
+            <div style="font-size: 14px; color: var(--text-primary); margin-bottom: 8px;">
+                本次将带入学员姓名用于生成文本。
+            </div>
+            <div style="font-size: 13px; color: var(--text-secondary);">
+                系统不会自动修改任何数据。<br>生成内容需要您确认后使用。
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: center;">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="executePrivacyConfirm()">继续</button>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+
+    window._pendingPrivacyCallback = callback;
+}
+
+function executePrivacyConfirm() {
+    closeModal();
+    if (typeof window._pendingPrivacyCallback === 'function') {
+        window._pendingPrivacyCallback();
+    }
 }
 
 // ========== 本地占位内容生成 ==========
@@ -940,6 +1082,49 @@ ${trial.length > 0 ? `【试课中学员】\n${trial.slice(0, 5).map(p => `• $
     return null;
 }
 
+// ========== 外部跳转 AI 工作台 ==========
+function jumpToAIAgent(agentId, taskType) {
+    switchTab('ai-workspace');
+    setTimeout(() => {
+        if (agentId) selectAgent(agentId);
+        if (taskType) {
+            setTimeout(() => {
+                const taskSelect = document.getElementById('agentTaskType');
+                if (taskSelect) {
+                    taskSelect.value = taskType;
+                    onAgentTaskTypeChange();
+                    // 自动聚焦到输入框
+                    const input = document.getElementById('agentInput');
+                    if (input) input.focus();
+                }
+            }, 50);
+        }
+    }, 50);
+}
+
+// ========== 任务描述映射 ==========
+const taskDescriptions = {
+    'schedule-conflict': '学员考勤、班级上课时间',
+    'attendance-anomaly': '学员考勤、出勤状态',
+    'class-full-check': '班级人数、容量',
+    'renewal-reminder': '待续费学员、欠费记录',
+    'student-feedback': '学员成绩、考勤、课时余额',
+    'renewal-script': '学员课时余额、班级进度',
+    'parent-greeting': '学员姓名、班级',
+    'follow-reminder': '意向学员年级、状态、跟进情况',
+    'conversion-script': '课程信息、学员情况',
+    'trial-report': '试课学员年级、表现',
+    'moment-content': '班级信息、课程特色',
+    'lesson-plan': '课程主题、年级',
+    'exercise-recommend': '学员年级、薄弱点',
+    'learning-path': '学员年级、学习目标',
+    'exam-analysis': '试卷名称、学员成绩',
+    'weekly-report': '本周新增学员、课消、收费、欠费、待续费',
+    'monthly-report': '本月班级进度、课消、收费、欠费',
+    'class-consumption': '班级学员课时、已消/已缴',
+    'tuition-warning': '欠费记录、待续费学员',
+};
+
 // ========== 任务执行 ==========
 
 function runAgentTask() {
@@ -999,9 +1184,14 @@ function runAgentTask() {
     }
 
     if (localContent) {
+        const privacyTag = aiPrivacyMode === 'named'
+            ? '<span style="font-size:11px;color:#e74c3c;margin-right:6px;">⚠️ 带姓名</span>'
+            : '<span style="font-size:11px;color:#888;margin-right:6px;">🔒 脱敏</span>';
+        document.getElementById('outputPrivacyTag').innerHTML = privacyTag;
         output.innerHTML = `<div class="ai-output-text">${escapeHtml(localContent)}</div>`;
         showToast(`${agentNames[currentAgentId]} · ${taskNames[taskType]} 已生成`);
     } else {
+        document.getElementById('outputPrivacyTag').innerHTML = '<span style="font-size:11px;color:#888;">🔒 脱敏</span>';
         output.innerHTML = `<div class="ai-output-placeholder">
 <div style="font-size:24px;margin-bottom:8px;">🤖</div>
 <div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">当前为本地规则生成</div>

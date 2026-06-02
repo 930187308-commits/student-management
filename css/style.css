@@ -528,6 +528,65 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     color: var(--text-muted);
 }
 
+/* AI 隐私模式 */
+.ai-privacy-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    margin-bottom: 8px;
+}
+.ai-privacy-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+.ai-privacy-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.ai-privacy-option input[type="radio"] {
+    cursor: pointer;
+}
+
+/* AI 数据范围 */
+.ai-data-range {
+    background: var(--hover-bg);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+.ai-data-range-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: 8px;
+}
+.ai-data-range-item {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 4px;
+    line-height: 1.5;
+}
+.ai-data-range-key {
+    color: var(--text-muted);
+    min-width: 60px;
+}
+.ai-data-range-val {
+    color: var(--text-secondary);
+}
+.ai-data-range-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
 /* 日志 */
 .ai-log-card {}
 .ai-log-header {
