@@ -12,8 +12,8 @@ function getAIWorkspaceSummary() {
     const today = now.toISOString().split('T')[0];
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    const activeStudents = (data.students || []).filter(s => s.status === 'active' || s.status === 'pending');
-    const pendingRenewal = (data.students || []).filter(s => s.status === 'pending');
+    const activeStudents = (data.students || []).filter(s => s.status === 'active' || !s.status);
+    const pendingRenewal = (data.students || []).filter(s => s.status === 'renewalPending');
     const prospects = data.prospects || [];
     const fees = data.fees || [];
     const attendance = data.attendance || [];
@@ -29,7 +29,7 @@ function getAIWorkspaceSummary() {
     const prospectCount = prospects.length;
 
     // 欠费记录数和欠费金额
-    const unpaidFees = fees.filter(f => f.status === 'unpaid');
+    const unpaidFees = fees.filter(f => f.status === 'pending');
     const unpaidCount = unpaidFees.length;
     const unpaidAmount = unpaidFees.reduce((sum, f) => sum + (f.amount || 0), 0);
 
@@ -56,6 +56,12 @@ function getAIWorkspaceSummary() {
         monthConsumedHours: monthConsumedHours || 0,
         recentCommCount: recentCommCount || 0,
     };
+}
+
+function maskAIName(name) {
+    const value = String(name || '未知');
+    if (value.length <= 1) return value;
+    return `${value.slice(0, 1)}${'*'.repeat(Math.min(2, value.length - 1))}`;
 }
 
 // ==================== 渲染 AI 工作台 ====================
@@ -338,9 +344,9 @@ function generateBizAgentContent(taskType, input) {
     const fees = data.fees || [];
     const attendance = data.attendance || [];
 
-    const pendingStudents = students.filter(s => s.status === 'pending');
+    const pendingStudents = students.filter(s => s.status === 'renewalPending');
     const activeStudents = students.filter(s => s.status === 'active');
-    const unpaidFees = fees.filter(f => f.status === 'unpaid');
+    const unpaidFees = fees.filter(f => f.status === 'pending');
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
@@ -374,11 +380,11 @@ ${classes.filter(c => c.status === 'active').map(c => {
 }).join('\n') || '暫無在讀班級'}
 
 【待續費學員】
-${pendingStudents.length === 0 ? '無' : pendingStudents.slice(0, 5).map(s => `• ${s.name}（${s.grade || ''}）`).join('\n')}
+${pendingStudents.length === 0 ? '無' : pendingStudents.slice(0, 5).map(s => `• ${maskAIName(s.name)}（${s.grade || ''}）`).join('\n')}
 ${pendingStudents.length > 5 ? `…還有 ${pendingStudents.length - 5} 人` : ''}
 
 【欠費提醒】
-${unpaidFees.length === 0 ? '無欠費記錄' : unpaidFees.slice(0, 5).map(f => `• ${f.studentName || '未知'}：¥${(f.amount || 0).toLocaleString()}`).join('\n')}
+${unpaidFees.length === 0 ? '無欠費記錄' : unpaidFees.slice(0, 5).map(f => `• ${maskAIName(f.studentName)}：¥${(f.amount || 0).toLocaleString()}`).join('\n')}
 ${unpaidFees.length > 5 ? `…還有 ${unpaidFees.length - 5} 條` : ''}
 
 ━━━━━━━━━━━━━━━━━━
@@ -400,7 +406,7 @@ ${monthDetail.length === 0 ? '本月暫無考勤記錄' : monthDetail.map(m => `
 【班級狀態】
 ${classes.filter(c => c.status !== 'forming').map(c => {
     const cnt = (data.students || []).filter(s => s.classId === c.id && s.status === 'active').length;
-    return `• ${c.name}：${c.status === 'active' ? '進行中' : c.status === 'completed' ? '已結課' : '組班中'} ${cnt}/${c.maxStudents} 人`;
+    return `• ${c.name}：${c.status === 'active' ? '進行中' : c.status === 'finished' ? '已結課' : '組班中'} ${cnt}/${c.maxStudents} 人`;
 }).join('\n') || '暫無班級'}
 
 ━━━━━━━━━━━━━━━━━━
@@ -418,7 +424,7 @@ ${classes.filter(c => c.status !== 'forming').map(c => {
         }
         if (!targetClass) return '暫無班級數據';
 
-        const clsStudents = students.filter(s => s.classId === targetClass.id && (s.status === 'active' || s.status === 'pending'));
+        const clsStudents = students.filter(s => s.classId === targetClass.id && (s.status === 'active' || s.status === 'renewalPending' || !s.status));
         const clsFees = fees.filter(f => clsStudents.some(s => s.id === f.studentId));
         const paidHours = clsFees.reduce((sum, f) => sum + (f.hours || 0), 0);
         let consumedHours = 0;
@@ -447,7 +453,7 @@ ${clsStudents.length === 0 ? '暫無學員' : clsStudents.map(s => {
     });
     const rem = purchased - consumed;
     const status = rem < 0 ? '⚠️ 餘額不足' : rem < 5 ? '⚡ 建議續費' : '✓ 正常';
-    return `• ${s.name}：已消 ${consumed} / 已繳 ${purchased} → 剩餘 ${rem} ${status}`;
+    return `• ${maskAIName(s.name)}：已消 ${consumed} / 已繳 ${purchased} → 剩餘 ${rem} ${status}`;
 }).join('\n')}
 
 ━━━━━━━━━━━━━━━━━━
@@ -462,10 +468,10 @@ ${clsStudents.length === 0 ? '暫無學員' : clsStudents.map(s => {
 👨‍🎓 在讀學員總數：${summary.activeStudentCount} 人
 
 ${unpaidFees.length > 0 ? `【欠費明細】
-${unpaidFees.map(f => `• ${f.studentName || '未知'}：欠 ¥${(f.amount || 0).toLocaleString()}（${f.paymentDate || ''}）`).join('\n')}` : '【欠費明細】無欠費記錄 ✓'}
+${unpaidFees.map(f => `• ${maskAIName(f.studentName)}：欠 ¥${(f.amount || 0).toLocaleString()}（${f.paymentDate || ''}）`).join('\n')}` : '【欠費明細】無欠費記錄 ✓'}
 
 ${pendingStudents.length > 0 ? `【待續費學員】
-${pendingStudents.map(s => `• ${s.name}（${s.grade || ''}）`).join('\n')}` : '【待續費學員】無待續費學員 ✓'}
+${pendingStudents.map(s => `• ${maskAIName(s.name)}（${s.grade || ''}）`).join('\n')}` : '【待續費學員】無待續費學員 ✓'}
 
 【後續建議】
 1. 及時跟進欠費家長，確認繳費意願
@@ -651,11 +657,11 @@ function generateRecruitAgentContent(taskType, input) {
 • 已成交：${deal.length} 人
 
 ${pending.length > 0 ? `【待跟進名單】
-${pending.slice(0, 5).map(p => `• ${p.name || '未知'}（${p.grade || ''}）`).join('\n')}
+${pending.slice(0, 5).map(p => `• ${maskAIName(p.name)}（${p.grade || ''}）`).join('\n')}
 ${pending.length > 5 ? `…還有 ${pending.length - 5} 人` : ''}` : '【待跟進名單】無待跟進學員 ✓'}
 
 ${trial.length > 0 ? `【試課中學員】
-${trial.slice(0, 5).map(p => `• ${p.name || '未知'}（${p.grade || ''}）`).join('\n')}
+${trial.slice(0, 5).map(p => `• ${maskAIName(p.name)}（${p.grade || ''}）`).join('\n')}
 ${trial.length > 5 ? `…還有 ${trial.length - 5} 人` : ''}` : '【試課中學員】無試課中學員 ✓'}
 
 【跟進建議】
