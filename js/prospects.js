@@ -260,7 +260,7 @@ async function deleteProspect(id) {
     const isDealt = prospect?.dealStatus === 'deal';
     const msg = isDealt
         ? `"${escapeHtml(prospect?.name || '')}"已转正式学员，删除意向记录不会影响正式学员。\n\n确定删除该意向记录？`
-        : '确定删除该意向学员？';
+        : '确定删除该意向学员？此操作不可恢复。';
     if (!confirm(msg)) return;
     try {
         await deleteCollectionItemFromApi('prospects', id);
