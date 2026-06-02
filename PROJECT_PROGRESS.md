@@ -1373,6 +1373,47 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - Claude 可开始做网页端风格库、资料库、题库管理页面
 - Codex 下一步可继续做 AI 上下文引用：生成时读取风格规则和资料摘要
 
+### Stage 7D AI 知识库上下文引用完成内容（2026-06-03）
+
+**目标**：让真实 AI 生成不再只依赖临时输入，而是开始读取网页知识库中的风格规则、风格样本、资料摘要和题库条目。
+
+#### A. AI 上下文构建增强
+- `buildAIContext()` 新增 `knowledge` 上下文
+- 内容生产任务可读取：
+  - 默认风格配置
+  - 同风格样本
+  - 内容/资料类知识来源
+- 资料简报任务可读取资料库摘要
+- 教研/题库任务可读取题库条目
+
+#### B. 风格规则接入
+- AI prompt 会读取默认风格配置
+- 支持禁用词、常用表达、平台风格
+- 增加隐私规则：脱敏姓名必须保留 `*`，不得改成单字姓氏或猜测完整姓名
+
+#### C. 引用记录
+- AI 生成时写入 `ai_context_refs`
+- 返回结果新增 `contextRefs`
+- 新增接口：
+  - `POST /api/ai/context-preview`
+  - `GET /api/ai/tasks/:id/context-refs`
+
+#### D. Runtime Check
+- `server/check-ai-runtime.js` 增加上下文预览和引用记录验证
+- runtime check 会自动清理测试风格和测试引用记录
+- 当前 `npm run ai:runtime-check` 通过
+
+**明确说明**
+- 本阶段只读取网页端知识库数据
+- 不自动扫描 Obsidian
+- 不自动解析 PDF/Excel
+- 不自动修改业务数据
+
+**下一步**
+- Claude 可把 AI 工作台输出区增加“本次引用资料”展示
+- Claude 可在知识库页面增加“导入到 AI 风格/资料”的操作提示
+- Codex 后续可做 Obsidian 指定文件夹手动导入工具
+
 ### 7C 前端知识库/风格库/题库入口完成内容（2026-06-03）
 
 **目标**：前端知识库管理页面（风格库/资料库/题库），只做页面和 API 对接。

@@ -8,7 +8,7 @@ const { createReconciliationReport } = require('./reconcile-sqlite-split');
 const { createSqliteMetricsReport, createReportsSummary, createDashboardSummary } = require('./sqlite-metrics');
 const { createDataHealthReport } = require('./data-health');
 const { convertProspectToStudent, saveClassWithTransitions, finishClass, archiveClass, unarchiveClass, permanentlyDeleteArchivedClass, cleanSafeDataHealthIssues } = require('./actions');
-const { getAiStatus, generateAIResponse, listAITasks, listAgentLogs } = require('./ai-service');
+const { getAiStatus, generateAIResponse, listAITasks, listAgentLogs, listAIContextRefs, buildAIContext } = require('./ai-service');
 const { listResource, getResource, upsertResource, deleteResource, getKnowledgeSummary } = require('./knowledge-service');
 
 const MIME_TYPES = {
@@ -247,8 +247,29 @@ async function handleApi(req, res, pathname) {
         return true;
     }
 
+    if (req.method === 'POST' && pathname === '/api/ai/context-preview') {
+        const rawBody = await readRequestBody(req).catch(() => '');
+        const parsed = rawBody ? JSON.parse(rawBody) : {};
+        const context = buildAIContext(parsed);
+        sendJson(res, 200, {
+            task: context.task,
+            taskName: context.taskName,
+            dataRange: context.dataRange,
+            privacyMode: context.privacyMode,
+            knowledge: context.knowledge || { refs: [] },
+            businessContextType: context.context?.type || ''
+        });
+        return true;
+    }
+
     if (req.method === 'GET' && pathname === '/api/ai/tasks') {
         sendJson(res, 200, { tasks: listAITasks(50) });
+        return true;
+    }
+
+    const aiTaskRefsMatch = pathname.match(/^\/api\/ai\/tasks\/([^/]+)\/context-refs$/);
+    if (req.method === 'GET' && aiTaskRefsMatch) {
+        sendJson(res, 200, { refs: listAIContextRefs(decodeURIComponent(aiTaskRefsMatch[1])) });
         return true;
     }
 

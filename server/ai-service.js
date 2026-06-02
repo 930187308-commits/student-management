@@ -1,5 +1,6 @@
 const config = require('./config');
 const { getDb, getDataFromEntityColumns } = require('./db');
+const { listResource, getResource } = require('./knowledge-service');
 
 const AGENT_NAMES = {
     'admin-agent': '教务 Agent',
@@ -145,6 +146,10 @@ function getDefaultModel(provider) {
 
 function safeText(value, max = 200) {
     return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function safeLongText(value, max = 1200) {
+    return String(value || '').replace(/\r/g, '').trim().slice(0, max);
 }
 
 function maskStudentName(name) {
@@ -389,6 +394,131 @@ function buildContentContext(data, payload) {
     };
 }
 
+function getPlatformForTask(task) {
+    if (task === 'xiaohongshu-note') return 'xiaohongshu';
+    if (task === 'video-script') return 'video';
+    if (task === 'student-feedback' || task === 'renewal-script' || task === 'follow-reminder' || task === 'trial-report' || task === 'conversion-script') return 'parent';
+    if (task === 'article-draft') return 'wechat';
+    return 'general';
+}
+
+function tokenizeForMatch(text) {
+    return String(text || '')
+        .toLowerCase()
+        .split(/[\s,，。.!！?？;；:：、/\\|()[\]{}"'“”‘’<>《》]+/)
+        .map(item => item.trim())
+        .filter(item => item.length >= 2)
+        .slice(0, 12);
+}
+
+function textMatches(item, keywords) {
+    if (!keywords.length) return false;
+    const text = JSON.stringify(item).toLowerCase();
+    return keywords.some(keyword => text.includes(keyword));
+}
+
+function pickKnowledgeItems(items, keywords, limit) {
+    const matched = items.filter(item => textMatches(item, keywords));
+    const source = matched.length > 0 ? matched : items;
+    return source.slice(0, limit);
+}
+
+function toContextRef(refType, item, summaryKey = 'summary') {
+    return {
+        refType,
+        refId: item.id || '',
+        title: item.title || item.name || item.stem || item.task || '',
+        summary: safeText(item[summaryKey] || item.content || item.rulesText || item.stem || '', 240)
+    };
+}
+
+function buildKnowledgeContext(task, payload) {
+    const userText = payload.userInstruction || payload.input || '';
+    const keywords = tokenizeForMatch(userText);
+    const platform = getPlatformForTask(task);
+    const refs = [];
+    const knowledge = {
+        styleProfile: null,
+        styleSamples: [],
+        sources: [],
+        questions: [],
+        refs
+    };
+
+    const profiles = listResource('styleProfiles');
+    const defaultProfile = profiles.find(item => item.isDefault) ||
+        profiles.find(item => item.platform === platform) ||
+        profiles.find(item => item.platform === 'general') ||
+        profiles[0];
+    if (defaultProfile) {
+        knowledge.styleProfile = {
+            id: defaultProfile.id,
+            name: defaultProfile.name,
+            platform: defaultProfile.platform,
+            rulesText: safeLongText(defaultProfile.rulesText, 1000),
+            forbiddenWords: defaultProfile.forbiddenWords || [],
+            preferredPhrases: defaultProfile.preferredPhrases || []
+        };
+        refs.push(toContextRef('style', defaultProfile, 'rulesText'));
+        const samples = listResource('styleSamples')
+            .filter(item => !item.profileId || item.profileId === defaultProfile.id)
+            .filter(item => item.quality !== 'avoid');
+        knowledge.styleSamples = pickKnowledgeItems(samples, keywords, 3).map(item => ({
+            id: item.id,
+            title: item.title,
+            sampleType: item.sampleType,
+            content: safeLongText(item.content, 600)
+        }));
+        knowledge.styleSamples.forEach(item => refs.push(toContextRef('style-sample', item, 'content')));
+    }
+
+    const sources = listResource('knowledgeSources').filter(item => item.status !== 'archived');
+    const contentTasks = ['article-draft', 'xiaohongshu-note', 'video-script', 'moment-content'];
+    const resourceTasks = ['resource-brief', 'research-plan'];
+    const teachingTasks = ['question-bank-plan', 'question-classify', 'exercise-recommend', 'lesson-plan', 'learning-path', 'exam-analysis'];
+    if (contentTasks.includes(task)) {
+        knowledge.sources = pickKnowledgeItems(sources.filter(item => ['content', 'resource', 'style'].includes(item.category)), keywords, 5)
+            .map(item => ({
+                id: item.id,
+                title: item.title,
+                category: item.category,
+                grade: item.grade,
+                tags: item.tags || [],
+                summary: safeLongText(item.summary || item.rawText, 500)
+            }));
+    } else if (resourceTasks.includes(task)) {
+        knowledge.sources = pickKnowledgeItems(sources.filter(item => item.category === 'resource'), keywords, 6)
+            .map(item => ({
+                id: item.id,
+                title: item.title,
+                subCategory: item.subCategory,
+                trustLevel: item.trustLevel,
+                grade: item.grade,
+                tags: item.tags || [],
+                summary: safeLongText(item.summary || item.rawText, 700)
+            }));
+    }
+    knowledge.sources.forEach(item => refs.push(toContextRef('source', item)));
+
+    if (teachingTasks.includes(task)) {
+        knowledge.questions = pickKnowledgeItems(listResource('questionItems').filter(item => item.status !== 'archived'), keywords, 5)
+            .map(item => ({
+                id: item.id,
+                grade: item.grade,
+                chapter: item.chapter,
+                knowledgePoints: item.knowledgePoints || [],
+                questionType: item.questionType,
+                difficulty: item.difficulty,
+                stem: safeLongText(item.stem, 500),
+                answer: safeText(item.answer, 160),
+                commonMistakes: safeText(item.commonMistakes, 200)
+            }));
+        knowledge.questions.forEach(item => refs.push(toContextRef('question', item, 'stem')));
+    }
+
+    return knowledge;
+}
+
 function buildAIContext(payload) {
     const data = getDataFromEntityColumns();
     const privacyMode = payload.privacyMode === 'named' ? 'named' : 'masked';
@@ -401,7 +531,8 @@ function buildAIContext(payload) {
         taskName: TASK_NAMES[task] || task,
         privacyMode,
         dataRange: getTaskDataRange(task),
-        userInstruction: safeText(payload.userInstruction || payload.input || '', 1000)
+        userInstruction: safeText(payload.userInstruction || payload.input || '', 1000),
+        knowledge: buildKnowledgeContext(task, payload)
     };
 
     if (task === 'student-feedback' || task === 'renewal-script') {
@@ -442,15 +573,24 @@ function buildLocalTemplate(context) {
     return `【${taskName || 'AI 任务'}｜本地模板】\n生成模式：${modeText}\n\n当前业务摘要：\n- 在读学员：${biz.activeStudents || 0}人\n- 待续费学员：${biz.renewalPending || 0}人\n- 意向学员：${biz.prospects || 0}人\n- 正常班级：${biz.activeClasses || 0}个\n- 已登记课次：${biz.attendanceSessions || 0}次\n- 已缴金额：${biz.paidAmount || 0}元\n- 欠费金额：${biz.pendingAmount || 0}元\n\n建议：优先处理课时不足、待续费和未跟进意向学员。\n\n说明：当前为本地模板，未调用真实 AI，不会自动修改系统数据。`;
 }
 
-function getStyleGuide() {
-    return [
+function getStyleGuide(context) {
+    const profile = context?.knowledge?.styleProfile;
+    const lines = [
         '默认采用“白老师”表达风格：真实、清楚、克制、偏实用，不夸张营销。',
         '句子尽量短，少用空话，不要堆形容词。',
         '可以直接给可执行清单、标题、结构、正文草稿。',
         '不要使用“突飞猛进、保证提升、逆袭、稳赢、名校必备”等过度承诺表达。',
         '面向家长时温和但不卑微；面向内容平台时专业但不油腻。',
         '如果信息不足，先基于用户补充做草稿，并列出需要补充的素材。'
-    ].join('\n');
+    ];
+    if (profile) {
+        lines.push('');
+        lines.push(`当前风格配置：${profile.name}`);
+        if (profile.rulesText) lines.push(profile.rulesText);
+        if (profile.preferredPhrases?.length) lines.push(`建议使用表达：${profile.preferredPhrases.join('、')}`);
+        if (profile.forbiddenWords?.length) lines.push(`避免使用词：${profile.forbiddenWords.join('、')}`);
+    }
+    return lines.join('\n');
 }
 
 function getTaskOutputInstruction(task) {
@@ -485,10 +625,11 @@ function buildPrompt(context) {
         '你是一个个人教培机构的 AI 助手。',
         '请根据给定的脱敏业务上下文生成中文内容。',
         '必须遵守：只输出建议或文案，不声称已经修改系统，不自动发送给家长。',
+        '隐私要求：如果上下文中的姓名带有 *，输出时必须保留 *，不要改成单字姓氏，也不要猜测完整姓名。',
         '不要输出思考过程，不要输出 <think> 标签内容。',
         '',
         '【表达风格】',
-        getStyleGuide(),
+        getStyleGuide(context),
         '',
         '【输出要求】',
         getTaskOutputInstruction(context.task),
@@ -496,6 +637,14 @@ function buildPrompt(context) {
         `隐私模式：${context.privacyMode}`,
         `读取范围：${context.dataRange.join('、')}`,
         `用户补充：${context.userInstruction || '无'}`,
+        '',
+        '【知识库上下文】',
+        JSON.stringify({
+            styleSamples: context.knowledge?.styleSamples || [],
+            sources: context.knowledge?.sources || [],
+            questions: context.knowledge?.questions || []
+        }, null, 2),
+        '',
         '上下文 JSON：',
         JSON.stringify(context.context, null, 2)
     ].join('\n');
@@ -586,6 +735,34 @@ function insertAgentLog(log) {
     );
 }
 
+function insertAiContextRefs(taskId, refs = []) {
+    if (!Array.isArray(refs) || refs.length === 0) return;
+    const insert = getDb().prepare(`
+        INSERT INTO ai_context_refs (id, ai_task_id, ref_type, ref_id, title, summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    refs.slice(0, 20).forEach(ref => {
+        insert.run(
+            newId('ctxref'),
+            taskId,
+            ref.refType || '',
+            ref.refId || '',
+            safeText(ref.title, 160),
+            safeText(ref.summary, 500),
+            nowIso()
+        );
+    });
+}
+
+function listAIContextRefs(taskId) {
+    return getDb().prepare(`
+        SELECT id, ref_type AS refType, ref_id AS refId, title, summary, created_at AS createdAt
+        FROM ai_context_refs
+        WHERE ai_task_id = ?
+        ORDER BY rowid
+    `).all(taskId);
+}
+
 function buildLogInput(context) {
     const input = {
         agent: context.agent,
@@ -631,6 +808,7 @@ async function generateAIResponse(payload) {
         createdAt,
         updatedAt: createdAt
     });
+    insertAiContextRefs(taskId, context.knowledge?.refs || []);
 
     try {
         const warnings = [];
@@ -665,6 +843,7 @@ async function generateAIResponse(payload) {
             provider: status.provider,
             result,
             dataRange: context.dataRange,
+            contextRefs: listAIContextRefs(taskId),
             privacyMode: context.privacyMode,
             warnings
         };
@@ -723,6 +902,7 @@ module.exports = {
     generateAIResponse,
     listAITasks,
     listAgentLogs,
+    listAIContextRefs,
     buildAIContext,
     buildLocalTemplate
 };
