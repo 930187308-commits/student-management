@@ -12,7 +12,7 @@
 
 - GitHub 仓库：`930187308-commits/student-management`
 - 当前主协作分支：`feature/server-sqlite`
-- 当前最新提交：`db876dc`
+- 当前最新提交：`7d5c16a`
 - 当前稳定标签：`stage-2-real-data-operational`
 - Mac mini 项目目录：`/Users/bzx/Projects/student-ai-console`
 - Mac mini 数据目录：`/Users/bzx/Data/student-ai-console`
