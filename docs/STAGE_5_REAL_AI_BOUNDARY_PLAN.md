@@ -6,6 +6,8 @@
 
 阶段 4 已经有 AI 工作台前端、首页入口、本地规则模板和全局隐私隐藏。阶段 5 不建议一上来就让 AI 自动操作系统数据，而是先做“只读生成 + 老师确认 + 日志留痕”的真实 AI 接入。
 
+2026-06-02 更新：阶段 5B 后端 AI API 骨架已完成。当前新增 `/api/ai/status`、`/api/ai/generate`、`/api/ai/tasks`、`/api/agent-logs`，默认 `AI_PROVIDER=disabled`，无密钥时返回本地模板并写入 `ai_tasks`、`agent_logs`。真实模型调用能力已预留为 OpenAI-compatible 接口，但尚未配置密钥，也未启用真实 AI。
+
 第一批真实 AI 能力只解决三类高价值任务：
 
 1. 家长反馈和续费沟通
@@ -328,6 +330,16 @@ GET /api/agent-logs
 - 无密钥时返回本地模板/禁用提示
 - 增加 `npm run ai:runtime-check`
 
+状态：已完成。
+
+已完成：
+
+- `server/config.js` 新增 AI 配置项。
+- `server/ai-service.js` 新增 AI 任务上下文、脱敏、本地模板、OpenAI-compatible 调用预留、任务和日志写入。
+- `server/server.js` 新增 AI API 路由。
+- `server/check-ai-runtime.js` 新增运行检查。
+- `npm run backend:check` 已纳入 AI API runtime 检查。
+
 ### 5C：第一批真实调用
 
 适合 Codex 主导，Claude 配合前端：
@@ -380,4 +392,3 @@ GET /api/agent-logs
 - 不自动写业务数据
 - 生成结果可复制
 - 失败时有清晰提示
-

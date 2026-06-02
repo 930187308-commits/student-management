@@ -687,7 +687,7 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 
 ## 阶段 5：真实 AI 接入边界与多 Agent 流程
 
-状态：5A 前端壳子已完成
+状态：5A 前端壳子已完成，5B 后端 AI API 骨架已完成，真实 AI 密钥尚未配置
 
 阶段 5 详细规划见：
 
@@ -740,6 +740,46 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - **未改后端**，未改 SQLite，未改业务数据
 - 学员详情 AI 按钮和意向学员 AI 按钮均为跳转，不发送数据
 
+### 5B 后端 AI API 骨架完成内容（2026-06-02）
+
+**目标**：建立真实 AI 接入前的后端边界、接口、日志和验收基线。当前仍默认关闭真实 AI。
+
+已完成：
+
+- `server/config.js` 新增 AI 配置：
+  - `AI_PROVIDER`
+  - `AI_API_KEY`
+  - `AI_MODEL`
+  - `AI_BASE_URL`
+  - `AI_TIMEOUT_MS`
+  - `AI_LOG_FULL_INPUT`
+- 新增 `server/ai-service.js`：
+  - 构建任务上下文
+  - 按任务白名单读取必要字段
+  - 默认脱敏姓名
+  - 无密钥时返回本地模板
+  - 预留 OpenAI-compatible 真实模型调用
+  - 写入 `ai_tasks`
+  - 写入 `agent_logs`
+- 新增后端接口：
+  - `GET /api/ai/status`
+  - `POST /api/ai/generate`
+  - `GET /api/ai/tasks`
+  - `GET /api/agent-logs`
+- 新增 `npm run ai:runtime-check`。
+- `npm run backend:check` 已纳入 AI API runtime 检查。
+- 补齐统计报表后端口径：
+  - `renewalPendingCount`
+  - `consumptionStatus`
+  - `statusText`
+
+**明确说明**
+
+- 当前 `AI_PROVIDER=disabled`，不会调用真实模型。
+- AI 结果只写入 `ai_tasks` 和 `agent_logs`，不写入学员、班级、收费、考勤、成绩、沟通、意向学员等业务表。
+- 不把整包 `/data` 发给模型。
+- 默认日志只记录脱敏摘要和字段范围，不保存完整隐私输入。
+
 计划 Agent：
 
 - 教务 Agent
@@ -754,6 +794,7 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - 先建议，后半自动，最后才考虑自动执行。
 - 第一批真实 AI 接入只做“只读生成 + 老师确认 + 日志留痕”。
 - 默认脱敏，不把整包 `/data` 或全量学生隐私直接发送给模型。
+- 当前后端 AI API 已可用，但真实 AI 仍未启用。
 
 ## 当前风险与注意事项
 
@@ -798,11 +839,11 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 
 ```text
 当前项目：AI 教培工作台
-当前阶段：阶段 3B，SQLite 实体表已写入，模块 API 和正式 /data 已从 SQLite 读取，保留 app_state 快照回退
+当前阶段：阶段 5，AI 工作台前端壳子和后端 AI API 骨架已完成，真实 AI 密钥尚未配置
 当前主协作分支：feature/server-sqlite
 请先 git pull origin feature/server-sqlite，然后读取 PROJECT_PROGRESS.md。
 前端小功能和录入体验优化可以由 Claude Code 做。
-后端、SQLite、部署、数据同步、备份恢复、API 拆分、读写路径切换请交给 Mac mini / Codex。
+后端、SQLite、部署、数据同步、备份恢复、API 拆分、读写路径切换、真实 AI API 接入请交给 Mac mini / Codex。
 不要录入真实学生信息到测试数据或 GitHub。
 ```
 
@@ -822,3 +863,5 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 2026-06-02：前端已开始接入后端动作接口。意向学员转正式、班级归档/放回、彻底删除归档班级、数据体检安全清理已从前端多集合拼接保存，改为调用后端事务动作，减少跨设备同步和中途失败导致的数据不一致风险。
 
 2026-06-02：班级保存也接入后端事务动作。新增/编辑班级、组班转正常/已结课时清理意向学员所属组班、结课时按用户确认批量改待续费，均改为后端统一处理，前端只负责表单收集和确认。
+
+2026-06-02：阶段 5B 后端 AI API 骨架完成。新增 AI 配置读取、`server/ai-service.js`、`POST /api/ai/generate`、AI 任务记录、Agent 日志记录、`npm run ai:runtime-check`。真实模型调用按 OpenAI-compatible 接口预留，默认关闭；当前不会把 AI 输出写入业务表。

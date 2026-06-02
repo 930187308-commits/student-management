@@ -11,8 +11,10 @@ function sanitizeSummary(summary) {
             usedHours: row.usedHours,
             absentHours: row.absentHours,
             remainingHours: row.remainingHours,
+            consumptionStatus: row.consumptionStatus,
             statusText: row.statusText
         })),
+        renewalPendingCount: summary.renewalPendingCount,
         quarterlyStudentDynamics: summary.quarterlyStudentDynamics,
         classAttendanceStats: summary.classAttendanceStats.map(row => ({
             id: row.id,

@@ -1102,6 +1102,8 @@ function jumpToAIAgent(agentId, taskType) {
     }, 50);
 }
 
+window.jumpToAIAgent = jumpToAIAgent;
+
 // ========== 任务描述映射 ==========
 const taskDescriptions = {
     'schedule-conflict': '学员考勤、班级上课时间',

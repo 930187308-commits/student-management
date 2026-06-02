@@ -16,7 +16,15 @@ const config = {
     backupDir: process.env.STUDENT_BACKUP_DIR || path.join(DATA_ROOT, 'backups'),
     maxJsonBytes: Number(process.env.STUDENT_MAX_JSON_BYTES || 10 * 1024 * 1024),
     readFullDataFromSqlite: process.env.STUDENT_READ_FULL_DATA_FROM_SQLITE === '1',
-    readFullDataFromSqliteColumns: process.env.STUDENT_READ_FULL_DATA_FROM_SQLITE_COLUMNS === '1'
+    readFullDataFromSqliteColumns: process.env.STUDENT_READ_FULL_DATA_FROM_SQLITE_COLUMNS === '1',
+    ai: {
+        provider: process.env.AI_PROVIDER || 'disabled',
+        apiKey: process.env.AI_API_KEY || '',
+        model: process.env.AI_MODEL || '',
+        baseUrl: process.env.AI_BASE_URL || '',
+        timeoutMs: Number(process.env.AI_TIMEOUT_MS || 30000),
+        logFullInput: process.env.AI_LOG_FULL_INPUT === '1'
+    }
 };
 
 module.exports = config;

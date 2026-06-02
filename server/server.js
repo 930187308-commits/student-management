@@ -8,6 +8,7 @@ const { createReconciliationReport } = require('./reconcile-sqlite-split');
 const { createSqliteMetricsReport, createReportsSummary, createDashboardSummary } = require('./sqlite-metrics');
 const { createDataHealthReport } = require('./data-health');
 const { convertProspectToStudent, saveClassWithTransitions, finishClass, archiveClass, unarchiveClass, permanentlyDeleteArchivedClass, cleanSafeDataHealthIssues } = require('./actions');
+const { getAiStatus, generateAIResponse, listAITasks, listAgentLogs } = require('./ai-service');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -220,6 +221,29 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === 'GET' && pathname === '/api/data-health') {
         sendJson(res, 200, createDataHealthReport());
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/ai/status') {
+        sendJson(res, 200, getAiStatus());
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/ai/generate') {
+        const rawBody = await readRequestBody(req).catch(() => '');
+        const parsed = rawBody ? JSON.parse(rawBody) : {};
+        const result = await generateAIResponse(parsed);
+        sendJson(res, 200, result);
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/ai/tasks') {
+        sendJson(res, 200, { tasks: listAITasks(50) });
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/agent-logs') {
+        sendJson(res, 200, { logs: listAgentLogs(50) });
         return true;
     }
 

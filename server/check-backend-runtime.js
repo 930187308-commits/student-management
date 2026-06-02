@@ -51,6 +51,10 @@ const CHECKS = [
     {
         name: 'Action API runtime',
         script: 'server/check-action-api-runtime.js'
+    },
+    {
+        name: 'AI API runtime',
+        script: 'server/check-ai-runtime.js'
     }
 ];
 

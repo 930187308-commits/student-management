@@ -38,6 +38,23 @@ function getBestPricePerHour(fees, studentId) {
     return fee ? Number(fee.pricePerHour || 0) : 0;
 }
 
+function getConsumptionStatus(totalHours, usedHours, remainingHours) {
+    if (totalHours === 0 && usedHours > 0) return 'noRecord';
+    if (remainingHours < 0) return 'insufficient';
+    if (remainingHours <= 2) return 'warning';
+    return 'normal';
+}
+
+function getConsumptionStatusText(status) {
+    const map = {
+        normal: '正常',
+        warning: '即将不足',
+        insufficient: '课时不足',
+        noRecord: '无收费记录'
+    };
+    return map[status] || map.normal;
+}
+
 function currentQuarterInfo(now = new Date()) {
     const quarter = Math.ceil((now.getMonth() + 1) / 3);
     return {
@@ -81,6 +98,7 @@ function createReportsSummaryFromData(data, now = new Date()) {
                 else if (status === 0) absentHours += 1;
             });
             const remainingHours = totalHours - usedHours;
+            const consumptionStatus = getConsumptionStatus(totalHours, usedHours, remainingHours);
             return {
                 id: student.id,
                 name: student.name || '',
@@ -90,7 +108,8 @@ function createReportsSummaryFromData(data, now = new Date()) {
                 usedHours,
                 absentHours,
                 remainingHours,
-                statusText: remainingHours <= 5 ? '需续费' : '正常'
+                consumptionStatus,
+                statusText: getConsumptionStatusText(consumptionStatus)
             };
         });
 
@@ -138,6 +157,7 @@ function createReportsSummaryFromData(data, now = new Date()) {
             .map(row => ({ ...row, amount: roundMoney(row.amount) }))
             .sort((a, b) => b.month.localeCompare(a.month)),
         studentConsumptionSummary,
+        renewalPendingCount: students.filter(student => student.status === 'renewalPending').length,
         quarterlyStudentDynamics: {
             year,
             quarter: Math.ceil((now.getMonth() + 1) / 3),
