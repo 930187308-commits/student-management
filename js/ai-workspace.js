@@ -589,12 +589,18 @@ function showPrivacyConfirm(callback) {
                 系统不会自动修改任何数据。<br>生成内容需要您确认后使用。
             </div>
             <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: center;">
-                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-                <button class="btn btn-primary" onclick="executePrivacyConfirm()">继续</button>
+                <button class="btn btn-secondary" id="privacyCancelBtn">取消</button>
+                <button class="btn btn-primary" id="privacyConfirmBtn">继续</button>
             </div>
         </div>
     `;
-    modal.style.display = 'flex';
+    modal.classList.add('show');
+
+    document.getElementById('privacyCancelBtn').onclick = closeModal;
+    document.getElementById('privacyConfirmBtn').onclick = () => {
+        closeModal();
+        if (typeof callback === 'function') callback();
+    };
 
     window._pendingPrivacyCallback = callback;
 }
@@ -1377,13 +1383,14 @@ function doRunAgentTask(taskType, input, agentNames, taskNames) {
         loadAgentLogsFromServer();
         loadAITasksFromServer();
     })
-    .catch(() => {
+    .catch((err) => {
         clearTimeout(window._aiGenerateTimeout);
         // 接口失败，回退到本地模板
+        const errorMsg = err.message || '生成失败';
         output.innerHTML = `<div class="ai-output-placeholder">
 <div style="font-size:24px;margin-bottom:8px;">🤖</div>
 <div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">接口调用失败，已回退本地模板</div>
-<div style="color:var(--text-muted);">生成失败，请稍后重试。</div>
+<div style="color:var(--text-muted);">${escapeHtml(errorMsg)}</div>
 </div>`;
         showToast('生成失败，已回退本地模板');
     })
