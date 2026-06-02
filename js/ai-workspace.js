@@ -415,6 +415,7 @@ function selectWorkCenter(centerId) {
     currentCenterId = centerId;
     const center = WORK_CENTERS[centerId];
     if (!center) return;
+    currentTaskType = '';
 
     document.getElementById('workCenterTitle').textContent = `${center.icon} ${center.name}`;
     document.getElementById('workCenterDesc').textContent = getCenterDescription(centerId);
@@ -447,6 +448,11 @@ function selectWorkCenter(centerId) {
     document.getElementById('outputActions').style.display = 'none';
     document.getElementById('advancedOptionsArea').style.display = 'none';
     updatePrivacyModeUI();
+
+    const defaultTask = center.tasks?.[0];
+    if (defaultTask) {
+        selectTask(defaultTask.task, defaultTask.agent, defaultTask.label, { focusInput: false, clearInput: true });
+    }
 }
 
 function getCenterDescription(centerId) {
@@ -486,7 +492,7 @@ function toggleMoreTasks() {
     }
 }
 
-function selectTask(taskId, agentId, taskLabel) {
+function selectTask(taskId, agentId, taskLabel, options = {}) {
     currentAgentId = agentId;
     currentTaskType = taskId;
 
@@ -502,7 +508,11 @@ function selectTask(taskId, agentId, taskLabel) {
 
     const input = document.getElementById('agentInput');
     const placeholder = getTaskPlaceholder(taskId);
-    if (input) { input.placeholder = placeholder; input.focus(); }
+    if (input) {
+        input.placeholder = placeholder;
+        if (options.clearInput) input.value = '';
+        if (options.focusInput !== false) input.focus();
+    }
 
     if (currentRelatedType === 'student' && (taskId === 'student-feedback' || taskId === 'renewal-script')) {
         const student = data.students?.find(s => s.id === currentRelatedId);
@@ -1183,6 +1193,8 @@ let currentRelatedId = '';
 function jumpToAIAgent(agentId, taskType, relatedType, relatedId) {
     switchTab('ai-workspace');
     setTimeout(() => {
+        if (relatedType) currentRelatedType = relatedType;
+        if (relatedId) currentRelatedId = relatedId;
         if (agentId) {
             let centerId = 'operations';
             if (agentId === 'learning-agent') centerId = 'operations';
@@ -1194,8 +1206,6 @@ function jumpToAIAgent(agentId, taskType, relatedType, relatedId) {
         if (taskType) {
             setTimeout(() => {
                 selectTask(taskType, agentId, '');
-                if (relatedType) currentRelatedType = relatedType;
-                if (relatedId) currentRelatedId = relatedId;
                 updateRelatedHint();
             }, 50);
         }
@@ -1219,3 +1229,18 @@ function clearRelatedHint() {
 }
 
 window.jumpToAIAgent = jumpToAIAgent;
+window.selectWorkCenter = selectWorkCenter;
+window.selectTask = selectTask;
+window.toggleMoreTasks = toggleMoreTasks;
+window.runAgentTask = runAgentTask;
+window.clearAgentInput = clearAgentInput;
+window.clearAgentOutput = clearAgentOutput;
+window.copyAgentOutput = copyAgentOutput;
+window.copyAgentPlainText = copyAgentPlainText;
+window.saveToDrafts = saveToDrafts;
+window.addToTodo = addToTodo;
+window.regenerateResult = regenerateResult;
+window.refreshDrafts = refreshDrafts;
+window.refreshAITasks = refreshAITasks;
+window.refreshAgentLogs = refreshAgentLogs;
+window.openStyleSettings = openStyleSettings;
