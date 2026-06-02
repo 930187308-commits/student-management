@@ -91,7 +91,7 @@ async function main() {
     });
     updatedAt = getUpdatedAt(deletedProspect);
 
-    const createdClass = await requestJson('/api/classes', {
+    const createdClass = await requestJson('/api/actions/classes/save', {
         method: 'POST',
         headers: { 'X-Base-Data-Updated-At': updatedAt },
         body: {

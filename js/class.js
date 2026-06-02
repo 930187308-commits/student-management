@@ -322,34 +322,10 @@ async function saveClass(e) {
     };
     if (!classData.archived) delete classData.archivedAt;
 
-    // forming 班级转为 active/finished 时，未成交的意向学员自动出班
-    if (!isNew && oldStatus === 'forming' && newStatus !== 'forming') {
-        (data.prospects || []).forEach(p => {
-            if (p.classId === currentEditId && p.dealStatus !== 'deal') {
-                p.classId = '';
-                // trialStatus 保持 forming（仍是组班中状态，只是未分配班级）
-            }
-        });
-    }
-
-    if (currentEditId) {
-        const index = data.classes.findIndex(c => c.id === currentEditId);
-        data.classes[index] = classData;
-    } else {
-        data.classes.push(classData);
-    }
-
-    const studentsChanged = statusChangedToFinished ? maybeMarkClassStudentsRenewalPending(currentEditId) : false;
+    const markStudentsRenewalPending = statusChangedToFinished ? shouldMarkClassStudentsRenewalPending(currentEditId) : false;
 
     try {
-        if ((!isNew && oldStatus === 'forming' && newStatus !== 'forming') || studentsChanged) {
-            const updates = { classes: data.classes };
-            if (oldStatus === 'forming' && newStatus !== 'forming') updates.prospects = data.prospects;
-            if (studentsChanged) updates.students = data.students;
-            await saveCollectionsToApi(updates);
-        } else {
-            await saveClassesToApi(data.classes);
-        }
+        await saveClassWithTransitionsToApi(classData, { markStudentsRenewalPending });
     } catch (error) {
         showToast('保存失败：' + error.message);
         return;
@@ -381,7 +357,7 @@ async function archiveClass(id) {
     render();
 }
 
-function maybeMarkClassStudentsRenewalPending(classId) {
+function shouldMarkClassStudentsRenewalPending(classId) {
     const activeStudents = (data.students || []).filter(s =>
         s.classId === classId && (s.status === 'active' || s.status === 'renewalPending' || !s.status)
     );
@@ -391,9 +367,6 @@ function maybeMarkClassStudentsRenewalPending(classId) {
     if (!confirm(`这个班级还有 ${more} 在读/待续费学员：${names}\n\n是否同步把他们改为“待续费”？\n\n选择“确定”：批量改为待续费，方便后续续班和续费沟通。\n选择“取消”：保持当前学员状态不变。`)) {
         return false;
     }
-    activeStudents.forEach(s => {
-        s.status = 'renewalPending';
-    });
     return true;
 }
 

@@ -7,7 +7,7 @@ const { openDatabase, getData, getDataFromEntityTables, getDataFromEntityColumns
 const { createReconciliationReport } = require('./reconcile-sqlite-split');
 const { createSqliteMetricsReport, createReportsSummary, createDashboardSummary } = require('./sqlite-metrics');
 const { createDataHealthReport } = require('./data-health');
-const { convertProspectToStudent, finishClass, archiveClass, unarchiveClass, permanentlyDeleteArchivedClass, cleanSafeDataHealthIssues } = require('./actions');
+const { convertProspectToStudent, saveClassWithTransitions, finishClass, archiveClass, unarchiveClass, permanentlyDeleteArchivedClass, cleanSafeDataHealthIssues } = require('./actions');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -336,6 +336,17 @@ async function handleApi(req, res, pathname) {
         const parsed = rawBody ? JSON.parse(rawBody) : {};
         const result = finishClass(decodeURIComponent(finishClassMatch[1]), parsed);
         sendJson(res, 200, result, {
+            'X-Data-Updated-At': getDataUpdatedAt() || ''
+        });
+        return true;
+    }
+
+    if ((req.method === 'POST' || req.method === 'PUT') && pathname === '/api/actions/classes/save') {
+        if (!ensureClientDataVersion(req, res)) return true;
+        const rawBody = await readRequestBody(req);
+        const parsed = JSON.parse(rawBody || '{}');
+        const result = saveClassWithTransitions(parsed.item || parsed.class || parsed, parsed.options || parsed);
+        sendJson(res, result.created ? 201 : 200, result, {
             'X-Data-Updated-At': getDataUpdatedAt() || ''
         });
         return true;

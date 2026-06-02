@@ -678,6 +678,13 @@ async function archiveClassFromApi(id) {
     });
 }
 
+async function saveClassWithTransitionsToApi(classData, options = {}) {
+    return runActionToApi('/api/actions/classes/save', {
+        body: { item: classData, options },
+        collections: ['classes', 'students', 'prospects']
+    });
+}
+
 async function unarchiveClassFromApi(id) {
     return runActionToApi(`/api/actions/classes/${encodeURIComponent(id)}/unarchive`, {
         collections: ['classes']

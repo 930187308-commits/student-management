@@ -171,6 +171,68 @@ function finishClass(classId, options = {}) {
     };
 }
 
+function saveClassWithTransitions(classItem, options = {}) {
+    if (!classItem || typeof classItem !== 'object' || Array.isArray(classItem)) {
+        throw createError('班级记录必须是对象', 400);
+    }
+    const data = getData();
+    const classId = classItem.id || createId('class');
+    const oldClass = (data.classes || []).find(item => String(item.id) === String(classId));
+    const isNew = !oldClass;
+    const oldStatus = oldClass?.status;
+    const newStatus = classItem.status || 'active';
+    let changedStudents = 0;
+    let clearedProspects = 0;
+
+    const nextClass = {
+        ...classItem,
+        id: classId,
+        archived: oldClass?.archived || classItem.archived || false
+    };
+    if (nextClass.archived) {
+        nextClass.archivedAt = oldClass?.archivedAt || classItem.archivedAt || '';
+        nextClass.archivedStudentSnapshot = oldClass?.archivedStudentSnapshot || classItem.archivedStudentSnapshot || [];
+    } else {
+        delete nextClass.archivedAt;
+    }
+
+    const nextClasses = isNew
+        ? [...(data.classes || []), nextClass]
+        : (data.classes || []).map(item => String(item.id) === String(classId) ? nextClass : item);
+    const nextProspects = (data.prospects || []).map(prospect => {
+        if (!isNew && oldStatus === 'forming' && newStatus !== 'forming' && prospect.classId === classId && prospect.dealStatus !== 'deal') {
+            clearedProspects += 1;
+            return { ...prospect, classId: '' };
+        }
+        return prospect;
+    });
+    const nextStudents = (data.students || []).map(student => {
+        if (!isNew && oldStatus !== 'finished' && newStatus === 'finished' && options.markStudentsRenewalPending && student.classId === classId && (student.status === 'active' || student.status === 'renewalPending' || !student.status)) {
+            changedStudents += student.status === 'renewalPending' ? 0 : 1;
+            return { ...student, status: 'renewalPending' };
+        }
+        return student;
+    });
+    const saved = setData({
+        ...data,
+        classes: nextClasses,
+        students: nextStudents,
+        prospects: nextProspects,
+        lastModified: nowIso()
+    }, `action_save_class_${classId}`);
+
+    return {
+        class: saved.classes.find(item => String(item.id) === String(classId)),
+        classes: saved.classes,
+        students: saved.students,
+        prospects: saved.prospects,
+        created: isNew,
+        changedStudents,
+        clearedProspects,
+        updatedAt: saved.lastModified
+    };
+}
+
 function archiveClass(classId) {
     const data = getData();
     const target = (data.classes || []).find(item => String(item.id) === String(classId));
@@ -350,6 +412,7 @@ function cleanSafeDataHealthIssues(options = {}) {
 
 module.exports = {
     convertProspectToStudent,
+    saveClassWithTransitions,
     finishClass,
     archiveClass,
     unarchiveClass,
