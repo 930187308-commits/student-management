@@ -203,8 +203,8 @@ function renderStudentDetail() {
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button class="btn btn-secondary btn-sm" onclick="openStudentModal('${student.id}')">编辑</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteStudent('${student.id}')">删除</button>
-                <button class="btn btn-sm" style="background:#9b59b6;color:white;" onclick="jumpToAIAgent('learning-agent','student-feedback'); setTimeout(() => document.getElementById('agentInput').value = '${escapeHtml(student.name)}', 100)">AI 学情反馈</button>
-                <button class="btn btn-sm" style="background:#e67e22;color:white;" onclick="jumpToAIAgent('learning-agent','renewal-script'); setTimeout(() => document.getElementById('agentInput').value = '${escapeHtml(student.name)}', 100)">AI 续费话术</button>
+                <button class="btn btn-sm" style="background:#9b59b6;color:white;" onclick="jumpToAIAgent('learning-agent','student-feedback','student','${student.id}'); setTimeout(() => document.getElementById('agentInput').value = '${escapeHtml(student.name)}', 100)">AI 学情反馈</button>
+                <button class="btn btn-sm" style="background:#e67e22;color:white;" onclick="jumpToAIAgent('learning-agent','renewal-script','student','${student.id}'); setTimeout(() => document.getElementById('agentInput').value = '${escapeHtml(student.name)}', 100)">AI 续费话术</button>
             </div>
         </div>
 

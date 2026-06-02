@@ -7,7 +7,45 @@ let agentLogs = [];
 let aiPrivacyMode = 'masked'; // 'masked' | 'named'
 let aiPrivacyModeLocked = false; // 当全局隐私开启时锁定为脱敏
 
+// 当前任务信息（用于显示）
+let lastTaskId = '';
+let lastTaskMode = '';
+let lastTaskProvider = '';
+
 // ========== 姓名脱敏 ==========
+
+// ========== AI 状态加载 ==========
+function loadAIStatus() {
+    fetch('/api/ai/status')
+        .then(res => res.json())
+        .then(info => {
+            updateAIStatusUI(info);
+        })
+        .catch(() => {
+            // 接口失败时回退为本地模板
+            updateAIStatusUI({ mode: 'local-template', enabled: false });
+        });
+}
+
+function updateAIStatusUI(info) {
+    const statusEl = document.getElementById('agentStatus');
+    const modeLabelEl = document.getElementById('aiModeLabel');
+    if (!statusEl || !modeLabelEl) return;
+
+    if (info.mode === 'real-ai' && info.enabled) {
+        statusEl.textContent = '真实 AI';
+        statusEl.style.background = '#27ae60';
+        modeLabelEl.textContent = info.provider ? `已启用 · ${info.provider}` : '已启用';
+    } else if (info.mode === 'local-template') {
+        statusEl.textContent = '本地模板';
+        statusEl.style.background = '#95a5a6';
+        modeLabelEl.textContent = info.enabled === false ? '真实 AI 未配置' : '本地模板模式';
+    } else {
+        statusEl.textContent = '本地模板';
+        statusEl.style.background = '#95a5a6';
+        modeLabelEl.textContent = '未接入真实 AI';
+    }
+}
 
 // ========== 数据感知函数 ==========
 function getAIWorkspaceSummary() {
@@ -200,6 +238,7 @@ function renderAIWorkspace() {
                             <div id="agentOutput" class="ai-output-content">
 选择任务类型并填写说明后，点击「生成结果」查看输出。
                             </div>
+                            <div id="taskRecordInfo" class="ai-task-record" style="display:none;"></div>
                         </div>
                     </div>
                 </div>
@@ -208,7 +247,8 @@ function renderAIWorkspace() {
                 <div class="card ai-log-card">
                     <div class="ai-log-header">
                         <span class="ai-log-title">Agent 日志</span>
-                        <button class="btn btn-secondary btn-xs" onclick="clearAgentLogs()">清空日志</button>
+                        <button class="btn btn-secondary btn-xs" onclick="refreshAgentLogs()">刷新</button>
+                        <button class="btn btn-secondary btn-xs" onclick="clearAgentLogs()">清空</button>
                     </div>
                     <div id="agentLogArea" class="ai-log-content">
                         <div class="ai-log-empty">暂无 Agent 调用记录</div>
@@ -272,6 +312,11 @@ function renderAIWorkspace() {
             });
         }
     }
+
+    // 加载 AI 状态
+    loadAIStatus();
+    // 加载 Agent 日志
+    loadAgentLogsFromServer();
 }
 
 function renderAgentItem(id, name, desc, isActive) {
@@ -1082,8 +1127,12 @@ ${trial.length > 0 ? `【试课中学员】\n${trial.slice(0, 5).map(p => `• $
     return null;
 }
 
+// 当前学员/意向学员 id（从外部传入）
+let currentRelatedType = '';
+let currentRelatedId = '';
+
 // ========== 外部跳转 AI 工作台 ==========
-function jumpToAIAgent(agentId, taskType) {
+function jumpToAIAgent(agentId, taskType, relatedType, relatedId) {
     switchTab('ai-workspace');
     setTimeout(() => {
         if (agentId) selectAgent(agentId);
@@ -1093,10 +1142,11 @@ function jumpToAIAgent(agentId, taskType) {
                 if (taskSelect) {
                     taskSelect.value = taskType;
                     onAgentTaskTypeChange();
-                    // 自动聚焦到输入框
-                    const input = document.getElementById('agentInput');
-                    if (input) input.focus();
                 }
+                if (relatedType) currentRelatedType = relatedType;
+                if (relatedId) currentRelatedId = relatedId;
+                const input = document.getElementById('agentInput');
+                if (input && relatedId) input.focus();
             }, 50);
         }
     }, 50);
@@ -1169,40 +1219,122 @@ function runAgentTask() {
         'tuition-warning': '欠费与续费预警汇总',
     };
 
-    // 只在点击生成时记录日志，不记录用户输入
-    logAgentEvent(`${agentNames[currentAgentId]} · ${taskNames[taskType]}`);
-
-    let localContent = null;
-    if (currentAgentId === 'biz-agent') {
-        localContent = generateBizAgentContent(taskType, input);
-    } else if (currentAgentId === 'learning-agent') {
-        localContent = generateLearningAgentContent(taskType, input);
-    } else if (currentAgentId === 'recruit-agent') {
-        localContent = generateRecruitAgentContent(taskType, input);
-    } else if (currentAgentId === 'admin-agent') {
-        localContent = generateAdminAgentContent(taskType, input);
-    } else if (currentAgentId === 'teaching-agent') {
-        localContent = generateTeachingAgentContent(taskType, input);
+    // 带姓名且不是强制脱敏 Agent 时，需要二次确认
+    const forceMaskedAgents = ['teaching-agent', 'biz-agent'];
+    if (aiPrivacyMode === 'named' && !forceMaskedAgents.includes(currentAgentId)) {
+        showPrivacyConfirm(() => doRunAgentTask(taskType, input, agentNames, taskNames));
+        return;
     }
+    doRunAgentTask(taskType, input, agentNames, taskNames);
+}
 
-    if (localContent) {
-        const privacyTag = aiPrivacyMode === 'named'
+function doRunAgentTask(taskType, input, agentNames, taskNames) {
+    const output = document.getElementById('agentOutput');
+    const btn = document.querySelector('.ai-btn-group .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
+
+    const payload = {
+        agent: currentAgentId,
+        task: taskType,
+        privacyMode: aiPrivacyMode,
+        userInstruction: input,
+        relatedType: currentRelatedType,
+        relatedId: currentRelatedId,
+    };
+
+    fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('API 请求失败');
+        return res.json();
+    })
+    .then(response => {
+        // 显示结果
+        output.innerHTML = `<div class="ai-output-text">${escapeHtml(response.result || '')}</div>`;
+
+        // 显示任务记录信息
+        lastTaskId = response.taskId || '';
+        lastTaskMode = response.mode || 'local-template';
+        lastTaskProvider = response.provider || '';
+        updateTaskRecordInfo();
+
+        // 更新隐私标签
+        const isNamed = aiPrivacyMode === 'named';
+        const privacyTag = isNamed
             ? '<span style="font-size:11px;color:#e74c3c;margin-right:6px;">⚠️ 带姓名</span>'
             : '<span style="font-size:11px;color:#888;margin-right:6px;">🔒 脱敏</span>';
         document.getElementById('outputPrivacyTag').innerHTML = privacyTag;
-        output.innerHTML = `<div class="ai-output-text">${escapeHtml(localContent)}</div>`;
-        showToast(`${agentNames[currentAgentId]} · ${taskNames[taskType]} 已生成`);
-    } else {
-        document.getElementById('outputPrivacyTag').innerHTML = '<span style="font-size:11px;color:#888;">🔒 脱敏</span>';
+
+        // 显示警告
+        if (response.warnings && response.warnings.length > 0) {
+            showToast(response.warnings[0]);
+        } else {
+            showToast(`${agentNames[currentAgentId]} · ${taskNames[taskType]} 已生成`);
+        }
+
+        // 刷新日志
+        loadAgentLogsFromServer();
+    })
+    .catch(() => {
+        // 接口失败，回退到本地模板
         output.innerHTML = `<div class="ai-output-placeholder">
 <div style="font-size:24px;margin-bottom:8px;">🤖</div>
-<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">当前为本地规则生成</div>
-<div style="color:var(--text-muted);">后续接入 AI 后可生成更完整内容。</div>
-<div style="margin-top:8px;font-size:13px;">当前任务：${taskNames[taskType]}</div>
-${input ? `<div style="margin-top:12px;text-align:left;background:var(--hover-bg);border-radius:6px;padding:10px;font-size:12px;color:var(--text-secondary);">已记录输入：${escapeHtml(input)}</div>` : ''}
+<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">接口调用失败，已回退本地模板</div>
+<div style="color:var(--text-muted);">生成失败，请稍后重试。</div>
 </div>`;
-        showToast(`${agentNames[currentAgentId]} · ${taskNames[taskType]} 已记录`);
+        showToast('生成失败，已回退本地模板');
+    })
+    .finally(() => {
+        if (btn) { btn.disabled = false; btn.textContent = '生成结果'; }
+    });
+}
+
+function updateTaskRecordInfo() {
+    const el = document.getElementById('taskRecordInfo');
+    if (!el) return;
+    if (!lastTaskId && !lastTaskMode) {
+        el.style.display = 'none';
+        return;
     }
+    const modeLabel = lastTaskMode === 'real-ai' ? '真实 AI' : '本地模板';
+    el.innerHTML = `<span>任务ID: ${escapeHtml(lastTaskId)}</span> · <span>模式: ${escapeHtml(modeLabel)}</span>${lastTaskProvider ? ` · <span>${escapeHtml(lastTaskProvider)}</span>` : ''} · <span>隐私: ${escapeHtml(aiPrivacyMode === 'named' ? '带姓名' : '脱敏')}</span>`;
+    el.style.display = 'block';
+}
+
+function loadAgentLogsFromServer() {
+    fetch('/api/agent-logs')
+        .then(res => res.json())
+        .then(logs => {
+            renderAgentLogsFromServer(logs);
+        })
+        .catch(() => {
+            // 接口失败，使用本地日志
+        });
+}
+
+function renderAgentLogsFromServer(logs) {
+    const logArea = document.getElementById('agentLogArea');
+    if (!logArea) return;
+    if (!logs || logs.length === 0) {
+        logArea.innerHTML = '<div class="ai-log-empty">暂无 Agent 调用记录</div>';
+        return;
+    }
+    logArea.innerHTML = logs.slice(0, 20).map(log => {
+        const time = log.createdAt ? new Date(log.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
+        const agent = log.agent || '';
+        const action = log.action || '';
+        const mode = log.mode || '';
+        const success = log.success !== false;
+        return `<div class="ai-log-item">[${time}] ${escapeHtml(agent)} · ${escapeHtml(action)} · <span style="color:${success ? '#27ae60' : '#e74c3c'}">${success ? '成功' : '失败'}</span>${mode ? ` · ${escapeHtml(mode)}` : ''}</div>`;
+    }).join('');
+}
+
+function refreshAgentLogs() {
+    loadAgentLogsFromServer();
+    showToast('日志已刷新');
 }
 
 function clearAgentOutput() {

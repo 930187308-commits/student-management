@@ -587,6 +587,17 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     margin-top: 4px;
 }
 
+/* AI 任务记录信息 */
+.ai-task-record {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    padding: 4px 8px;
+    background: var(--hover-bg);
+    border-radius: 4px;
+    display: inline-block;
+}
+
 /* 日志 */
 .ai-log-card {}
 .ai-log-header {

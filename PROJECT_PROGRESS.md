@@ -780,6 +780,56 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - 不把整包 `/data` 发给模型。
 - 默认日志只记录脱敏摘要和字段范围，不保存完整隐私输入。
 
+### 5C 前端接 AI API 壳子完成内容（2026-06-02）
+
+**目标**：前端对接后端 AI API 接口，只做接口联通，不配置真实 AI 密钥。
+
+#### A. AI 工作台接入 /api/ai/status
+- 页面加载时请求 `GET /api/ai/status`
+- 根据返回的 mode 显示：
+  - `real-ai` + `enabled`：显示绿色"真实 AI" + 提供者名称
+  - `local-template`：显示灰色"本地模板" + "真实 AI 未配置"
+- 接口失败时回退为本地模板
+
+#### B. 生成按钮改为调用 /api/ai/generate
+- `runAgentTask()` 改为 `POST /api/ai/generate`
+- 请求字段：`{ agent, task, privacyMode, userInstruction, relatedType, relatedId }`
+- 成功后显示 `response.result`
+- 显示 `response.mode`（local-template / real-ai）
+- 显示 `response.warnings`
+- 接口失败时回退到本地模板
+
+#### C. 输出区增加任务记录信息
+- 生成结果下方显示小字：`任务ID: xxx · 模式: 本地模板 · 隐私: 脱敏`
+- 不显示完整 input_json 或日志详情
+
+#### D. Agent 日志接入 /api/agent-logs
+- 页面加载时读取 `GET /api/agent-logs`
+- 日志区域显示：时间、Agent 名、action、mode、success/failed
+- 不显示敏感输入
+- 新增"刷新"按钮
+
+#### E. 学员/意向 AI 跳转优化
+- 学员详情"AI 学情反馈" → learning-agent + student-feedback + relatedType=student
+- 学员详情"AI 续费话术" → learning-agent + renewal-script + relatedType=student
+- 意向学员"AI 话术" → recruit-agent + follow-reminder + relatedType=prospect
+- 跳转后预填学员/意向学员姓名
+
+#### F. 隐私模式和二次确认保持
+- 脱敏生成默认
+- 带姓名生成保留二次确认弹窗
+- 全局隐私隐藏时默认脱敏
+- 电话/微信/学校不展示到 AI 输出区
+
+#### G. 文案统一
+- "接口调用失败，已回退本地模板"（不虚假宣传 AI）
+- 不出现"已自动发送""已自动修改系统"
+
+**明确说明**
+- **真实 AI 密钥仍未配置**，当前为 local-template 模式
+- **未改后端**，**未改 SQLite**，**未改业务表**
+- 前端只做接口联通和本地模板模式
+
 计划 Agent：
 
 - 教务 Agent
