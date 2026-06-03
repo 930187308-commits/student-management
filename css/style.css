@@ -29,6 +29,21 @@ body.dark-mode {
     --table-header-bg: #27273a;
     --table-border: #3f3f46;
     --modal-overlay: rgba(0,0,0,0.7);
+    --sidebar-bg: #1a1a2e;
+    --sidebar-text: #a1a1aa;
+    --sidebar-hover: #27273a;
+    --sidebar-active: #3498db;
+    --sidebar-section-title: #71717a;
+    --sidebar-dot: #3498db;
+}
+
+:root {
+    --sidebar-bg: #f0f2f5;
+    --sidebar-text: #666666;
+    --sidebar-hover: #e0e4e8;
+    --sidebar-active: #3498db;
+    --sidebar-section-title: #999999;
+    --sidebar-dot: #3498db;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -47,119 +62,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .file-input-wrapper input { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 
 /* ==================== 应用外壳 ==================== */
-.stat-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 20px;
-    align-items: stretch;
-}
-
-.stat-card {
-    background: var(--bg-card);
-    border-radius: 10px;
-    box-shadow: 0 2px 12px var(--shadow);
-    padding: 14px 16px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.stat-card .value {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 4px;
-}
-
-.stat-card .label {
-    font-size: 12px;
-    color: var(--text-muted);
-}
-
-/* 课时概览卡 - 占2列，横向布局 */
-.hours-overview-card {
-    grid-column: span 2;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    text-align: left;
-    padding: 10px 16px;
-    gap: 16px;
-}
-
-.hours-overview-card .hours-ring {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-}
-
-.hours-overview-card .hours-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.hours-overview-card .hours-info .total-label {
-    font-size: 11px;
-    color: var(--text-muted);
-}
-
-.hours-overview-card .hours-info .total-val {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.hours-overview-card .hours-metrics {
-    display: flex;
-    gap: 0;
-    flex: 1;
-}
-
-.hours-overview-card .metric-item {
-    flex: 1;
-    text-align: center;
-    border-right: 1px solid var(--border-color);
-    padding: 0 8px;
-}
-
-.hours-overview-card .metric-item:last-child {
-    border-right: none;
-}
-
-.hours-overview-card .metric-item .metric-val {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-    display: block;
-}
-
-.hours-overview-card .metric-item .metric-lbl {
-    font-size: 10px;
-    color: var(--text-muted);
-    display: block;
-    margin-top: 2px;
-}
-
-@media (max-width: 900px) {
-    .stat-grid { grid-template-columns: repeat(3, 1fr); }
-    .hours-overview-card { grid-column: span 3; flex-direction: column; gap: 10px; }
-    .hours-overview-card .hours-ring { justify-content: center; }
-}
-@media (max-width: 600px) {
-    .stat-grid { grid-template-columns: repeat(2, 1fr); }
-    .hours-overview-card { grid-column: span 2; flex-direction: column; }
-    .hours-overview-card .hours-metrics { width: 100%; }
-}
-@media (max-width: 480px) {
-    .stat-grid { grid-template-columns: 1fr 1fr; }
-    .hours-overview-card { grid-column: span 2; }
-}
-
-/* 统计卡片 - 5列：课时概览占2列，4个KPI各1列 */
 .stat-grid {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
@@ -197,9 +99,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     white-space: nowrap;
 }
 
-/* 课时概览卡 - 占2列，横向布局 */
+/* 课时概览卡 - 横向布局 */
 .hours-overview-card {
-    grid-column: span 2;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -274,7 +175,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 }
 @media (max-width: 900px) {
     .stat-grid { grid-template-columns: repeat(3, 1fr); }
-    .hours-overview-card { grid-column: span 3; flex-direction: column; gap: 8px; }
+    .hours-overview-card { flex-direction: column; gap: 8px; }
 }
 @media (max-width: 600px) {
     .stat-grid { grid-template-columns: repeat(2, 1fr); }
@@ -293,8 +194,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 }
 
 .app-sidebar {
-    background: #101827;
-    color: #e8edf6;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
     padding: 12px 10px;
     display: flex;
     flex-direction: column;
@@ -335,31 +236,18 @@ body.dark-mode .card strong { color: var(--text-primary); }
 body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 
 /* ==================== 应用外壳：侧边栏贴边 + 主内容区填满 ==================== */
-.app-shell {
-    display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    gap: 0;
-    height: 100vh;
-    overflow: hidden;
-}
-
 .app-sidebar {
     position: sticky;
     top: 0;
     align-self: start;
-    background: var(--bg-card);
-    box-shadow: 2px 0 12px var(--shadow);
-    padding: 16px;
-    height: 100vh;
+    background: var(--sidebar-bg);
+    box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+    padding: 16px 12px;
+    height: calc(100vh - 60px);
     overflow-y: auto;
     border-radius: 0;
     margin: 0;
-}
-
-.app-main {
-    min-width: 0;
-    overflow-y: auto;
-    padding: 20px;
+    color: var(--sidebar-text);
 }
 
 .nav-section {
@@ -371,38 +259,55 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 }
 
 .nav-section-title {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--sidebar-section-title);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 4px 8px;
+    padding: 4px 10px;
     margin-bottom: 4px;
 }
 
 .nav-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     width: 100%;
     text-align: left;
     padding: 10px 12px;
     margin-bottom: 2px;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 600;
     background: transparent;
     border: none;
     cursor: pointer;
-    color: var(--text-secondary);
+    color: var(--sidebar-text);
     transition: all 0.2s;
 }
 
 .nav-item:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
+    background: var(--sidebar-hover);
+    color: var(--sidebar-text);
 }
 
 .nav-item.active {
-    background: #3498db;
+    background: var(--sidebar-active);
     color: white;
+}
+
+.nav-item .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sidebar-dot);
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.nav-item.active .dot {
+    background: white;
+    opacity: 1;
 }
 
 .app-main {
@@ -572,7 +477,7 @@ td.editable input:focus { outline: none; }
 .student-item .info { font-size: 12px; opacity: 0.7; margin-top: 2px; }
 
 /* 明细卡片 */
-.detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.detail-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
 .detail-item { padding: 12px; background: var(--hover-bg); border-radius: 8px; }
 .detail-item .label { font-size: 12px; color: var(--text-muted); }
 .detail-item .value { font-size: 16px; color: var(--text-primary); margin-top: 4px; font-weight: 600; }

@@ -330,8 +330,6 @@ function renderDashboard() {
                 <button class="btn btn-success btn-sm" onclick="switchTab('fees'); setTimeout(() => openFeeModal(), 100)">+ 缴费</button>
                 <button class="btn btn-primary btn-sm" onclick="switchTab('grades'); setTimeout(() => openGradeModal(), 100)">+ 成绩</button>
                 <button class="btn btn-secondary btn-sm" onclick="goToAttendanceToday()">考勤</button>
-                <button class="btn btn-info btn-sm" onclick="openDataHealthCheck()">体检</button>
-                <button class="btn btn-secondary btn-sm" onclick="switchTab('ai-workspace')">AI</button>
             </div>
         </div>
     </div>

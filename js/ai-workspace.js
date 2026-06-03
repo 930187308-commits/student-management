@@ -908,15 +908,8 @@ function updatePrivacyModeUI() {
     const radioMasked = document.querySelector('input[name="aiPrivacyMode"][value="masked"]');
     const radioNamed = document.querySelector('input[name="aiPrivacyMode"][value="named"]');
     if (!radioMasked || !radioNamed) return;
-    const forceMaskedAgents = ['teaching-agent', 'biz-agent'];
-    if (forceMaskedAgents.includes(currentAgentId)) {
-        radioMasked.checked = true;
-        radioNamed.disabled = true;
-        aiPrivacyMode = 'masked';
-    } else {
-        radioNamed.disabled = false;
-        aiPrivacyMode === 'named' ? radioNamed.checked = true : radioMasked.checked = true;
-    }
+    radioNamed.disabled = false;
+    aiPrivacyMode === 'named' ? radioNamed.checked = true : radioMasked.checked = true;
 }
 
 function updateDataRangeInfo(taskType) {
