@@ -292,7 +292,7 @@ function renderReports() {
                     scales: {
                         x: {
                             ticks: {
-                                font: { size: 12 },
+                                font: { size: 10 },
                                 callback: function(val, index) {
                                     const label = classAttendanceStats[index].name;
                                     if (label.includes('-')) {
