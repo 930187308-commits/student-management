@@ -9,6 +9,30 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
+    <div class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>AI 教培工作台</h1>
+                <p id="headerStatus">Mac mini 本地服务器 · SQLite 数据库 · 多设备同步</p>
+            </div>
+            <div class="toolbar">
+                <button class="theme-toggle" onclick="toggleDarkMode()" title="切换夜间模式">🌙</button>
+                <button class="btn btn-secondary btn-sm" id="privacyToggleBtn" onclick="togglePrivacy()" title="隐藏/显示敏感数据" style="margin-right:8px;">👁</button>
+                <span class="autosave-indicator" id="autosaveIndicator">● 已保存</span>
+                <button class="btn btn-secondary btn-sm" onclick="undoLastChange()" id="undoBtn" title="撤回最近一次保存的修改" disabled>撤回上一步</button>
+                <button class="btn btn-info btn-sm" onclick="showGistSetupModal()" id="gistSyncBtn" title="查看本地服务器同步说明">同步说明</button>
+                <button class="btn btn-secondary btn-sm" onclick="unbindLicense()" title="解除授权">解绑</button>
+                <button class="btn btn-secondary btn-sm" onclick="exportBackup()">导出备份</button>
+                <div class="file-input-wrapper">
+                    <button class="btn btn-warning btn-sm">导入备份</button>
+                    <input type="file" accept=".json" onchange="importBackup(event)">
+                </div>
+                <button class="btn btn-info btn-sm health-check-button" onclick="openDataHealthCheck()">数据体检<span id="dataHealthBadge" class="health-badge" style="display:none;"></span></button>
+                <button class="btn btn-primary btn-sm" onclick="openDataManager()">数据管理</button>
+            </div>
+        </div>
+    </div>
+
     <div class="app-shell">
             <aside class="app-sidebar">
                 <div class="sidebar-brand">

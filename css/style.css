@@ -34,18 +34,19 @@ body.dark-mode {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); transition: background 0.3s, color 0.3s; }
 
-.header { background: var(--bg-header); color: white; padding: 20px 30px; }
-.header h1 { font-size: 24px; font-weight: 600; }
-.header p { font-size: 13px; opacity: 0.8; margin-top: 4px; }
-
-.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-
-/* 主题切换按钮 */
-.theme-toggle { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 12px; }
+.header { background: var(--bg-header); color: white; padding: 16px 24px; }
+.header h1 { font-size: 20px; font-weight: 600; }
+.header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+.toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.theme-toggle { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .theme-toggle:hover { background: rgba(255,255,255,0.25); }
-body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+.autosave-indicator { font-size: 11px; color: rgba(255,255,255,0.7); }
+.health-check-button { position: relative; }
+.health-badge { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #e74c3c; color: white; font-size: 10px; line-height: 14px; text-align: center; }
+.file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
+.file-input-wrapper input { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 
-/* 统计卡片 - 5列：课时概览占2列，4个KPI各1列，所有卡片等高 */
+/* ==================== 应用外壳 ==================== */
 .stat-grid {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
@@ -158,67 +159,189 @@ body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: 
     .hours-overview-card { grid-column: span 2; }
 }
 
+/* 统计卡片 - 5列：课时概览占2列，4个KPI各1列 */
+.stat-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+    min-width: 0;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px var(--shadow);
+    padding: 10px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.stat-card .value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stat-card .label {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* 课时概览卡 - 占2列，横向布局 */
+.hours-overview-card {
+    grid-column: span 2;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    text-align: left;
+    padding: 8px 12px;
+    gap: 10px;
+    min-width: 0;
+}
+
+.hours-overview-card .hours-ring {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.hours-overview-card .hours-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.hours-overview-card .hours-info .total-label {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.hours-overview-card .hours-info .total-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.hours-overview-card .hours-metrics {
+    display: flex;
+    gap: 0;
+    flex: 1;
+    min-width: 0;
+}
+
+.hours-overview-card .metric-item {
+    flex: 1;
+    text-align: center;
+    border-right: 1px solid var(--border-color);
+    padding: 0 6px;
+    min-width: 0;
+}
+
+.hours-overview-card .metric-item:last-child {
+    border-right: none;
+}
+
+.hours-overview-card .metric-item .metric-val {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: block;
+    white-space: nowrap;
+}
+
+.hours-overview-card .metric-item .metric-lbl {
+    font-size: 9px;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 1px;
+}
+
+@media (max-width: 1100px) {
+    .stat-grid { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 6px; }
+    .stat-card .value { font-size: 15px; }
+    .hours-overview-card .metric-item .metric-val { font-size: 13px; }
+}
+@media (max-width: 900px) {
+    .stat-grid { grid-template-columns: repeat(3, 1fr); }
+    .hours-overview-card { grid-column: span 3; flex-direction: column; gap: 8px; }
+}
+@media (max-width: 600px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .hours-overview-card { grid-column: span 2; }
+}
+@media (max-width: 480px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .hours-overview-card { grid-column: span 2; }
+}
+
 /* ==================== 应用外壳 ==================== */
 .app-shell {
     display: grid;
     grid-template-columns: 248px minmax(0, 1fr);
-    min-height: 100vh;
+    min-height: calc(100vh - 60px);
 }
 
 .app-sidebar {
     background: #101827;
     color: #e8edf6;
-    padding: 22px 16px;
+    padding: 16px 12px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 12px;
     position: sticky;
     top: 0;
-    height: 100vh;
+    height: calc(100vh - 60px);
     overflow-y: auto;
 }
 
 .sidebar-brand {
-    padding: 4px 8px 14px;
+    padding: 2px 6px 10px;
     border-bottom: 1px solid rgba(255,255,255,.12);
 }
 
 .sidebar-brand h1 {
-    margin: 0 0 8px;
-    font-size: 20px;
+    margin: 0 0 4px;
+    font-size: 16px;
     line-height: 1.2;
 }
 
 .sidebar-brand p {
     margin: 0;
     color: #9aa6ba;
-    font-size: 13px;
-    line-height: 1.55;
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 .nav-section {
     display: grid;
-    gap: 6px;
-}
-
-.nav-section-title {
-    display: none;
+    gap: 4px;
 }
 
 .nav-item {
     width: 100%;
     border: 0;
-    border-radius: 8px;
-    min-height: 42px;
-    padding: 0 12px;
+    border-radius: 6px;
+    min-height: 36px;
+    padding: 0 10px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     color: #cbd5e1;
     background: transparent;
     cursor: pointer;
     text-align: left;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .nav-item:hover,
@@ -228,8 +351,8 @@ body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: 
 }
 
 .nav-item .dot {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: currentColor;
     opacity: .86;
@@ -238,49 +361,24 @@ body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: 
 
 .sidebar-footer {
     margin-top: auto;
-    padding: 14px 10px;
+    padding: 10px 8px;
     border: 1px solid rgba(255,255,255,.12);
-    border-radius: 8px;
+    border-radius: 6px;
     color: #aeb9cc;
-    font-size: 12px;
-    line-height: 1.55;
+    font-size: 10px;
+    line-height: 1.4;
     background: rgba(255,255,255,.04);
 }
 
 .app-main {
     min-width: 0;
     background: var(--bg-primary);
-    padding: 20px;
+    padding: 16px;
     overflow-y: auto;
 }
 
 .app-main.hide-stats #statGrid {
     display: none;
-}
-
-@media (max-width: 760px) {
-    .app-shell {
-        grid-template-columns: 1fr;
-    }
-
-    .app-sidebar {
-        position: static;
-        height: auto;
-        padding: 16px;
-    }
-
-    .nav-section {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .app-main {
-        padding: 16px;
-    }
-
-    .sidebar-brand,
-    .sidebar-footer {
-        display: none;
-    }
 }
 
 /* 欠费提醒/警告行 */
