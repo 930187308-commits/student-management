@@ -34,7 +34,7 @@ body.dark-mode {
     --sidebar-hover: #27273a;
     --sidebar-active: #3498db;
     --sidebar-section-title: #71717a;
-    --sidebar-dot: #3498db;
+    --sidebar-dot: #6b7280;
 }
 
 :root {
@@ -43,7 +43,7 @@ body.dark-mode {
     --sidebar-hover: #e0e4e8;
     --sidebar-active: #3498db;
     --sidebar-section-title: #999999;
-    --sidebar-dot: #3498db;
+    --sidebar-dot: #6b7280;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -277,8 +277,8 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
     padding: 10px 12px;
     margin-bottom: 2px;
     border-radius: 8px;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 400;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -300,14 +300,14 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--sidebar-dot);
-    opacity: 0.5;
+    background: #999999;
+    opacity: 0.6;
     flex-shrink: 0;
 }
 
 .nav-item.active .dot {
-    background: white;
-    opacity: 1;
+    background: #666666;
+    opacity: 0.8;
 }
 
 .app-main {
