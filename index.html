@@ -9,57 +9,34 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h1>AI 教培工作台</h1>
-                <p id="headerStatus">Mac mini 本地服务器 · SQLite 数据库 · 多设备同步</p>
-            </div>
-            <div class="toolbar">
-	<button class="theme-toggle" onclick="toggleDarkMode()" title="切换夜间模式">🌙</button>
-                <button class="btn btn-secondary btn-sm" id="privacyToggleBtn" onclick="togglePrivacy()" title="隐藏/显示敏感数据" style="margin-right:8px;">👁</button>
-	<span class="autosave-indicator" id="autosaveIndicator">● 已保存</span>
-                <button class="btn btn-secondary btn-sm" onclick="undoLastChange()" id="undoBtn" title="撤回最近一次保存的修改" disabled>撤回上一步</button>
-                <button class="btn btn-info btn-sm" onclick="showGistSetupModal()" id="gistSyncBtn" title="查看本地服务器同步说明">同步说明</button>
-                <button class="btn btn-secondary btn-sm" onclick="unbindLicense()" title="解除授权">解绑</button>
-                <button class="btn btn-secondary btn-sm" onclick="exportBackup()">导出备份</button>
-                <div class="file-input-wrapper">
-                    <button class="btn btn-warning btn-sm">导入备份</button>
-                    <input type="file" accept=".json" onchange="importBackup(event)">
-                </div>
-                <button class="btn btn-info btn-sm health-check-button" onclick="openDataHealthCheck()">
-                    数据体检<span id="dataHealthBadge" class="health-badge" style="display:none;"></span>
-                </button>
-                <button class="btn btn-primary btn-sm" onclick="openDataManager()">数据管理</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="container">
-        <div class="app-shell">
+    <div class="app-shell">
             <aside class="app-sidebar">
-                <div class="nav-section">
-                    <div class="nav-section-title">工作台</div>
-                    <button class="tab nav-item active" data-tab="dashboard">首页</button>
-                    <button class="tab nav-item" data-tab="reports">统计报表</button>
+                <div class="sidebar-brand">
+                    <h1>AI 教培工作台</h1>
+                    <p>面向一个人运营的小型教培机构</p>
                 </div>
-                <div class="nav-section">
-                    <div class="nav-section-title">教务管理</div>
-                    <button class="tab nav-item" data-tab="classes">班级管理</button>
-                    <button class="tab nav-item" data-tab="attendance">考勤记录</button>
-                    <button class="tab nav-item" data-tab="fees">收费记录</button>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-title">学员与招生</div>
-                    <button class="tab nav-item" data-tab="students">学员管理</button>
-                    <button class="tab nav-item" data-tab="grades">成绩记录</button>
-                    <button class="tab nav-item" data-tab="communications">沟通记录</button>
-                    <button class="tab nav-item" data-tab="prospects">意向学员</button>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-title">AI 与知识</div>
-                    <button class="tab nav-item" data-tab="ai-workspace">AI 工作台</button>
-                    <button class="tab nav-item" data-tab="knowledge">知识库</button>
+                <nav class="nav-section">
+                    <button class="tab nav-item active" data-tab="dashboard"><span class="dot"></span>首页</button>
+                    <button class="tab nav-item" data-tab="reports"><span class="dot"></span>统计报表</button>
+                </nav>
+                <nav class="nav-section">
+                    <button class="tab nav-item" data-tab="classes"><span class="dot"></span>班级管理</button>
+                    <button class="tab nav-item" data-tab="attendance"><span class="dot"></span>考勤记录</button>
+                    <button class="tab nav-item" data-tab="fees"><span class="dot"></span>收费记录</button>
+                </nav>
+                <nav class="nav-section">
+                    <button class="tab nav-item" data-tab="students"><span class="dot"></span>学员管理</button>
+                    <button class="tab nav-item" data-tab="grades"><span class="dot"></span>成绩记录</button>
+                    <button class="tab nav-item" data-tab="communications"><span class="dot"></span>沟通记录</button>
+                    <button class="tab nav-item" data-tab="prospects"><span class="dot"></span>意向学员</button>
+                </nav>
+                <nav class="nav-section">
+                    <button class="tab nav-item" data-tab="ai-workspace"><span class="dot"></span>AI 工作台</button>
+                    <button class="tab nav-item" data-tab="knowledge"><span class="dot"></span>知识库</button>
+                </nav>
+                <div class="sidebar-footer">
+                    Mac mini 本地服务器<br>
+                    SQLite 数据库 · 多设备同步
                 </div>
             </aside>
 

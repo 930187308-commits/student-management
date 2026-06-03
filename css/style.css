@@ -45,12 +45,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .theme-toggle:hover { background: rgba(255,255,255,0.25); }
 body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
 
-/* 统计卡片 - 2行布局：上面一行课时汇总，下面一行4个KPI */
+/* 统计卡片 - 5列：课时概览占2列，4个KPI各1列，所有卡片等高 */
 .stat-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
     gap: 10px;
     margin-bottom: 20px;
+    align-items: stretch;
 }
 
 .stat-card {
@@ -58,6 +59,7 @@ body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: 
     border-radius: 10px;
     box-shadow: 0 2px 12px var(--shadow);
     padding: 14px 16px;
+    text-align: center;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -75,46 +77,52 @@ body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: 
     color: var(--text-muted);
 }
 
-.stat-card .sub {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 4px;
-}
-
-/* 课时汇总卡 - 横向4宫格 */
+/* 课时概览卡 - 占2列，横向布局 */
 .hours-overview-card {
-    grid-column: span 4;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0;
-    padding: 16px 20px;
+    grid-column: span 2;
+    display: flex;
+    flex-direction: row;
     align-items: center;
+    justify-content: center;
+    text-align: left;
+    padding: 10px 16px;
+    gap: 16px;
 }
 
 .hours-overview-card .hours-ring {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding-right: 20px;
-    border-right: 1px solid var(--border-color);
-}
-
-.hours-overview-card .hours-ring canvas {
+    gap: 12px;
     flex-shrink: 0;
 }
 
+.hours-overview-card .hours-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.hours-overview-card .hours-info .total-label {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.hours-overview-card .hours-info .total-val {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
 .hours-overview-card .hours-metrics {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    display: flex;
     gap: 0;
-    padding-left: 20px;
+    flex: 1;
 }
 
 .hours-overview-card .metric-item {
+    flex: 1;
     text-align: center;
     border-right: 1px solid var(--border-color);
-    padding: 0 16px;
+    padding: 0 8px;
 }
 
 .hours-overview-card .metric-item:last-child {
@@ -122,34 +130,157 @@ body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: 
 }
 
 .hours-overview-card .metric-item .metric-val {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--text-primary);
     display: block;
 }
 
 .hours-overview-card .metric-item .metric-lbl {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
     display: block;
     margin-top: 2px;
 }
 
 @media (max-width: 900px) {
-    .stat-grid { grid-template-columns: repeat(2, 1fr); }
-    .hours-overview-card { grid-column: span 2; grid-template-columns: 1fr; gap: 12px; }
-    .hours-overview-card .hours-ring { border-right: none; padding-right: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; justify-content: flex-start; }
-    .hours-overview-card .hours-metrics { padding-left: 0; }
+    .stat-grid { grid-template-columns: repeat(3, 1fr); }
+    .hours-overview-card { grid-column: span 3; flex-direction: column; gap: 10px; }
+    .hours-overview-card .hours-ring { justify-content: center; }
 }
 @media (max-width: 600px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .hours-overview-card { grid-column: span 2; flex-direction: column; }
+    .hours-overview-card .hours-metrics { width: 100%; }
+}
+@media (max-width: 480px) {
     .stat-grid { grid-template-columns: 1fr 1fr; }
     .hours-overview-card { grid-column: span 2; }
 }
-@media (max-width: 480px) {
-    .stat-grid { grid-template-columns: 1fr; }
-    .hours-overview-card { grid-column: span 1; grid-template-columns: 1fr; }
-    .hours-overview-card .metric-item { border-right: none; border-bottom: 1px solid var(--border-color); padding: 8px 0; }
-    .hours-overview-card .metric-item:last-child { border-bottom: none; }
+
+/* ==================== 应用外壳 ==================== */
+.app-shell {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.app-sidebar {
+    background: #101827;
+    color: #e8edf6;
+    padding: 22px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.sidebar-brand {
+    padding: 4px 8px 14px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.sidebar-brand h1 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    line-height: 1.2;
+}
+
+.sidebar-brand p {
+    margin: 0;
+    color: #9aa6ba;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.nav-section {
+    display: grid;
+    gap: 6px;
+}
+
+.nav-section-title {
+    display: none;
+}
+
+.nav-item {
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    min-height: 42px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #cbd5e1;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font-size: 14px;
+}
+
+.nav-item:hover,
+.nav-item.active {
+    background: #1e2b42;
+    color: #ffffff;
+}
+
+.nav-item .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .86;
+    flex: 0 0 auto;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding: 14px 10px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 8px;
+    color: #aeb9cc;
+    font-size: 12px;
+    line-height: 1.55;
+    background: rgba(255,255,255,.04);
+}
+
+.app-main {
+    min-width: 0;
+    background: var(--bg-primary);
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.app-main.hide-stats #statGrid {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .app-sidebar {
+        position: static;
+        height: auto;
+        padding: 16px;
+    }
+
+    .nav-section {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .app-main {
+        padding: 16px;
+    }
+
+    .sidebar-brand,
+    .sidebar-footer {
+        display: none;
+    }
 }
 
 /* 欠费提醒/警告行 */

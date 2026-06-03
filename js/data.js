@@ -1105,34 +1105,30 @@ function renderStats() {
     document.getElementById('statGrid').innerHTML = `
         <div class="stat-card hours-overview-card">
             <div class="hours-ring">
-                <div style="position: relative; width: 70px; height: 70px; flex-shrink: 0;">
-                    <canvas id="hoursRingChart" width="140" height="140" style="width: 70px; height: 70px;"></canvas>
+                <div style="position: relative; width: 60px; height: 60px; flex-shrink: 0;">
+                    <canvas id="hoursRingChart" width="120" height="120" style="width: 60px; height: 60px;"></canvas>
                     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                        <div style="font-size: 14px; font-weight: 700; color: #2c3e50;">${getPrivacyVal(remainingHours)}</div>
-                        <div style="font-size: 9px; color: #888;">剩余</div>
+                        <div style="font-size: 12px; font-weight: 700; color: #2c3e50;">${getPrivacyVal(remainingHours)}</div>
+                        <div style="font-size: 8px; color: #888;">剩余</div>
                     </div>
                 </div>
-                <div>
-                    <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">${getPrivacyVal(totalHours)}</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">总课时</div>
+                <div class="hours-info">
+                    <span class="total-label">总课时</span>
+                    <span class="total-val">${getPrivacyVal(totalHours)}</span>
                 </div>
             </div>
             <div class="hours-metrics">
                 <div class="metric-item">
                     <span class="metric-val" style="color:#27ae60;">${getPrivacyVal(usedHours)}</span>
-                    <span class="metric-lbl">已消课时</span>
+                    <span class="metric-lbl">已消</span>
                 </div>
                 <div class="metric-item">
                     <span class="metric-val" style="color:#f39c12;">${getPrivacyVal(absentHours)}</span>
-                    <span class="metric-lbl">请假课时</span>
+                    <span class="metric-lbl">请假</span>
                 </div>
                 <div class="metric-item">
                     <span class="metric-val">${getPrivacyVal(usageRate)}%</span>
                     <span class="metric-lbl">消耗率</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-val">${getPrivacyVal(remainingHours)}</span>
-                    <span class="metric-lbl">剩余课时</span>
                 </div>
             </div>
         </div>
@@ -1188,9 +1184,9 @@ function drawHoursRingChart(used, remaining) {
     const canvas = document.getElementById('hoursRingChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const centerX = 70, centerY = 70, radius = 58, thickness = 16;
+    const centerX = 60, centerY = 60, radius = 50, thickness = 14;
 
-    ctx.clearRect(0, 0, 140, 140);
+    ctx.clearRect(0, 0, 120, 120);
 
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
