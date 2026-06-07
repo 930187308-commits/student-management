@@ -2,6 +2,8 @@
 
 let knowledgeActiveTab = 'style';
 let knowledgeSummary = null;
+let questionBankItems = [];
+let selectedQuestionIds = new Set();
 
 function getApiList(payload, key) {
     if (Array.isArray(payload)) return payload;
@@ -154,15 +156,18 @@ function renderKnowledge() {
             <!-- 题库 Tab -->
             <div id="ktabQuestion" class="knowledge-subtab-content" style="display:none;">
                 <div class="card" style="padding:10px 12px;background:#fffbe6;border-radius:8px;margin-bottom:8px;">
-                    <div style="font-size:11px;color:#856404;">💡 录入提示：可参考 Obsidian 的"AI教培工作台/题库素材/题库标签体系.md"，手工录入或后续支持 Excel 批量导入。</div>
+                    <div style="font-size:11px;color:#856404;line-height:1.5;">💡 题库工作台：支持手工录入、AI 辅助整理、LaTeX 公式、SVG/图片图形、分类查询、多选组卷、生成测试卷、讲义和举一反三练习。图片公式类题目可先用截图/OCR 得到文字，再把原图链接或 SVG 草图保存在题目里。</div>
                 </div>
-                <div class="card">
+                <div class="card question-bank-toolbar">
                     <div class="knowledge-section-header">
-                        <span>📝 数学题库 MVP</span>
-                        <button class="btn btn-primary btn-sm" onclick="openQuestionModal()">+ 新增题目</button>
+                        <span>📝 数学题库系统</span>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button class="btn btn-primary btn-sm" onclick="openQuestionModal()">+ 新增题目</button>
+                            <button class="btn btn-secondary btn-sm" onclick="openQuestionAIModal()">AI 辅助录入</button>
+                            <button class="btn btn-secondary btn-sm" onclick="importSampleQuestions()">导入示例题</button>
+                        </div>
                     </div>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0 0 8px 0;">当前是题库 MVP，不处理图片公式 OCR。后续支持 Excel 导入。</p>
-                    <div style="padding:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <div style="padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                         <input type="text" id="questionSearchInput" placeholder="搜索题目..." oninput="loadQuestions()" style="flex:1;min-width:120px;padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
                         <select id="questionGradeFilter" onchange="loadQuestions()" style="padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
                             <option value="">全部年级</option>
@@ -185,8 +190,57 @@ function renderKnowledge() {
                             <option value="提高">提高</option>
                             <option value="压轴">压轴</option>
                         </select>
+                        <select id="questionTypeFilter" onchange="loadQuestions()" style="padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
+                            <option value="">全部题型</option>
+                            <option value="计算题">计算题</option>
+                            <option value="应用题">应用题</option>
+                            <option value="几何题">几何题</option>
+                            <option value="证明题">证明题</option>
+                            <option value="选择题">选择题</option>
+                            <option value="填空题">填空题</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="clearQuestionFilters()">清空筛选</button>
                     </div>
-                    <div id="questionsArea" class="knowledge-list-area"></div>
+                </div>
+                <div class="question-bank-grid">
+                    <div class="card">
+                        <div class="question-bank-panel-title">
+                            <span>题目列表</span>
+                            <span id="questionCountHint">0 题</span>
+                        </div>
+                        <div id="questionsArea" class="knowledge-list-area question-list-area"></div>
+                    </div>
+                    <div class="card">
+                        <div class="question-bank-panel-title">
+                            <span>选题篮</span>
+                            <span id="selectedQuestionCount">已选 0 题</span>
+                        </div>
+                        <div class="question-basket-actions">
+                            <button class="btn btn-secondary btn-xs" onclick="selectAllVisibleQuestions()">选中当前筛选</button>
+                            <button class="btn btn-secondary btn-xs" onclick="clearSelectedQuestions()">清空</button>
+                        </div>
+                        <div id="selectedQuestionsArea" class="question-selected-area">暂无选中题目</div>
+                    </div>
+                    <div class="card">
+                        <div class="question-bank-panel-title">
+                            <span>输出生成</span>
+                            <span>试卷 / 讲义 / 举一反三</span>
+                        </div>
+                        <div class="question-output-form">
+                            <input id="questionOutputTitle" placeholder="标题，例如：六年级分数应用题小测" style="width:100%;padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
+                            <select id="questionOutputType" style="width:100%;padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;">
+                                <option value="paper">生成测试卷</option>
+                                <option value="handout">生成讲义</option>
+                                <option value="variants">生成举一反三练习</option>
+                            </select>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <button class="btn btn-primary btn-sm" onclick="generateQuestionOutput()">生成输出</button>
+                                <button class="btn btn-secondary btn-sm" onclick="copyQuestionOutput()">复制</button>
+                                <button class="btn btn-secondary btn-sm" onclick="downloadQuestionOutput()">下载 Markdown</button>
+                            </div>
+                        </div>
+                        <div id="questionOutputArea" class="question-output-area">先从左侧选择题目，再生成测试卷、讲义或举一反三练习。</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -351,6 +405,101 @@ function renderKnowledge() {
             .knowledge-empty-icon {
                 font-size: 32px;
                 margin-bottom: 8px;
+            }
+            .question-bank-grid {
+                display: grid;
+                grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.75fr) minmax(260px, 1fr);
+                gap: 12px;
+                align-items: start;
+            }
+            .question-bank-panel-title {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px 12px;
+                border-bottom: 1px solid var(--border-color);
+                font-size: 13px;
+                font-weight: 600;
+            }
+            .question-list-area {
+                max-height: 660px;
+            }
+            .question-card {
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px;
+                margin-bottom: 8px;
+                background: var(--bg-card);
+            }
+            .question-card.selected {
+                border-color: #3498db;
+                box-shadow: 0 0 0 2px rgba(52,152,219,0.12);
+            }
+            .question-stem-render {
+                font-size: 13px;
+                line-height: 1.55;
+                color: var(--text-primary);
+                white-space: pre-wrap;
+            }
+            .question-formula {
+                margin-top: 6px;
+                padding: 6px 8px;
+                background: var(--hover-bg);
+                border-radius: 6px;
+                font-family: "SF Mono", Menlo, Consolas, monospace;
+                font-size: 12px;
+                overflow-x: auto;
+            }
+            .question-diagram {
+                margin-top: 8px;
+                padding: 8px;
+                border: 1px dashed var(--border-color);
+                border-radius: 6px;
+                overflow-x: auto;
+                background: var(--hover-bg);
+            }
+            .question-diagram svg {
+                max-width: 100%;
+                height: auto;
+            }
+            .question-selected-area {
+                max-height: 520px;
+                overflow-y: auto;
+                padding: 10px 12px;
+                font-size: 12px;
+                color: var(--text-muted);
+            }
+            .question-basket-actions {
+                display: flex;
+                gap: 6px;
+                padding: 8px 12px;
+                border-bottom: 1px solid var(--border-color);
+                flex-wrap: wrap;
+            }
+            .question-selected-item {
+                padding: 6px 0;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .question-output-form {
+                padding: 10px 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .question-output-area {
+                padding: 12px;
+                min-height: 260px;
+                max-height: 560px;
+                overflow-y: auto;
+                white-space: pre-wrap;
+                font-size: 12px;
+                line-height: 1.6;
+                color: var(--text-secondary);
+            }
+            @media (max-width: 1100px) {
+                .question-bank-grid { grid-template-columns: 1fr; }
+                .question-list-area, .question-selected-area, .question-output-area { max-height: none; }
             }
             @media (max-width: 700px) {
                 .knowledge-stat-grid { grid-template-columns: repeat(2, 1fr); }
@@ -939,12 +1088,11 @@ function loadQuestions() {
     const gradeFilter = document.getElementById('questionGradeFilter')?.value || '';
     const chapterFilter = document.getElementById('questionChapterFilter')?.value || '';
     const difficultyFilter = document.getElementById('questionDifficultyFilter')?.value || '';
+    const typeFilter = document.getElementById('questionTypeFilter')?.value || '';
     let url = '/api/questions?';
     const params = [];
     if (search) params.push(`q=${encodeURIComponent(search)}`);
     if (gradeFilter) params.push(`grade=${encodeURIComponent(gradeFilter)}`);
-    if (chapterFilter) params.push(`chapter=${encodeURIComponent(chapterFilter)}`);
-    if (difficultyFilter) params.push(`difficulty=${encodeURIComponent(difficultyFilter)}`);
     url += params.join('&');
 
     fetch(url)
@@ -953,7 +1101,10 @@ function loadQuestions() {
             let questions = getApiList(payload, 'questions');
             if (chapterFilter) questions = questions.filter(item => item.chapter === chapterFilter);
             if (difficultyFilter) questions = questions.filter(item => item.difficulty === difficultyFilter);
+            if (typeFilter) questions = questions.filter(item => item.questionType === typeFilter);
+            questionBankItems = questions;
             renderQuestions(questions);
+            renderSelectedQuestions();
         })
         .catch(() => renderQuestions([]));
 }
@@ -961,20 +1112,26 @@ function loadQuestions() {
 function renderQuestions(questions) {
     const area = document.getElementById('questionsArea');
     if (!area) return;
+    const countHint = document.getElementById('questionCountHint');
+    if (countHint) countHint.textContent = `${questions?.length || 0} 题`;
     if (!questions || questions.length === 0) {
-        area.innerHTML = `<div class="knowledge-empty"><div class="knowledge-empty-icon">📝</div>暂无题目<br><span style="font-size:11px;">点击右上角「新增题目」开始录入</span></div>`;
+        area.innerHTML = `<div class="knowledge-empty"><div class="knowledge-empty-icon">📝</div>暂无题目<br><span style="font-size:11px;">可点击「新增题目」「AI 辅助录入」或「导入示例题」开始</span></div>`;
         return;
     }
     area.innerHTML = questions.map(q => {
         const statusBadge = q.status === 'active' ? '<span class="knowledge-badge knowledge-badge-active">已启用</span>' : q.status === 'draft' ? '<span class="knowledge-badge knowledge-badge-draft">草稿</span>' : '<span class="knowledge-badge knowledge-badge-archived">归档</span>';
         const difficultyColors = { '基础': '#27ae60', '中等': '#3498db', '提高': '#f39c12', '压轴': '#e74c3c' };
         const diffColor = difficultyColors[q.difficulty] || '#95a5a6';
-        return `<div class="knowledge-item">
+        const selected = selectedQuestionIds.has(q.id);
+        return `<div class="question-card ${selected ? 'selected' : ''}">
             <div class="knowledge-item-header">
                 <div>
-                    <div class="knowledge-item-title">${escapeHtml((q.stem || '').substring(0, 60))}${q.stem?.length > 60 ? '...' : ''}</div>
+                    <label style="display:flex;gap:8px;align-items:flex-start;">
+                        <input type="checkbox" ${selected ? 'checked' : ''} onchange="toggleQuestionSelection('${escapeHtml(q.id)}')">
+                        <span class="knowledge-item-title">${escapeHtml((q.stem || '').substring(0, 60))}${q.stem?.length > 60 ? '...' : ''}</span>
+                    </label>
                     <div class="knowledge-item-meta">
-                        <span style="font-size:10px;color:var(--text-muted);">${escapeHtml(q.grade || '')} · ${escapeHtml(q.chapter || '')} · <span style="color:${diffColor};">${escapeHtml(q.difficulty || '')}</span> · ${escapeHtml(q.questionType || '')}</span>
+                        <span style="font-size:10px;color:var(--text-muted);">${escapeHtml(q.grade || '未填年级')} · ${escapeHtml(q.chapter || '未分章节')} · <span style="color:${diffColor};">${escapeHtml(q.difficulty || '')}</span> · ${escapeHtml(q.questionType || '')} · ${q.score || 0}分 · ${q.estimatedMinutes || 0}分钟</span>
                         ${statusBadge}
                     </div>
                 </div>
@@ -983,9 +1140,31 @@ function renderQuestions(questions) {
                     <button class="btn btn-danger btn-xs" onclick="deleteQuestion('${q.id}')">删除</button>
                 </div>
             </div>
-            ${q.answer ? `<div class="knowledge-item-content"><strong>答案：</strong>${escapeHtml(q.answer.substring(0, 50))}${q.answer.length > 50 ? '...' : ''}</div>` : ''}
+            <div class="question-stem-render">${renderQuestionText(q.stem || '')}</div>
+            ${q.formulaLatex ? `<div class="question-formula">LaTeX：${escapeHtml(q.formulaLatex)}</div>` : ''}
+            ${q.diagramSvg ? `<div class="question-diagram">${sanitizeQuestionSvg(q.diagramSvg)}</div>` : ''}
+            ${q.imageUrl ? `<div class="knowledge-item-content">图片：${escapeHtml(q.imageUrl)}</div>` : ''}
+            ${q.answer ? `<div class="knowledge-item-content"><strong>答案：</strong>${escapeHtml(q.answer.substring(0, 80))}${q.answer.length > 80 ? '...' : ''}</div>` : ''}
+            ${(q.knowledgePoints || []).length ? `<div class="knowledge-item-meta" style="margin-top:6px;">${q.knowledgePoints.map(k => `<span class="knowledge-badge knowledge-badge-source">${escapeHtml(k)}</span>`).join('')}</div>` : ''}
         </div>`;
     }).join('');
+}
+
+function renderQuestionText(text) {
+    let html = escapeHtml(text || '');
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<span class="question-image-ref">[图片：$1 · $2]</span>');
+    html = html.replace(/\\\((.+?)\\\)/g, '<span class="question-formula-inline">$1</span>');
+    html = html.replace(/\$\$(.+?)\$\$/gs, '<span class="question-formula-inline">$1</span>');
+    return html;
+}
+
+function sanitizeQuestionSvg(svg) {
+    const value = String(svg || '').trim();
+    if (!/^<svg[\s>]/i.test(value)) return `<pre>${escapeHtml(value)}</pre>`;
+    return value
+        .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+        .replace(/\son\w+="[^"]*"/gi, '')
+        .replace(/\son\w+='[^']*'/gi, '');
 }
 
 function openQuestionModal(questionId) {
@@ -1052,9 +1231,35 @@ function openQuestionModal(questionId) {
                     <option value="压轴">压轴</option>
                 </select>
             </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+                <div>
+                    <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">分值</label>
+                    <input type="number" id="qScore" min="0" value="5" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;">
+                </div>
+                <div>
+                    <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">预计分钟</label>
+                    <input type="number" id="qEstimatedMinutes" min="0" value="5" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;">
+                </div>
+                <div>
+                    <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">变式分组</label>
+                    <input type="text" id="qVariantGroup" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="如：分数应用题-单位1">
+                </div>
+            </div>
             <div style="margin-bottom:12px;">
                 <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">题干 *</label>
                 <textarea id="qStem" rows="3" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="题目内容..."></textarea>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">公式 LaTeX（可选）</label>
+                <textarea id="qFormulaLatex" rows="2" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="例如：S=\\frac{1}{2}ah 或 x^2+3x+2=0"></textarea>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">图形 SVG（可选，适合几何草图）</label>
+                <textarea id="qDiagramSvg" rows="3" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="<svg width='160' height='100'>...</svg>"></textarea>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">图片链接 / 本地路径（可选）</label>
+                <input type="text" id="qImageUrl" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="可填写图片 URL、本地文件路径或截图存放位置">
             </div>
             <div style="margin-bottom:12px;">
                 <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">答案</label>
@@ -1078,6 +1283,14 @@ function openQuestionModal(questionId) {
                 <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">备注</label>
                 <textarea id="qRemark" rows="2" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="补充说明..."></textarea>
             </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">原始输入 / OCR 文本（可选）</label>
+                <textarea id="qOriginText" rows="2" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="保留截图 OCR 后的原始文本，方便以后复核"></textarea>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">AI 辅助说明（可选）</label>
+                <textarea id="qAiNotes" rows="2" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="AI 对题目分类、易错点、变式方向的建议"></textarea>
+            </div>
             <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
                 <button class="btn btn-secondary" onclick="closeModal()">取消</button>
                 <button class="btn btn-primary" onclick="saveQuestion('${questionId || ''}')">保存</button>
@@ -1100,13 +1313,21 @@ function saveQuestion(questionId) {
         knowledgePoints: splitInputList(document.getElementById('qKnowledgePoints')?.value, /[\/,，]/),
         questionType: document.getElementById('qQuestionType')?.value?.trim() || '',
         difficulty: document.getElementById('qDifficulty')?.value || '基础',
+        score: Number(document.getElementById('qScore')?.value || 0),
+        estimatedMinutes: Number(document.getElementById('qEstimatedMinutes')?.value || 0),
+        variantGroup: document.getElementById('qVariantGroup')?.value?.trim() || '',
         stem: stem,
+        formulaLatex: document.getElementById('qFormulaLatex')?.value?.trim() || '',
+        diagramSvg: document.getElementById('qDiagramSvg')?.value?.trim() || '',
+        imageUrl: document.getElementById('qImageUrl')?.value?.trim() || '',
         answer: document.getElementById('qAnswer')?.value?.trim() || '',
         solution: document.getElementById('qSolution')?.value?.trim() || '',
         commonMistakes: document.getElementById('qCommonMistakes')?.value?.trim() || '',
         errorTags,
         status: document.getElementById('qStatus')?.value || 'draft',
         remark: document.getElementById('qRemark')?.value?.trim() || '',
+        originText: document.getElementById('qOriginText')?.value?.trim() || '',
+        aiNotes: document.getElementById('qAiNotes')?.value?.trim() || '',
     };
 
     const method = questionId ? 'PUT' : 'POST';
@@ -1139,12 +1360,20 @@ function editQuestion(questionId) {
                 document.getElementById('qChapter').value = q.chapter || '';
                 document.getElementById('qDifficulty').value = q.difficulty || '基础';
                 document.getElementById('qQuestionType').value = q.questionType || '';
+                document.getElementById('qScore').value = q.score || 5;
+                document.getElementById('qEstimatedMinutes').value = q.estimatedMinutes || 5;
+                document.getElementById('qVariantGroup').value = q.variantGroup || '';
                 document.getElementById('qStem').value = q.stem || '';
+                document.getElementById('qFormulaLatex').value = q.formulaLatex || '';
+                document.getElementById('qDiagramSvg').value = q.diagramSvg || '';
+                document.getElementById('qImageUrl').value = q.imageUrl || '';
                 document.getElementById('qAnswer').value = q.answer || '';
                 document.getElementById('qSolution').value = q.solution || '';
                 document.getElementById('qCommonMistakes').value = q.commonMistakes || '';
                 document.getElementById('qStatus').value = q.status || 'draft';
                 document.getElementById('qRemark').value = q.remark || '';
+                document.getElementById('qOriginText').value = q.originText || '';
+                document.getElementById('qAiNotes').value = q.aiNotes || '';
                 document.getElementById('qKnowledgePoints').value = (q.knowledgePoints || []).join('/');
                 document.getElementById('qErrorTags').value = (q.errorTags || []).join(', ');
             }, 50);
@@ -1158,6 +1387,392 @@ function deleteQuestion(questionId) {
         .then(res => { if (!res.ok) throw new Error('删除失败'); return res.json(); })
         .then(() => { showToast('已删除'); loadQuestions(); loadKnowledgeSummary(); })
         .catch(() => showToast('删除失败'));
+}
+
+function toggleQuestionSelection(questionId) {
+    if (selectedQuestionIds.has(questionId)) selectedQuestionIds.delete(questionId);
+    else selectedQuestionIds.add(questionId);
+    renderQuestions(questionBankItems);
+    renderSelectedQuestions();
+}
+
+function selectAllVisibleQuestions() {
+    questionBankItems.forEach(q => selectedQuestionIds.add(q.id));
+    renderQuestions(questionBankItems);
+    renderSelectedQuestions();
+}
+
+function clearSelectedQuestions() {
+    selectedQuestionIds = new Set();
+    renderQuestions(questionBankItems);
+    renderSelectedQuestions();
+}
+
+function getSelectedQuestions() {
+    const all = questionBankItems.length ? questionBankItems : [];
+    return [...selectedQuestionIds].map(id => all.find(q => q.id === id)).filter(Boolean);
+}
+
+function renderSelectedQuestions() {
+    const countEl = document.getElementById('selectedQuestionCount');
+    const area = document.getElementById('selectedQuestionsArea');
+    if (countEl) countEl.textContent = `已选 ${selectedQuestionIds.size} 题`;
+    if (!area) return;
+    const selected = getSelectedQuestions();
+    if (selected.length === 0) {
+        area.innerHTML = '暂无选中题目';
+        return;
+    }
+    const totalScore = selected.reduce((sum, q) => sum + Number(q.score || 0), 0);
+    const totalMinutes = selected.reduce((sum, q) => sum + Number(q.estimatedMinutes || 0), 0);
+    area.innerHTML = `<div style="margin-bottom:8px;color:var(--text-secondary);">合计：${selected.length} 题 · ${totalScore} 分 · 约 ${totalMinutes} 分钟</div>` +
+        selected.map((q, idx) => `<div class="question-selected-item">
+            <div style="display:flex;justify-content:space-between;gap:8px;">
+                <span>${idx + 1}. ${escapeHtml((q.stem || '').substring(0, 42))}${(q.stem || '').length > 42 ? '...' : ''}</span>
+                <button class="btn btn-secondary btn-xs" onclick="toggleQuestionSelection('${escapeHtml(q.id)}')">移出</button>
+            </div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">${escapeHtml(q.grade || '')} · ${escapeHtml(q.chapter || '')} · ${escapeHtml(q.difficulty || '')} · ${escapeHtml(q.questionType || '')}</div>
+        </div>`).join('');
+}
+
+function clearQuestionFilters() {
+    ['questionSearchInput', 'questionGradeFilter', 'questionChapterFilter', 'questionDifficultyFilter', 'questionTypeFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    loadQuestions();
+}
+
+function generateQuestionOutput() {
+    const selected = getSelectedQuestions();
+    const output = document.getElementById('questionOutputArea');
+    if (!output) return;
+    if (selected.length === 0) {
+        showToast('请先选择题目');
+        return;
+    }
+    const type = document.getElementById('questionOutputType')?.value || 'paper';
+    const title = document.getElementById('questionOutputTitle')?.value?.trim() || getDefaultQuestionOutputTitle(type);
+    const markdown = buildQuestionOutputMarkdown(type, title, selected);
+    output.textContent = markdown;
+    showToast('已生成输出');
+}
+
+function getDefaultQuestionOutputTitle(type) {
+    if (type === 'handout') return '数学专题讲义';
+    if (type === 'variants') return '举一反三练习';
+    return '数学测试卷';
+}
+
+function buildQuestionOutputMarkdown(type, title, questions) {
+    const totalScore = questions.reduce((sum, q) => sum + Number(q.score || 0), 0);
+    const totalMinutes = questions.reduce((sum, q) => sum + Number(q.estimatedMinutes || 0), 0);
+    if (type === 'handout') return buildHandoutMarkdown(title, questions, totalMinutes);
+    if (type === 'variants') return buildVariantsMarkdown(title, questions);
+    return buildPaperMarkdown(title, questions, totalScore, totalMinutes);
+}
+
+function buildPaperMarkdown(title, questions, totalScore, totalMinutes) {
+    return [
+        `# ${title}`,
+        '',
+        `总分：${totalScore} 分　建议用时：${totalMinutes} 分钟`,
+        '',
+        '## 一、题目',
+        '',
+        ...questions.flatMap((q, idx) => [
+            `${idx + 1}.（${q.score || 0}分｜${q.difficulty || '未标难度'}｜${q.chapter || '未分章节'}）${q.stem || ''}`,
+            q.formulaLatex ? `公式：${q.formulaLatex}` : '',
+            q.imageUrl ? `图片：${q.imageUrl}` : '',
+            q.diagramSvg ? '[含 SVG 图形，网页端可查看]' : '',
+            ''
+        ].filter(Boolean)),
+        '---',
+        '## 二、答案与解析',
+        '',
+        ...questions.flatMap((q, idx) => [
+            `${idx + 1}. 答案：${q.answer || '待补充'}`,
+            `解析：${q.solution || '待补充'}`,
+            q.commonMistakes ? `易错点：${q.commonMistakes}` : '',
+            ''
+        ].filter(Boolean))
+    ].join('\n');
+}
+
+function buildHandoutMarkdown(title, questions, totalMinutes) {
+    const grouped = {};
+    questions.forEach(q => {
+        const key = q.chapter || '未分章节';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(q);
+    });
+    const lines = [`# ${title}`, '', `建议讲解时间：${totalMinutes} 分钟`, '', '## 学习目标', '- 识别本专题核心题型。', '- 掌握常见解题步骤。', '- 记录易错点并形成复盘清单。', ''];
+    Object.entries(grouped).forEach(([chapter, items]) => {
+        lines.push(`## ${chapter}`);
+        items.forEach((q, idx) => {
+            lines.push('', `### 例题 ${idx + 1}：${(q.knowledgePoints || []).join('、') || q.questionType || '题目'}`);
+            lines.push(q.stem || '');
+            if (q.formulaLatex) lines.push(`公式：${q.formulaLatex}`);
+            if (q.diagramSvg) lines.push('[含 SVG 图形，网页端可查看]');
+            lines.push(`答案：${q.answer || '待补充'}`);
+            lines.push(`讲解要点：${q.solution || '待补充'}`);
+            if (q.commonMistakes) lines.push(`易错提醒：${q.commonMistakes}`);
+        });
+    });
+    lines.push('', '## 课后复盘', '- 哪类题最容易错？', '- 错因是计算、审题、概念，还是步骤表达？', '- 下次复习优先处理哪一个问题？');
+    return lines.join('\n');
+}
+
+function buildVariantsMarkdown(title, questions) {
+    const lines = [`# ${title}`, '', '说明：每道原题后给出 3 个变式方向，供课堂举一反三使用。', ''];
+    questions.forEach((q, idx) => {
+        const kp = (q.knowledgePoints || []).join('、') || q.chapter || '当前知识点';
+        lines.push(`## 原题 ${idx + 1}`);
+        lines.push(q.stem || '');
+        lines.push(`答案：${q.answer || '待补充'}`);
+        lines.push('');
+        lines.push('### 变式 1：换数字');
+        lines.push(`保留题型和解法，替换关键数字，继续训练「${kp}」。`);
+        lines.push('### 变式 2：换问法');
+        lines.push('保留情境，改成反向求量或补充条件判断。');
+        lines.push('### 变式 3：加一步');
+        lines.push(`在原题基础上增加一步计算或一个干扰条件，观察学生是否真正理解「${kp}」。`);
+        lines.push('');
+    });
+    return lines.join('\n');
+}
+
+function copyQuestionOutput() {
+    const text = document.getElementById('questionOutputArea')?.textContent || '';
+    if (!text || text.includes('先从左侧选择题目')) {
+        showToast('暂无可复制输出');
+        return;
+    }
+    navigator.clipboard.writeText(text).then(() => showToast('已复制')).catch(() => showToast('复制失败'));
+}
+
+function downloadQuestionOutput() {
+    const text = document.getElementById('questionOutputArea')?.textContent || '';
+    if (!text || text.includes('先从左侧选择题目')) {
+        showToast('暂无可下载输出');
+        return;
+    }
+    const title = document.getElementById('questionOutputTitle')?.value?.trim() || '题库输出';
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('已下载 Markdown');
+}
+
+function inferQuestionDraft(rawText) {
+    const text = String(rawText || '').trim();
+    const grade = /初一|七年级/.test(text) ? '初一' : /初二|八年级/.test(text) ? '初二' : /初三|九年级|中考/.test(text) ? '初三' : /六年级|小升初/.test(text) ? '六年级' : '';
+    const chapter = /几何|三角形|圆|面积|角|线段/.test(text) ? '几何' : /方程|代数|未知数|x/.test(text) ? '代数' : /应用|行程|工程|浓度|利润|比例/.test(text) ? '应用题' : '计算';
+    const questionType = /证明/.test(text) ? '证明题' : /选择|A\.|B\.|C\.|D\./.test(text) ? '选择题' : /填空/.test(text) ? '填空题' : chapter === '几何' ? '几何题' : chapter === '应用题' ? '应用题' : '计算题';
+    const difficulty = /压轴|综合|证明|分类讨论/.test(text) ? '压轴' : /提高|拓展|变式/.test(text) ? '提高' : /基础|计算/.test(text) ? '基础' : '中等';
+    const formula = (text.match(/(?:公式|LaTeX|latex)[:：]?\s*([^\n]+)/i) || [])[1] || '';
+    const knowledgePoints = [];
+    ['分数', '比例', '方程', '行程', '几何', '面积', '有理数', '一次函数', '二次函数', '圆'].forEach(k => {
+        if (text.includes(k)) knowledgePoints.push(k);
+    });
+    return {
+        grade,
+        system: grade === '六年级' ? '小升初' : '校内',
+        chapter,
+        questionType,
+        difficulty,
+        knowledgePoints,
+        formulaLatex: formula,
+        stem: text.replace(/答案[:：][\s\S]*$/m, '').trim(),
+        answer: (text.match(/答案[:：]\s*([^\n]+)/) || [])[1] || '',
+        solution: (text.match(/解析[:：]\s*([\s\S]+)/) || [])[1] || '',
+        commonMistakes: '',
+        errorTags: [],
+        score: difficulty === '压轴' ? 10 : difficulty === '提高' ? 8 : 5,
+        estimatedMinutes: difficulty === '压轴' ? 12 : difficulty === '提高' ? 8 : 5,
+        status: 'active',
+        originText: text,
+        aiNotes: '由 AI 辅助录入入口按规则预分类，请保存前人工核对。'
+    };
+}
+
+function openQuestionAIModal() {
+    const modal = document.getElementById('modal');
+    const titleEl = document.getElementById('modalTitle');
+    const bodyEl = document.getElementById('modalBody');
+    if (!modal || !titleEl || !bodyEl) return;
+    titleEl.textContent = 'AI 辅助录入题目';
+    bodyEl.innerHTML = `
+        <div style="max-height:560px;overflow-y:auto;">
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px;">把截图 OCR 文本、手打题目、含 LaTeX 的题目粘贴到下面。系统会先做本地结构化预填；如需更细的讲解和变式建议，可在 AI 工作台用“题目分类规则”继续处理。</div>
+            <textarea id="aiQuestionRawText" rows="9" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="例：六年级 分数应用题\\n一项工程，甲单独做需要12天，乙单独做需要18天。两人合作多少天完成？\\n答案：36/5天\\n解析：工作效率相加..."></textarea>
+            <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="applyAIQuestionDraft()">生成预填并编辑</button>
+            </div>
+        </div>
+    `;
+    modal.classList.add('show');
+}
+
+function applyAIQuestionDraft() {
+    const raw = document.getElementById('aiQuestionRawText')?.value?.trim();
+    if (!raw) {
+        showToast('请先粘贴题目文本');
+        return;
+    }
+    const draft = inferQuestionDraft(raw);
+    closeModal();
+    openQuestionModal();
+    setTimeout(() => fillQuestionModal(draft), 80);
+}
+
+function fillQuestionModal(q) {
+    document.getElementById('qGrade').value = q.grade || '';
+    document.getElementById('qSystem').value = q.system || '校内';
+    document.getElementById('qChapter').value = q.chapter || '';
+    document.getElementById('qDifficulty').value = q.difficulty || '基础';
+    document.getElementById('qQuestionType').value = q.questionType || '';
+    document.getElementById('qScore').value = q.score || 5;
+    document.getElementById('qEstimatedMinutes').value = q.estimatedMinutes || 5;
+    document.getElementById('qVariantGroup').value = q.variantGroup || '';
+    document.getElementById('qStem').value = q.stem || '';
+    document.getElementById('qFormulaLatex').value = q.formulaLatex || '';
+    document.getElementById('qDiagramSvg').value = q.diagramSvg || '';
+    document.getElementById('qImageUrl').value = q.imageUrl || '';
+    document.getElementById('qAnswer').value = q.answer || '';
+    document.getElementById('qSolution').value = q.solution || '';
+    document.getElementById('qCommonMistakes').value = q.commonMistakes || '';
+    document.getElementById('qStatus').value = q.status || 'active';
+    document.getElementById('qRemark').value = q.remark || '';
+    document.getElementById('qOriginText').value = q.originText || '';
+    document.getElementById('qAiNotes').value = q.aiNotes || '';
+    document.getElementById('qKnowledgePoints').value = (q.knowledgePoints || []).join('/');
+    document.getElementById('qErrorTags').value = (q.errorTags || []).join(', ');
+}
+
+function getSampleQuestions() {
+    return [
+        {
+            id: 'sample-q-fraction-work-01',
+            grade: '六年级',
+            system: '小升初',
+            chapter: '应用题',
+            knowledgePoints: ['工程问题', '分数应用题', '单位1'],
+            questionType: '应用题',
+            difficulty: '中等',
+            score: 8,
+            estimatedMinutes: 8,
+            variantGroup: '工程问题-效率相加',
+            stem: '一项工程，甲单独做需要12天完成，乙单独做需要18天完成。两人合作，多少天可以完成？',
+            formulaLatex: '1 \\div (\\frac{1}{12}+\\frac{1}{18})',
+            answer: '36/5天',
+            solution: '甲的效率是1/12，乙的效率是1/18，合作效率为1/12+1/18=5/36，所以合作完成需要36/5天。',
+            commonMistakes: '把时间直接相加，或忘记先求工作效率。',
+            errorTags: ['单位1', '效率理解'],
+            status: 'active',
+            remark: '适合小升初分数应用题训练。'
+        },
+        {
+            id: 'sample-q-geometry-svg-01',
+            grade: '初一',
+            system: '校内',
+            chapter: '几何',
+            knowledgePoints: ['线段', '面积', '三角形'],
+            questionType: '几何题',
+            difficulty: '基础',
+            score: 6,
+            estimatedMinutes: 6,
+            variantGroup: '三角形面积-底高',
+            stem: '如图，三角形ABC中，BC=8cm，点A到BC的高为5cm，求三角形ABC的面积。',
+            formulaLatex: 'S=\\frac{1}{2}ah',
+            diagramSvg: '<svg width="180" height="120" viewBox="0 0 180 120" xmlns="http://www.w3.org/2000/svg"><line x1="25" y1="100" x2="155" y2="100" stroke="#333" stroke-width="2"/><line x1="25" y1="100" x2="80" y2="20" stroke="#333" stroke-width="2"/><line x1="80" y1="20" x2="155" y2="100" stroke="#333" stroke-width="2"/><line x1="80" y1="20" x2="80" y2="100" stroke="#e74c3c" stroke-dasharray="4 3"/><text x="75" y="16" font-size="12">A</text><text x="18" y="112" font-size="12">B</text><text x="158" y="112" font-size="12">C</text><text x="88" y="62" font-size="12" fill="#e74c3c">5</text><text x="82" y="116" font-size="12">8</text></svg>',
+            answer: '20平方厘米',
+            solution: '三角形面积=底×高÷2=8×5÷2=20平方厘米。',
+            commonMistakes: '忘记除以2，或把斜边当作高。',
+            errorTags: ['公式套用', '高的识别'],
+            status: 'active'
+        },
+        {
+            id: 'sample-q-equation-01',
+            grade: '初一',
+            system: '校内',
+            chapter: '代数',
+            knowledgePoints: ['一元一次方程', '移项', '合并同类项'],
+            questionType: '计算题',
+            difficulty: '基础',
+            score: 5,
+            estimatedMinutes: 5,
+            variantGroup: '一元一次方程-移项',
+            stem: '解方程：3x-5=16。',
+            formulaLatex: '3x-5=16',
+            answer: 'x=7',
+            solution: '两边同时加5，得3x=21，两边同时除以3，得x=7。',
+            commonMistakes: '移项变号错误，或最后没有除以系数。',
+            errorTags: ['移项', '系数处理'],
+            status: 'active'
+        },
+        {
+            id: 'sample-q-ratio-01',
+            grade: '六年级',
+            system: '小升初',
+            chapter: '应用题',
+            knowledgePoints: ['比例', '行程问题', '相遇问题'],
+            questionType: '应用题',
+            difficulty: '提高',
+            score: 10,
+            estimatedMinutes: 10,
+            variantGroup: '行程问题-相遇',
+            stem: '甲、乙两车同时从相距330千米的两地相向而行，甲车每小时60千米，乙车每小时50千米。几小时后两车相遇？',
+            formulaLatex: '330 \\div (60+50)',
+            answer: '3小时',
+            solution: '相遇时间=总路程÷速度和=330÷(60+50)=3小时。',
+            commonMistakes: '相向而行应使用速度和，不是速度差。',
+            errorTags: ['速度和', '相遇模型'],
+            status: 'active'
+        },
+        {
+            id: 'sample-q-quadratic-factor-01',
+            grade: '初三',
+            system: '中考',
+            chapter: '代数',
+            knowledgePoints: ['二次方程', '因式分解'],
+            questionType: '计算题',
+            difficulty: '中等',
+            score: 8,
+            estimatedMinutes: 8,
+            variantGroup: '二次方程-因式分解',
+            stem: '解方程：x²-5x+6=0。',
+            formulaLatex: 'x^2-5x+6=0',
+            answer: 'x=2或x=3',
+            solution: '原方程可化为(x-2)(x-3)=0，所以x=2或x=3。',
+            commonMistakes: '因式分解符号错误，或漏写一个根。',
+            errorTags: ['因式分解', '漏解'],
+            status: 'active'
+        }
+    ];
+}
+
+function importSampleQuestions() {
+    const samples = getSampleQuestions();
+    let success = 0;
+    let failed = 0;
+    Promise.all(samples.map(item => fetch(`/api/questions/${encodeURIComponent(item.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+    }).then(res => {
+        if (!res.ok) throw new Error(item.id);
+        success += 1;
+    }).catch(() => { failed += 1; }))).then(() => {
+        showToast(`示例题导入完成：成功 ${success} 题${failed ? `，失败 ${failed} 题` : ''}`);
+        loadQuestions();
+        loadKnowledgeSummary();
+    });
 }
 
 // ========== 辅助函数 ==========
@@ -1191,4 +1806,14 @@ window.openQuestionModal = openQuestionModal;
 window.saveQuestion = saveQuestion;
 window.editQuestion = editQuestion;
 window.deleteQuestion = deleteQuestion;
+window.toggleQuestionSelection = toggleQuestionSelection;
+window.selectAllVisibleQuestions = selectAllVisibleQuestions;
+window.clearSelectedQuestions = clearSelectedQuestions;
+window.clearQuestionFilters = clearQuestionFilters;
+window.generateQuestionOutput = generateQuestionOutput;
+window.copyQuestionOutput = copyQuestionOutput;
+window.downloadQuestionOutput = downloadQuestionOutput;
+window.openQuestionAIModal = openQuestionAIModal;
+window.applyAIQuestionDraft = applyAIQuestionDraft;
+window.importSampleQuestions = importSampleQuestions;
 window.copyKnowledgeText = copyKnowledgeText;

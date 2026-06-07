@@ -110,7 +110,8 @@ const TABLE_CONFIG = {
         required: ['stem'],
         writable: [
             'grade', 'system', 'chapter', 'knowledgePoints', 'questionType',
-            'difficulty', 'sourceId', 'sourceName', 'stem', 'answer', 'solution',
+            'difficulty', 'formulaLatex', 'diagramSvg', 'imageUrl', 'estimatedMinutes',
+            'score', 'variantGroup', 'originText', 'aiNotes', 'sourceId', 'sourceName', 'stem', 'answer', 'solution',
             'commonMistakes', 'errorTags', 'classType', 'usageCount', 'status', 'remark'
         ],
         columns: {
@@ -121,6 +122,14 @@ const TABLE_CONFIG = {
             knowledgePoints: 'knowledge_points_json',
             questionType: 'question_type',
             difficulty: 'difficulty',
+            formulaLatex: 'formula_latex',
+            diagramSvg: 'diagram_svg',
+            imageUrl: 'image_url',
+            estimatedMinutes: 'estimated_minutes',
+            score: 'score',
+            variantGroup: 'variant_group',
+            originText: 'origin_text',
+            aiNotes: 'ai_notes',
             sourceId: 'source_id',
             sourceName: 'source_name',
             stem: 'stem',
@@ -136,7 +145,9 @@ const TABLE_CONFIG = {
             updatedAt: 'updated_at'
         },
         defaults: {
-            difficulty: 'medium',
+            difficulty: '基础',
+            estimatedMinutes: 5,
+            score: 5,
             usageCount: 0,
             status: 'draft'
         }
@@ -207,7 +218,7 @@ function normalizeValue(key, value) {
         return toJsonArray(value);
     }
     if (key === 'isDefault') return normalizeBoolean(value);
-    if (key === 'chunkIndex' || key === 'tokenEstimate' || key === 'usageCount') return Number(value || 0);
+    if (key === 'chunkIndex' || key === 'tokenEstimate' || key === 'usageCount' || key === 'estimatedMinutes' || key === 'score') return Number(value || 0);
     return value === undefined || value === null ? '' : String(value);
 }
 
@@ -216,7 +227,7 @@ function denormalizeValue(key, value) {
         return parseJson(value, []);
     }
     if (key === 'isDefault') return Boolean(value);
-    if (key === 'chunkIndex' || key === 'tokenEstimate' || key === 'usageCount') return Number(value || 0);
+    if (key === 'chunkIndex' || key === 'tokenEstimate' || key === 'usageCount' || key === 'estimatedMinutes' || key === 'score') return Number(value || 0);
     return value ?? '';
 }
 

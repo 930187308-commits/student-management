@@ -319,6 +319,14 @@ function migrate() {
             knowledge_points_json TEXT,
             question_type TEXT,
             difficulty TEXT,
+            formula_latex TEXT,
+            diagram_svg TEXT,
+            image_url TEXT,
+            estimated_minutes INTEGER,
+            score INTEGER,
+            variant_group TEXT,
+            origin_text TEXT,
+            ai_notes TEXT,
             source_id TEXT,
             source_name TEXT,
             stem TEXT NOT NULL,
@@ -383,6 +391,15 @@ function ensureFieldColumns() {
     addColumnIfMissing('fees', 'student_name', 'TEXT');
     addColumnIfMissing('grades', 'student_name', 'TEXT');
     addColumnIfMissing('communications', 'student_name', 'TEXT');
+
+    addColumnIfMissing('question_items', 'formula_latex', 'TEXT');
+    addColumnIfMissing('question_items', 'diagram_svg', 'TEXT');
+    addColumnIfMissing('question_items', 'image_url', 'TEXT');
+    addColumnIfMissing('question_items', 'estimated_minutes', 'INTEGER');
+    addColumnIfMissing('question_items', 'score', 'INTEGER');
+    addColumnIfMissing('question_items', 'variant_group', 'TEXT');
+    addColumnIfMissing('question_items', 'origin_text', 'TEXT');
+    addColumnIfMissing('question_items', 'ai_notes', 'TEXT');
 }
 
 function nowIso() {
