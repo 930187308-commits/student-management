@@ -37,6 +37,7 @@ const TASK_NAMES = {
     'schedule-check': '排课冲突检查',
     'attendance-anomaly': '考勤异常检查',
     'class-full-check': '班级满班预警',
+    'renewal-reminder': '续费到期提醒',
 
     // 教研/题库/资料
     'lesson-plan': '教案框架',
@@ -73,6 +74,7 @@ const TASK_DATA_RANGES = {
     'schedule-check': ['班级上课时间', '学员班级归属', '用户补充说明'],
     'attendance-anomaly': ['考勤记录', '班级学员', '出勤异常摘要'],
     'class-full-check': ['班级人数', '班级容量', '组班状态'],
+    'renewal-reminder': ['待续费学员', '欠费记录', '课时不足摘要'],
     'lesson-plan': ['年级', '课程主题', '教学目标', '用户补充说明'],
     'exercise-recommend': ['年级', '知识点', '薄弱点', '用户补充说明'],
     'practice-suggestion': ['年级', '知识点', '薄弱点', '用户补充说明'],
@@ -442,7 +444,8 @@ function buildKnowledgeContext(task, payload) {
         styleSamples: [],
         sources: [],
         questions: [],
-        refs
+        refs,
+        warnings: []
     };
 
     const profiles = listResource('styleProfiles');
@@ -470,6 +473,8 @@ function buildKnowledgeContext(task, payload) {
             content: safeLongText(item.content, 600)
         }));
         knowledge.styleSamples.forEach(item => refs.push(toContextRef('style-sample', item, 'content')));
+    } else {
+        knowledge.warnings.push('知识库还没有风格配置，当前只使用系统默认“白老师风格”。');
     }
 
     const sources = listResource('knowledgeSources').filter(item => item.status !== 'archived');
@@ -499,6 +504,9 @@ function buildKnowledgeContext(task, payload) {
             }));
     }
     knowledge.sources.forEach(item => refs.push(toContextRef('source', item)));
+    if ((contentTasks.includes(task) || resourceTasks.includes(task)) && knowledge.sources.length === 0) {
+        knowledge.warnings.push('本次没有匹配到资料库内容，生成质量主要依赖你的输入。');
+    }
 
     if (teachingTasks.includes(task)) {
         knowledge.questions = pickKnowledgeItems(listResource('questionItems').filter(item => item.status !== 'archived'), keywords, 5)
@@ -514,6 +522,9 @@ function buildKnowledgeContext(task, payload) {
                 commonMistakes: safeText(item.commonMistakes, 200)
             }));
         knowledge.questions.forEach(item => refs.push(toContextRef('question', item, 'stem')));
+        if (knowledge.questions.length === 0) {
+            knowledge.warnings.push('本次没有匹配到题库内容，题库类结果会偏方案/规则，暂不能替代正式题库。');
+        }
     }
 
     return knowledge;
@@ -611,6 +622,7 @@ function getTaskOutputInstruction(task) {
         'monthly-report': '输出月度经营复盘：数据变化、风险、机会、下月动作。',
         'class-consumption': '输出课消分析：班级进度、课时风险、需要跟进的动作。',
         'tuition-warning': '输出欠费与续费预警：分类、优先级、建议动作，不要生成催收压力话术。',
+        'renewal-reminder': '输出续费到期提醒：按优先级列出需要跟进的人群、触发原因、建议动作和温和沟通提示。',
         'student-feedback': '输出学情反馈草稿：近期表现、进步、薄弱点、建议。务必像老师真实反馈，不要夸张。',
         'renewal-script': '输出续费沟通草稿：温和版、直接版、后续跟进提醒。不自动承诺效果。',
         'follow-reminder': '输出招生跟进清单和话术：下一步、家长可能顾虑、回复模板。',
@@ -779,6 +791,7 @@ function buildLogInput(context) {
 }
 
 async function generateAIResponse(payload) {
+    const startedAt = Date.now();
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
         const error = new Error('AI 请求内容必须是对象');
         error.statusCode = 400;
@@ -811,16 +824,27 @@ async function generateAIResponse(payload) {
     insertAiContextRefs(taskId, context.knowledge?.refs || []);
 
     try {
-        const warnings = [];
+        const warnings = [...(context.knowledge?.warnings || [])];
         let mode = status.mode;
         let result;
+        let fallbackFrom = '';
         if (status.enabled) {
-            result = await callRealAI(context);
+            try {
+                result = await callRealAI(context);
+            } catch (error) {
+                const message = error.name === 'AbortError' ? 'AI 接口超时' : error.message;
+                if (payload.fallbackOnError === false) throw error;
+                mode = 'local-template';
+                fallbackFrom = status.mode;
+                result = buildLocalTemplate(context);
+                warnings.push(`真实 AI 调用失败，已自动回退本地模板：${message}`);
+            }
         } else {
             mode = 'local-template';
             result = buildLocalTemplate(context);
             warnings.push('AI_PROVIDER 未启用或未配置密钥，已使用本地模板。');
         }
+        const elapsedMs = Date.now() - startedAt;
         updateAiTask(taskId, { outputText: result, status: 'done' });
         insertAgentLog({
             id: newId('agent_log'),
@@ -832,7 +856,9 @@ async function generateAIResponse(payload) {
                 success: true,
                 taskId,
                 outputLength: result.length,
-                warnings
+                warnings,
+                fallbackFrom,
+                elapsedMs
             },
             createdAt: nowIso()
         });
@@ -845,7 +871,9 @@ async function generateAIResponse(payload) {
             dataRange: context.dataRange,
             contextRefs: listAIContextRefs(taskId),
             privacyMode: context.privacyMode,
-            warnings
+            warnings,
+            fallbackFrom,
+            elapsedMs
         };
     } catch (error) {
         const message = error.name === 'AbortError' ? 'AI 接口超时，请稍后重试' : error.message;
@@ -870,12 +898,27 @@ async function generateAIResponse(payload) {
 }
 
 function listAITasks(limit = 30) {
-    return getDb().prepare(`
+    const rows = getDb().prepare(`
         SELECT id, task_type AS taskType, title, status, related_type AS relatedType, related_id AS relatedId, created_at AS createdAt, updated_at AS updatedAt
         FROM ai_tasks
         ORDER BY rowid DESC
         LIMIT ?
     `).all(limit);
+    const logs = listAgentLogs(Math.max(Number(limit) || 30, 30));
+    const outputByTaskId = new Map();
+    logs.forEach(log => {
+        const taskId = log.output?.taskId;
+        if (taskId && !outputByTaskId.has(taskId)) outputByTaskId.set(taskId, log.output);
+    });
+    return rows.map(row => {
+        const output = outputByTaskId.get(row.id) || {};
+        return {
+            ...row,
+            mode: output.mode || '',
+            fallbackFrom: output.fallbackFrom || '',
+            elapsedMs: output.elapsedMs || null
+        };
+    });
 }
 
 function listAgentLogs(limit = 30) {

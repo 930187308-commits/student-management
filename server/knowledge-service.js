@@ -200,6 +200,9 @@ function normalizeBoolean(value) {
 }
 
 function normalizeValue(key, value) {
+    if ((key === 'profileId' || key === 'sourceId' || key === 'aiTaskId') && (value === undefined || value === null || String(value).trim() === '')) {
+        return null;
+    }
     if (key === 'tags' || key === 'forbiddenWords' || key === 'preferredPhrases' || key === 'knowledgePoints' || key === 'errorTags') {
         return toJsonArray(value);
     }

@@ -921,7 +921,7 @@ function updateDataRangeInfo(taskType) {
     const range = TASK_DATA_RANGES[taskType] || '当前模块摘要、用户补充说明';
     rangeContent.innerHTML = `
         <div class="ai-data-range-item"><span class="ai-data-range-key">读取范围</span><span class="ai-data-range-val">${escapeHtml(range)}</span></div>
-        <div class="ai-data-range-item"><span class="ai-data-range-key">隐私模式</span><span class="ai-data-range-val">${aiPrivacyMode === 'named' ? '带姓名（已脱敏）' : '脱敏生成'}</span></div>
+        <div class="ai-data-range-item"><span class="ai-data-range-key">隐私模式</span><span class="ai-data-range-val">${aiPrivacyMode === 'named' ? '带姓名生成' : '脱敏生成'}</span></div>
     `;
     rangeInfo.style.display = 'block';
 }
@@ -1009,6 +1009,20 @@ function doRunAgentTask(input, agentNames, taskNames) {
     const output = document.getElementById('agentOutput');
     const btn = document.getElementById('generateBtn');
     if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
+    window._aiGenerateTimeout = setTimeout(() => {
+        const currentBtn = document.getElementById('generateBtn');
+        if (currentBtn && currentBtn.disabled) {
+            currentBtn.textContent = '生成较慢，请稍后...';
+        }
+        const currentOutput = document.getElementById('agentOutput');
+        if (currentOutput && currentOutput.innerText.includes('生成中')) {
+            currentOutput.innerHTML = `<div class="ai-output-placeholder">
+<div style="font-size:24px;margin-bottom:8px;">⏳</div>
+<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">生成时间较长</div>
+<div style="color:var(--text-muted);">真实 AI 仍在处理中，请稍等；如果稍后失败，系统会自动回退本地模板。</div>
+</div>`;
+        }
+    }, 30000);
 
     const advancedText = collectAdvancedOptions();
     const styleNote = getStyleNote();
@@ -1023,13 +1037,22 @@ function doRunAgentTask(input, agentNames, taskNames) {
         relatedType: currentRelatedType,
         relatedId: currentRelatedId,
     };
+    output.innerHTML = `<div class="ai-output-placeholder">
+<div style="font-size:24px;margin-bottom:8px;">🤖</div>
+<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">生成中</div>
+<div style="color:var(--text-muted);">正在读取业务数据和知识库上下文...</div>
+</div>`;
 
     fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
     })
-    .then(res => { if (!res.ok) throw new Error('API 请求失败'); return res.json(); })
+    .then(async res => {
+        const parsed = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(parsed.error || parsed.message || 'API 请求失败');
+        return parsed;
+    })
     .then(response => {
         clearTimeout(window._aiGenerateTimeout);
         lastTaskId = response.taskId || '';
@@ -1048,8 +1071,9 @@ function doRunAgentTask(input, agentNames, taskNames) {
             ? `<div style="font-size:12px;margin-bottom:8px;">
                 <span style="color:#27ae60;">✅ 真实 AI</span>
                 <span style="color:${hasContextRefs ? '#27ae60' : '#f39c12'};margin-left:8px;">· ${hasContextRefs ? '已引用知识库' : '未引用知识库'}</span>
+                ${response.elapsedMs ? `<span style="color:var(--text-muted);margin-left:8px;">· ${Math.round(response.elapsedMs / 1000)}秒</span>` : ''}
                </div>`
-            : '<div style="font-size:12px;color:#888;margin-bottom:8px;">📋 本次由本地模板生成，真实 AI 尚未启用。</div>';
+            : `<div style="font-size:12px;color:#888;margin-bottom:8px;">📋 本次由本地模板生成${response.fallbackFrom ? '，真实 AI 已自动回退' : '，真实 AI 尚未启用'}。</div>`;
         output.innerHTML = `<div class="ai-output-text">${renderMarkdown(response.result || '')}</div>${modeNote}`;
 
         document.getElementById('outputActions').style.display = 'block';
@@ -1070,24 +1094,12 @@ function doRunAgentTask(input, agentNames, taskNames) {
         clearTimeout(window._aiGenerateTimeout);
         output.innerHTML = `<div class="ai-output-placeholder">
 <div style="font-size:24px;margin-bottom:8px;">🤖</div>
-<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">接口调用失败，已回退本地模板</div>
+<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">接口调用失败</div>
 <div style="color:var(--text-muted);">${escapeHtml(err.message || '生成失败')}</div>
 </div>`;
-        showToast('生成失败，已回退本地模板');
+        showToast('生成失败');
     })
     .finally(() => { if (btn) { btn.disabled = false; btn.textContent = '生成结果'; } });
-
-    window._aiGenerateTimeout = setTimeout(() => {
-        const btn = document.getElementById('generateBtn');
-        if (btn && !btn.disabled) return;
-        if (btn) { btn.disabled = true; btn.textContent = '生成较慢，请稍后...'; }
-        output.innerHTML = `<div class="ai-output-placeholder">
-<div style="font-size:24px;margin-bottom:8px;">⏳</div>
-<div style="font-weight:600;color:var(--text-secondary);margin-bottom:4px;">生成时间较长</div>
-<div style="color:var(--text-muted);">超过30秒未返回结果，请稍后重试或使用本地模板。</div>
-</div>`;
-        showToast('生成超时，可稍后重试');
-    }, 30000);
 }
 
 function collectAdvancedOptions() {
@@ -1171,8 +1183,6 @@ function updateTaskRecordInfo() {
 }
 
 function regenerateResult() {
-    const input = document.getElementById('agentInput');
-    if (input) input.value = '';
     runAgentTask();
 }
 
@@ -1373,7 +1383,7 @@ function resetStyleSettings() {
 function loadAgentLogsFromServer() {
     fetch('/api/agent-logs')
         .then(res => res.json())
-        .then(logs => { renderAgentLogsFromServer(logs); })
+        .then(payload => { renderAgentLogsFromServer(payload.logs || payload || []); })
         .catch(() => {});
 }
 
@@ -1383,10 +1393,13 @@ function renderAgentLogsFromServer(logs) {
     if (!logs || logs.length === 0) { logArea.innerHTML = '<div class="ai-log-empty">暂无 Agent 调用记录</div>'; return; }
     logArea.innerHTML = logs.slice(0, 20).map(log => {
         const time = log.createdAt ? new Date(log.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
-        const mode = log.mode === 'real-ai' ? '<span style="color:#27ae60;">真实 AI</span>' : '<span style="color:#888;">本地模板</span>';
-        const success = log.success !== false;
+        const output = log.output || {};
+        const mode = output.mode === 'real-ai' ? '<span style="color:#27ae60;">真实 AI</span>' : '<span style="color:#888;">本地模板</span>';
+        const success = output.success !== false;
         const statusBadge = success ? '<span style="color:#27ae60;font-size:11px;font-weight:600;">成功</span>' : '<span style="color:#e74c3c;font-size:11px;font-weight:600;">失败</span>';
-        return `<div class="ai-log-item" style="margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--border-color);">[${time}] ${escapeHtml(log.agent || '')} · ${escapeHtml(log.action || '')} · ${mode} · ${statusBadge}</div>`;
+        const fallbackBadge = output.fallbackFrom ? ' · <span style="color:#f39c12;">已回退</span>' : '';
+        const elapsed = output.elapsedMs ? ` · ${Math.round(output.elapsedMs / 1000)}秒` : '';
+        return `<div class="ai-log-item" style="margin-bottom:4px;padding:4px 0;border-bottom:1px solid var(--border-color);">[${time}] ${escapeHtml(log.agentName || log.agent || '')} · ${escapeHtml(log.action || '')} · ${mode}${fallbackBadge}${elapsed} · ${statusBadge}</div>`;
     }).join('');
 }
 
@@ -1395,7 +1408,7 @@ function refreshAgentLogs() { loadAgentLogsFromServer(); showToast('日志已刷
 function loadAITasksFromServer() {
     fetch('/api/ai/tasks')
         .then(res => res.json())
-        .then(tasks => { renderAITasksList(tasks); })
+        .then(payload => { renderAITasksList(payload.tasks || payload || []); })
         .catch(() => { const area = document.getElementById('aiTasksArea'); if (area) area.innerHTML = '<div class="ai-log-empty">暂无生成记录</div>'; });
 }
 
@@ -1407,8 +1420,9 @@ function renderAITasksList(tasks) {
         const time = task.createdAt ? new Date(task.createdAt).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         const title = task.title || task.agent || '未知任务';
         const statusBadge = task.status === 'done' ? '<span style="color:#27ae60;font-size:11px;font-weight:600;">已完成</span>' : task.status === 'failed' ? '<span style="color:#e74c3c;font-size:11px;font-weight:600;">失败</span>' : '<span style="color:#f39c12;font-size:11px;">进行中</span>';
-        const mode = task.mode === 'real-ai' ? '<span style="color:#27ae60;font-size:11px;">真实 AI</span>' : '<span style="color:#888;font-size:11px;">本地模板</span>';
-        return `<div class="ai-log-item">[${time}] ${escapeHtml(title)} · ${statusBadge} · ${mode}</div>`;
+        const mode = task.mode === 'real-ai' ? '<span style="color:#27ae60;font-size:11px;">真实 AI</span>' : task.mode === 'local-template' ? '<span style="color:#888;font-size:11px;">本地模板</span>' : '<span style="color:#888;font-size:11px;">模式待记录</span>';
+        const fallback = task.fallbackFrom ? ' · <span style="color:#f39c12;font-size:11px;">已回退</span>' : '';
+        return `<div class="ai-log-item">[${time}] ${escapeHtml(title)} · ${statusBadge} · ${mode}${fallback}</div>`;
     }).join('');
 }
 
@@ -1510,6 +1524,9 @@ function previewContextRefs() {
         agent: currentAgentId,
         task: currentTaskType,
         userInstruction: input || '(空)',
+        privacyMode: aiPrivacyMode,
+        relatedType: currentRelatedType,
+        relatedId: currentRelatedId,
     };
 
     fetch('/api/ai/context-preview', {
@@ -1532,7 +1549,15 @@ function previewContextRefs() {
                 <div style="font-size:14px;font-weight:600;">${escapeHtml(taskNames[currentTaskType] || currentTaskType)}</div>
             </div>`;
 
-        if (!data.refs || data.refs.length === 0) {
+        const refs = data.refs || data.knowledge?.refs || [];
+        const warnings = data.warnings || data.knowledge?.warnings || [];
+        if (warnings.length > 0) {
+            html += `<div style="margin-bottom:12px;padding:8px 10px;background:#fff8e1;border:1px solid #f1c40f;border-radius:6px;color:#7a5d00;font-size:12px;">
+                ${warnings.map(item => `<div>⚠️ ${escapeHtml(item)}</div>`).join('')}
+            </div>`;
+        }
+
+        if (refs.length === 0) {
             html += `<div style="text-align:center;padding:24px;color:var(--text-muted);">
                 <div style="font-size:32px;margin-bottom:8px;">📭</div>
                 <div style="font-size:13px;">知识库暂无可引用资料</div>
@@ -1540,7 +1565,7 @@ function previewContextRefs() {
             </div>`;
         } else {
             const grouped = {};
-            data.refs.forEach(ref => {
+            refs.forEach(ref => {
                 const type = ref.refType || ref.type || 'unknown';
                 if (!grouped[type]) grouped[type] = [];
                 grouped[type].push(ref);

@@ -257,6 +257,8 @@ async function handleApi(req, res, pathname) {
             dataRange: context.dataRange,
             privacyMode: context.privacyMode,
             knowledge: context.knowledge || { refs: [] },
+            refs: context.knowledge?.refs || [],
+            warnings: context.knowledge?.warnings || [],
             businessContextType: context.context?.type || ''
         });
         return true;

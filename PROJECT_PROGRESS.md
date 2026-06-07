@@ -1507,3 +1507,42 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - `index.html` — 新增知识库 tab 和容器
 - `js/data.js` — render() 新增 renderKnowledge()
 - `js/knowledge.js` — 新建，风格库/资料库/题库管理页面
+
+### 8B AI 接口与工作台稳定性优化（2026-06-08）
+
+**目标**：页面结构基本稳定后，优先把 AI 接口、知识库引用和工作台真实可用性补齐。
+
+#### A. 后端 AI 接口
+- 前端所有可点击任务均已被后端识别，补齐 `renewal-reminder`
+- `/api/ai/context-preview` 同时返回 `refs` 和 `warnings`，方便前端直接展示引用预览
+- 真实 AI 调用失败时默认自动回退本地模板，并在 warnings 中说明原因
+- AI 任务日志记录 `mode`、`fallbackFrom`、`elapsedMs`
+- `/api/ai/tasks` 返回最近任务时补充真实 AI / 本地模板模式
+
+#### B. 知识库接入
+- 修复风格样本可选 `profileId` 写入空字符串导致 SQLite 外键失败的问题
+- 已执行 Obsidian 知识库导入：
+  - 3 个风格配置
+  - 1 个风格样本
+  - 10 条资料来源
+- 导入前自动备份 SQLite 和 JSON
+
+#### C. 前端 AI 工作台
+- 最近生成记录和 Agent 日志正确解析后端 `{ tasks }` / `{ logs }`
+- 日志显示真实 AI / 本地模板 / 已回退 / 生成耗时
+- 引用预览携带当前隐私模式、关联学员/意向学员
+- 引用预览展示知识库 warnings
+- 重新生成保留原输入，不再清空
+- 生成中状态更准确，超 30 秒只提示“生成较慢”，不提前判定失败
+
+#### D. 验证
+- `npm run check` 通过
+- `npm run knowledge:runtime-check` 通过
+- `npm run ai:runtime-check` 通过
+- AI mode: `real-ai (minimax)`
+
+**修改文件**
+- `server/ai-service.js`
+- `server/server.js`
+- `server/knowledge-service.js`
+- `js/ai-workspace.js`
