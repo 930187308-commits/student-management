@@ -1608,24 +1608,56 @@ function openQuestionAIModal() {
     titleEl.textContent = 'AI 辅助录入题目';
     bodyEl.innerHTML = `
         <div style="max-height:560px;overflow-y:auto;">
-            <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px;">把截图 OCR 文本、手打题目、含 LaTeX 的题目粘贴到下面。系统会先做本地结构化预填；如需更细的讲解和变式建议，可在 AI 工作台用“题目分类规则”继续处理。</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px;">把截图 OCR 文本、手打题目、含 LaTeX 的题目粘贴到下面。系统会先做本地结构化预填，并尝试调用真实 AI 生成分类、易错点和变式建议；接口不可用时自动保留本地预填。</div>
             <textarea id="aiQuestionRawText" rows="9" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="例：六年级 分数应用题\\n一项工程，甲单独做需要12天，乙单独做需要18天。两人合作多少天完成？\\n答案：36/5天\\n解析：工作效率相加..."></textarea>
             <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-                <button class="btn btn-primary" onclick="applyAIQuestionDraft()">生成预填并编辑</button>
+                <button id="aiQuestionApplyBtn" class="btn btn-primary" onclick="applyAIQuestionDraft()">生成预填并编辑</button>
             </div>
         </div>
     `;
     modal.classList.add('show');
 }
 
-function applyAIQuestionDraft() {
+async function applyAIQuestionDraft() {
     const raw = document.getElementById('aiQuestionRawText')?.value?.trim();
     if (!raw) {
         showToast('请先粘贴题目文本');
         return;
     }
+    const btn = document.getElementById('aiQuestionApplyBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '生成中...';
+    }
     const draft = inferQuestionDraft(raw);
+    try {
+        const res = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                agent: 'teaching-agent',
+                task: 'question-classify',
+                userInstruction: raw,
+                privacyMode: 'masked',
+                fallbackOnError: true
+            })
+        });
+        const response = await res.json().catch(() => ({}));
+        if (res.ok && response.result) {
+            const modeLabel = response.mode === 'real-ai' ? '真实 AI' : '本地模板';
+            draft.aiNotes = `${modeLabel} 分类建议：\n${response.result}`;
+        } else if (response.error || response.message) {
+            draft.aiNotes = `${draft.aiNotes}\nAI 接口提示：${response.error || response.message}`;
+        }
+    } catch (error) {
+        draft.aiNotes = `${draft.aiNotes}\nAI 接口暂不可用，已使用本地规则预填。`;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '生成预填并编辑';
+        }
+    }
     closeModal();
     openQuestionModal();
     setTimeout(() => fillQuestionModal(draft), 80);

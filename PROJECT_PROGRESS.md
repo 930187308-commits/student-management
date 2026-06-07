@@ -1642,6 +1642,8 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
   - 难度
   - 知识点
   - 答案/解析
+- 同时调用 `/api/ai/generate` 的 `question-classify` 任务，把真实 AI 的分类、易错点、讲解和变式建议写入“AI 辅助说明”字段。
+- AI 接口失败时自动保留本地预填，不阻断录题。
 - 保存前仍由老师人工核对。
 
 #### E. 题库输出
