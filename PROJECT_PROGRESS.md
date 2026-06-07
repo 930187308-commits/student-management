@@ -1546,3 +1546,57 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - `server/server.js`
 - `server/knowledge-service.js`
 - `js/ai-workspace.js`
+
+### 8C AI 工作台前端可用性与知识库字段修复（2026-06-08）
+
+**目标**：继续把 AI 工作台从“接口可用”打磨到“日常可用”，并修复知识库前端字段映射问题。
+
+#### A. AI 工作台
+- 输出区顶部新增运行状态条：
+  - 真实 AI / 本地模板
+  - 是否已回退
+  - 是否引用知识库
+  - 生成耗时
+  - 老师确认后使用提示
+- warnings 改为独立提示行，避免混入正文
+- 引用资料区优化：
+  - 无引用时提示去知识库补充风格样本/资料/题库规则
+  - 每类引用默认显示前 3 条
+  - 超过 3 条用折叠区展开
+- 内容生产中心增加工作流提示：
+  - 选题 → 大纲 → 初稿 → 润色 → 标题优化
+- “填入示例”扩展到内容、题库、资料、经营、学情、招生等主要任务
+- “重新生成”保留原输入，不清空需求
+
+#### B. 草稿箱
+- 筛选从粗略中心改为更贴近使用场景：
+  - 公众号 / 小红书 / 视频号 / 题库 / 资料 / 经营
+- 草稿卡片显示任务类型、生成模式、时间、前 80 字摘要
+- “继续生成”会切回对应中心/任务并回填输入框，不自动调用 AI
+
+#### C. 知识库前端 bug 修复
+- 修复 API 字段不匹配：
+  - 后端返回 camelCase：`rulesText`、`isDefault`、`sampleType`、`trustLevel`、`questionType` 等
+  - 前端旧代码误用 snake_case，导致新增/编辑字段可能无法正常写入
+- 修复列表接口解析：
+  - `/api/style/profiles` 返回 `{ profiles }`
+  - `/api/style/samples` 返回 `{ samples }`
+  - `/api/knowledge/sources` 返回 `{ sources }`
+  - `/api/questions` 返回 `{ questions }`
+- 修复知识库统计字段：
+  - 使用 `sources/styleProfiles/styleSamples/questions`
+- 修复默认打开知识库时风格列表不自动加载的问题
+- 风格样本类型筛选、题库章节/难度筛选改为前端二次筛选，保证显示有效
+
+#### D. 验证
+- `node --check js/ai-workspace.js` 通过
+- `node --check js/knowledge.js` 通过
+- `npm run check` 通过
+- 浏览器验证：
+  - AI 工作台显示真实 AI、工作流提示、生成按钮、预览引用
+  - 知识库显示资料 10、风格配置 3、风格样本 1、题目 0
+  - 风格配置/样本默认列表可直接加载
+
+**修改文件**
+- `js/ai-workspace.js`
+- `js/knowledge.js`

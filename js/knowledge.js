@@ -3,6 +3,16 @@
 let knowledgeActiveTab = 'style';
 let knowledgeSummary = null;
 
+function getApiList(payload, key) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.[key])) return payload[key];
+    return [];
+}
+
+function splitInputList(value, separator = /[,，\n]/) {
+    return String(value || '').split(separator).map(item => item.trim()).filter(Boolean);
+}
+
 // ========== 渲染知识库 ==========
 function renderKnowledge() {
     const container = document.getElementById('tab-knowledge');
@@ -65,6 +75,7 @@ function renderKnowledge() {
                         <div style="font-size:11px;color:var(--text-muted);">
                             默认 Obsidian 路径：<code style="font-size:10px;">/Users/bzx/Library/Mobile Documents/com~apple~CloudDocs/ObsidianVaults/AI 教培工作台</code>
                         </div>
+                        <div id="knowledgeImportStatus" style="font-size:11px;color:var(--text-muted);margin-top:8px;">当前知识库状态加载中...</div>
                     </div>
                 </div>
             </div>
@@ -80,7 +91,7 @@ function renderKnowledge() {
             <!-- 风格库 Tab -->
             <div id="ktabStyle" class="knowledge-subtab-content">
                 <div class="card" style="padding:10px 12px;background:#fffbe6;border-radius:8px;margin-bottom:8px;">
-                    <div style="font-size:11px;color:#856404;">💡 录入提示：可从 Obsidian 的"AI教培工作台/风格库/白老师风格规则.md"复制规则，或从"内容样本.md"复制样本内容。</div>
+                    <div style="font-size:11px;color:#856404;">💡 录入提示：默认风格会优先进入 AI 生成上下文。“白老师风格规则”越清楚，公众号、小红书、视频号草稿越接近你的表达方式。</div>
                 </div>
                 <div class="card">
                     <div class="knowledge-section-header">
@@ -112,7 +123,7 @@ function renderKnowledge() {
             <!-- 资料库 Tab -->
             <div id="ktabSource" class="knowledge-subtab-content" style="display:none;">
                 <div class="card" style="padding:10px 12px;background:#fffbe6;border-radius:8px;margin-bottom:8px;">
-                    <div style="font-size:11px;color:#856404;">💡 录入提示：可从 Obsidian 的"AI教培工作台/资料库/小升初资料.md、中考资料.md、家长常见问题.md"复制摘要进来。</div>
+                    <div style="font-size:11px;color:#856404;">💡 录入提示：资料越具体，AI 越像真实业务助手。建议资料写清楚来源、适用年级、可信度和可直接使用的结论。</div>
                 </div>
                 <div class="card">
                     <div class="knowledge-section-header">
@@ -355,6 +366,8 @@ function renderKnowledge() {
     `;
 
     loadKnowledgeSummary();
+    loadStyleProfiles();
+    loadStyleSamples();
 }
 
 function switchKnowledgeTab(tab) {
@@ -376,13 +389,21 @@ function loadKnowledgeSummary() {
         .then(res => res.json())
         .then(data => {
             knowledgeSummary = data;
-            document.getElementById('statKnowledgeCount').textContent = data.knowledgeCount || 0;
-            document.getElementById('statStyleCount').textContent = data.styleProfileCount || 0;
-            document.getElementById('statSampleCount').textContent = data.styleSampleCount || 0;
-            document.getElementById('statQuestionCount').textContent = data.questionCount || 0;
+            const sourceCount = data.knowledgeCount ?? data.sources ?? 0;
+            const styleCount = data.styleProfileCount ?? data.styleProfiles ?? 0;
+            const sampleCount = data.styleSampleCount ?? data.styleSamples ?? 0;
+            const questionCount = data.questionCount ?? data.questions ?? 0;
+            document.getElementById('statKnowledgeCount').textContent = sourceCount;
+            document.getElementById('statStyleCount').textContent = styleCount;
+            document.getElementById('statSampleCount').textContent = sampleCount;
+            document.getElementById('statQuestionCount').textContent = questionCount;
+            const importStatus = document.getElementById('knowledgeImportStatus');
+            if (importStatus) {
+                importStatus.textContent = `当前已导入/录入：资料 ${sourceCount} 条，风格配置 ${styleCount} 个，风格样本 ${sampleCount} 条，题目 ${questionCount} 条。`;
+            }
 
             // 显示空状态提示
-            const total = (data.knowledgeCount || 0) + (data.styleProfileCount || 0) + (data.styleSampleCount || 0) + (data.questionCount || 0);
+            const total = sourceCount + styleCount + sampleCount + questionCount;
             const emptyHint = document.getElementById('knowledgeEmptyHint');
             if (emptyHint) {
                 emptyHint.style.display = total === 0 ? 'block' : 'none';
@@ -402,7 +423,7 @@ function loadKnowledgeSummary() {
 function loadStyleProfiles() {
     fetch('/api/style/profiles')
         .then(res => res.json())
-        .then(profiles => renderStyleProfiles(profiles))
+        .then(payload => renderStyleProfiles(getApiList(payload, 'profiles')))
         .catch(() => renderStyleProfiles([]));
 }
 
@@ -415,8 +436,8 @@ function renderStyleProfiles(profiles) {
     }
     area.innerHTML = profiles.map(p => {
         const platformBadge = { general: '通用', wechat: '公众号', xiaohongshu: '小红书', video: '视频号', parent: '家长沟通' }[p.platform] || p.platform || '通用';
-        const defaultBadge = p.is_default ? '<span class="knowledge-badge knowledge-badge-default">默认</span>' : '';
-        const rulesText = p.rules_text || '';
+        const defaultBadge = p.isDefault ? '<span class="knowledge-badge knowledge-badge-default">默认</span>' : '';
+        const rulesText = p.rulesText || '';
         const rulesShort = rulesText ? escapeHtml(rulesText.substring(0, 80)) + (rulesText.length > 80 ? '...' : '') : '';
         return `<div class="knowledge-item">
             <div class="knowledge-item-header">
@@ -498,10 +519,10 @@ function saveStyleProfile(profileId) {
     const payload = {
         name: name,
         platform: document.getElementById('spPlatform')?.value || 'general',
-        rules_text: document.getElementById('spRules')?.value?.trim() || '',
-        forbidden_words_json: JSON.stringify(document.getElementById('spForbidden')?.value?.trim()?.split('\n')?.filter(w => w.trim()) || []),
-        preferred_phrases_json: JSON.stringify(document.getElementById('spPreferred')?.value?.trim()?.split('\n')?.filter(w => w.trim()) || []),
-        is_default: document.getElementById('spDefault')?.checked ? 1 : 0,
+        rulesText: document.getElementById('spRules')?.value?.trim() || '',
+        forbiddenWords: splitInputList(document.getElementById('spForbidden')?.value, /\n/),
+        preferredPhrases: splitInputList(document.getElementById('spPreferred')?.value, /\n/),
+        isDefault: document.getElementById('spDefault')?.checked,
     };
 
     const method = profileId ? 'PUT' : 'POST';
@@ -525,21 +546,16 @@ function saveStyleProfile(profileId) {
 function editStyleProfile(profileId) {
     fetch(`/api/style/profiles/${profileId}`)
         .then(res => res.json())
-        .then(profile => {
+        .then(payload => {
+            const profile = payload.profile || payload;
             openStyleProfileModal(profileId);
             setTimeout(() => {
                 document.getElementById('spName').value = profile.name || '';
                 document.getElementById('spPlatform').value = profile.platform || 'general';
-                document.getElementById('spRules').value = profile.rules_text || '';
-                try {
-                    const forbidden = JSON.parse(profile.forbidden_words_json || '[]');
-                    document.getElementById('spForbidden').value = forbidden.join('\n');
-                } catch (e) {}
-                try {
-                    const preferred = JSON.parse(profile.preferred_phrases_json || '[]');
-                    document.getElementById('spPreferred').value = preferred.join('\n');
-                } catch (e) {}
-                document.getElementById('spDefault').checked = !!profile.is_default;
+                document.getElementById('spRules').value = profile.rulesText || '';
+                document.getElementById('spForbidden').value = (profile.forbiddenWords || []).join('\n');
+                document.getElementById('spPreferred').value = (profile.preferredPhrases || []).join('\n');
+                document.getElementById('spDefault').checked = !!profile.isDefault;
             }, 50);
         })
         .catch(() => showToast('读取失败'));
@@ -565,7 +581,11 @@ function loadStyleSamples() {
 
     fetch(url)
         .then(res => res.json())
-        .then(samples => renderStyleSamples(samples))
+        .then(payload => {
+            let samples = getApiList(payload, 'samples');
+            if (typeFilter) samples = samples.filter(item => item.sampleType === typeFilter);
+            renderStyleSamples(samples);
+        })
         .catch(() => renderStyleSamples([]));
 }
 
@@ -579,7 +599,7 @@ function renderStyleSamples(samples) {
     area.innerHTML = samples.map(s => {
         const typeLabels = { article: '文章', note: '笔记', script: '口播', 'parent-message': '家长沟通', moment: '朋友圈' };
         const qualityLabels = { good: '✅ 好', ok: '⚠️ 一般', avoid: '❌ 避免' };
-        const typeLabel = typeLabels[s.sample_type] || s.sample_type || '';
+        const typeLabel = typeLabels[s.sampleType] || s.sampleType || '';
         const qualityLabel = qualityLabels[s.quality] || s.quality || '';
         return `<div class="knowledge-item">
             <div class="knowledge-item-header">
@@ -658,10 +678,10 @@ function saveStyleSample(sampleId) {
 
     const payload = {
         title: title,
-        sample_type: document.getElementById('ssType')?.value || 'article',
+        sampleType: document.getElementById('ssType')?.value || 'article',
         content: document.getElementById('ssContent')?.value?.trim() || '',
         quality: document.getElementById('ssQuality')?.value || 'ok',
-        tags_json: JSON.stringify(tags),
+        tags,
     };
 
     const method = sampleId ? 'PUT' : 'POST';
@@ -685,17 +705,15 @@ function saveStyleSample(sampleId) {
 function editStyleSample(sampleId) {
     fetch(`/api/style/samples/${sampleId}`)
         .then(res => res.json())
-        .then(sample => {
+        .then(payload => {
+            const sample = payload.sample || payload;
             openStyleSampleModal(sampleId);
             setTimeout(() => {
                 document.getElementById('ssTitle').value = sample.title || '';
-                document.getElementById('ssType').value = sample.sample_type || 'article';
+                document.getElementById('ssType').value = sample.sampleType || 'article';
                 document.getElementById('ssContent').value = sample.content || '';
                 document.getElementById('ssQuality').value = sample.quality || 'ok';
-                try {
-                    const tags = JSON.parse(sample.tags_json || '[]');
-                    document.getElementById('ssTags').value = tags.join(', ');
-                } catch (e) {}
+                document.getElementById('ssTags').value = (sample.tags || []).join(', ');
             }, 50);
         })
         .catch(() => showToast('读取失败'));
@@ -723,7 +741,7 @@ function loadKnowledgeSources() {
 
     fetch(url)
         .then(res => res.json())
-        .then(sources => renderKnowledgeSources(sources))
+        .then(payload => renderKnowledgeSources(getApiList(payload, 'sources')))
         .catch(() => renderKnowledgeSources([]));
 }
 
@@ -739,8 +757,8 @@ function renderKnowledgeSources(sources) {
         const trustLabels = { high: '✅ 高', medium: '⚠️ 中', low: '❌ 低', unknown: '❓ 未知' };
         const sourceTypeLabels = { manual: '手动', obsidian: 'Obsidian', file: '文件', url: '链接' };
         const categoryLabel = categoryLabels[s.category] || s.category || '';
-        const trustLabel = trustLabels[s.trust_level] || s.trust_level || '';
-        const sourceTypeLabel = sourceTypeLabels[s.source_type] || s.source_type || '';
+        const trustLabel = trustLabels[s.trustLevel] || s.trustLevel || '';
+        const sourceTypeLabel = sourceTypeLabels[s.sourceType] || s.sourceType || '';
 
         return `<div class="knowledge-item">
             <div class="knowledge-item-header">
@@ -748,7 +766,7 @@ function renderKnowledgeSources(sources) {
                     <div class="knowledge-item-title">${escapeHtml(s.title || '')}</div>
                     <div class="knowledge-item-meta">
                         <span class="knowledge-badge knowledge-badge-source">${escapeHtml(categoryLabel)}</span>
-                        <span class="knowledge-badge ${s.trust_level === 'high' ? 'knowledge-badge-active' : s.trust_level === 'low' ? 'knowledge-badge-draft' : 'knowledge-badge-archived'}">${escapeHtml(trustLabel)}</span>
+                        <span class="knowledge-badge ${s.trustLevel === 'high' ? 'knowledge-badge-active' : s.trustLevel === 'low' ? 'knowledge-badge-draft' : 'knowledge-badge-archived'}">${escapeHtml(trustLabel)}</span>
                         <span style="font-size:10px;color:var(--text-muted);">${escapeHtml(sourceTypeLabel)}</span>
                     </div>
                 </div>
@@ -855,15 +873,15 @@ function saveKnowledgeSource(sourceId) {
 
     const payload = {
         title: title,
-        source_type: document.getElementById('ksSourceType')?.value || 'manual',
+        sourceType: document.getElementById('ksSourceType')?.value || 'manual',
         category: document.getElementById('ksCategory')?.value || 'resource',
-        sub_category: document.getElementById('ksSubCategory')?.value?.trim() || '',
+        subCategory: document.getElementById('ksSubCategory')?.value?.trim() || '',
         grade: document.getElementById('ksGrade')?.value || '',
-        trust_level: document.getElementById('ksTrustLevel')?.value || 'unknown',
-        tags_json: JSON.stringify(tags),
+        trustLevel: document.getElementById('ksTrustLevel')?.value || 'unknown',
+        tags,
         summary: document.getElementById('ksSummary')?.value?.trim() || '',
-        raw_text: document.getElementById('ksRawText')?.value?.trim() || '',
-        file_path: document.getElementById('ksFilePath')?.value?.trim() || '',
+        rawText: document.getElementById('ksRawText')?.value?.trim() || '',
+        filePath: document.getElementById('ksFilePath')?.value?.trim() || '',
         status: 'active',
     };
 
@@ -888,22 +906,20 @@ function saveKnowledgeSource(sourceId) {
 function editKnowledgeSource(sourceId) {
     fetch(`/api/knowledge/sources/${sourceId}`)
         .then(res => res.json())
-        .then(source => {
+        .then(payload => {
+            const source = payload.source || payload;
             openSourceModal(sourceId);
             setTimeout(() => {
                 document.getElementById('ksTitle').value = source.title || '';
-                document.getElementById('ksSourceType').value = source.source_type || 'manual';
+                document.getElementById('ksSourceType').value = source.sourceType || 'manual';
                 document.getElementById('ksCategory').value = source.category || 'resource';
-                document.getElementById('ksSubCategory').value = source.sub_category || '';
+                document.getElementById('ksSubCategory').value = source.subCategory || '';
                 document.getElementById('ksGrade').value = source.grade || '';
-                document.getElementById('ksTrustLevel').value = source.trust_level || 'unknown';
+                document.getElementById('ksTrustLevel').value = source.trustLevel || 'unknown';
                 document.getElementById('ksSummary').value = source.summary || '';
-                document.getElementById('ksRawText').value = source.raw_text || '';
-                document.getElementById('ksFilePath').value = source.file_path || '';
-                try {
-                    const tags = JSON.parse(source.tags_json || '[]');
-                    document.getElementById('ksTags').value = tags.join(', ');
-                } catch (e) {}
+                document.getElementById('ksRawText').value = source.rawText || '';
+                document.getElementById('ksFilePath').value = source.filePath || '';
+                document.getElementById('ksTags').value = (source.tags || []).join(', ');
             }, 50);
         })
         .catch(() => showToast('读取失败'));
@@ -933,7 +949,12 @@ function loadQuestions() {
 
     fetch(url)
         .then(res => res.json())
-        .then(questions => renderQuestions(questions))
+        .then(payload => {
+            let questions = getApiList(payload, 'questions');
+            if (chapterFilter) questions = questions.filter(item => item.chapter === chapterFilter);
+            if (difficultyFilter) questions = questions.filter(item => item.difficulty === difficultyFilter);
+            renderQuestions(questions);
+        })
         .catch(() => renderQuestions([]));
 }
 
@@ -953,7 +974,7 @@ function renderQuestions(questions) {
                 <div>
                     <div class="knowledge-item-title">${escapeHtml((q.stem || '').substring(0, 60))}${q.stem?.length > 60 ? '...' : ''}</div>
                     <div class="knowledge-item-meta">
-                        <span style="font-size:10px;color:var(--text-muted);">${escapeHtml(q.grade || '')} · ${escapeHtml(q.chapter || '')} · <span style="color:${diffColor};">${escapeHtml(q.difficulty || '')}</span> · ${escapeHtml(q.question_type || '')}</span>
+                        <span style="font-size:10px;color:var(--text-muted);">${escapeHtml(q.grade || '')} · ${escapeHtml(q.chapter || '')} · <span style="color:${diffColor};">${escapeHtml(q.difficulty || '')}</span> · ${escapeHtml(q.questionType || '')}</span>
                         ${statusBadge}
                     </div>
                 </div>
@@ -1070,20 +1091,20 @@ function saveQuestion(questionId) {
     const stem = document.getElementById('qStem')?.value?.trim();
     if (!stem) { showToast('请填写题干'); return; }
 
-    const errorTags = document.getElementById('qErrorTags')?.value?.trim()?.split(',')?.map(t => t.trim())?.filter(t => t) || [];
+    const errorTags = splitInputList(document.getElementById('qErrorTags')?.value);
 
     const payload = {
         grade: document.getElementById('qGrade')?.value || '',
         system: document.getElementById('qSystem')?.value || '校内',
         chapter: document.getElementById('qChapter')?.value?.trim() || '',
-        knowledge_points_json: JSON.stringify(document.getElementById('qKnowledgePoints')?.value?.trim()?.split('/')?.map(t => t.trim())?.filter(t => t) || []),
-        question_type: document.getElementById('qQuestionType')?.value?.trim() || '',
+        knowledgePoints: splitInputList(document.getElementById('qKnowledgePoints')?.value, /[\/,，]/),
+        questionType: document.getElementById('qQuestionType')?.value?.trim() || '',
         difficulty: document.getElementById('qDifficulty')?.value || '基础',
         stem: stem,
         answer: document.getElementById('qAnswer')?.value?.trim() || '',
         solution: document.getElementById('qSolution')?.value?.trim() || '',
-        common_mistakes: document.getElementById('qCommonMistakes')?.value?.trim() || '',
-        error_tags_json: JSON.stringify(errorTags),
+        commonMistakes: document.getElementById('qCommonMistakes')?.value?.trim() || '',
+        errorTags,
         status: document.getElementById('qStatus')?.value || 'draft',
         remark: document.getElementById('qRemark')?.value?.trim() || '',
     };
@@ -1109,28 +1130,23 @@ function saveQuestion(questionId) {
 function editQuestion(questionId) {
     fetch(`/api/questions/${questionId}`)
         .then(res => res.json())
-        .then(q => {
+        .then(payload => {
+            const q = payload.question || payload;
             openQuestionModal(questionId);
             setTimeout(() => {
                 document.getElementById('qGrade').value = q.grade || '';
                 document.getElementById('qSystem').value = q.system || '校内';
                 document.getElementById('qChapter').value = q.chapter || '';
                 document.getElementById('qDifficulty').value = q.difficulty || '基础';
-                document.getElementById('qQuestionType').value = q.question_type || '';
+                document.getElementById('qQuestionType').value = q.questionType || '';
                 document.getElementById('qStem').value = q.stem || '';
                 document.getElementById('qAnswer').value = q.answer || '';
                 document.getElementById('qSolution').value = q.solution || '';
-                document.getElementById('qCommonMistakes').value = q.common_mistakes || '';
+                document.getElementById('qCommonMistakes').value = q.commonMistakes || '';
                 document.getElementById('qStatus').value = q.status || 'draft';
                 document.getElementById('qRemark').value = q.remark || '';
-                try {
-                    const kps = JSON.parse(q.knowledge_points_json || '[]');
-                    document.getElementById('qKnowledgePoints').value = kps.join('/');
-                } catch (e) {}
-                try {
-                    const tags = JSON.parse(q.error_tags_json || '[]');
-                    document.getElementById('qErrorTags').value = tags.join(', ');
-                } catch (e) {}
+                document.getElementById('qKnowledgePoints').value = (q.knowledgePoints || []).join('/');
+                document.getElementById('qErrorTags').value = (q.errorTags || []).join(', ');
             }, 50);
         })
         .catch(() => showToast('读取失败'));

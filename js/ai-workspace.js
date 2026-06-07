@@ -169,6 +169,20 @@ const STYLE_OPTIONS = [
     { value: 'teaching-note', label: '教研说明' },
 ];
 
+const DRAFT_TYPE_OPTIONS = [
+    { value: 'article-draft', label: '公众号' },
+    { value: 'xiaohongshu-note', label: '小红书' },
+    { value: 'video-script', label: '视频号' },
+    { value: 'question-bank-plan', label: '题库' },
+    { value: 'question-classify', label: '题库' },
+    { value: 'resource-brief', label: '资料' },
+    { value: 'research-plan', label: '资料' },
+    { value: 'weekly-report', label: '经营' },
+    { value: 'monthly-report', label: '经营' },
+    { value: 'class-consumption', label: '经营' },
+    { value: 'tuition-warning', label: '经营' },
+];
+
 // 内容生产工作流模式
 const CONTENT_MODES = {
     'brainstorm': { label: '💡 选题', hint: '请给10个选题，每个附适合平台和切入点。' },
@@ -268,6 +282,9 @@ function renderAIWorkspace() {
                             </select>
                         </div>
                     </div>
+                    <div id="contentWorkflowHint" class="ai-workflow-hint" style="display:none;">
+                        <span>选题</span><span>大纲</span><span>初稿</span><span>润色</span><span>标题优化</span>
+                    </div>
 
                     <!-- 任务描述 -->
                     <div class="ai-form-group">
@@ -314,6 +331,7 @@ function renderAIWorkspace() {
                         <button class="btn btn-secondary" onclick="clearAgentInput()">清空输入</button>
                         <button class="btn btn-secondary" onclick="clearAgentOutput()">清空</button>
                     </div>
+                    <div class="ai-teacher-note">生成内容只是草稿，需要老师确认后使用；系统不会自动发送给家长，也不会自动修改学员、收费、考勤等业务数据。</div>
 
                     <!-- 输出区 -->
                     <div class="ai-output-area">
@@ -366,7 +384,9 @@ function renderAIWorkspace() {
                             <input type="text" id="draftSearchInput" placeholder="搜索草稿..." oninput="filterDrafts()" style="flex:1;min-width:100px;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;">
                             <select id="draftCenterFilter" onchange="filterDrafts()" style="padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;">
                                 <option value="">全部</option>
-                                <option value="content">内容</option>
+                                <option value="article-draft">公众号</option>
+                                <option value="xiaohongshu-note">小红书</option>
+                                <option value="video-script">视频号</option>
                                 <option value="question-bank">题库</option>
                                 <option value="resource">资料</option>
                                 <option value="operations">经营</option>
@@ -549,6 +569,7 @@ function renderAIWorkspace() {
             .ai-task-card.selected {
                 background: #e8f4fd;
                 border: 1px solid #3498db;
+                box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.12);
             }
             .ai-task-card.selected .ai-task-card-label {
                 color: #3498db;
@@ -577,6 +598,73 @@ function renderAIWorkspace() {
                 padding: 6px 0;
                 border-bottom: 1px solid var(--border-color);
                 font-size: 11px;
+            }
+            .ai-run-status {
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+                align-items: center;
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .ai-run-pill {
+                display: inline-flex;
+                align-items: center;
+                min-height: 22px;
+                padding: 2px 8px;
+                border: 1px solid var(--border-color);
+                border-radius: 999px;
+                color: var(--text-secondary);
+                font-size: 11px;
+                line-height: 1.3;
+                background: var(--bg-card);
+            }
+            .ai-teacher-note {
+                margin: 8px 0 0;
+                padding: 8px 10px;
+                background: var(--hover-bg);
+                border-radius: 6px;
+                color: var(--text-muted);
+                font-size: 11px;
+                line-height: 1.5;
+            }
+            .ai-workflow-hint {
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+                margin: -2px 0 10px;
+            }
+            .ai-workflow-hint span {
+                padding: 3px 8px;
+                border-radius: 999px;
+                background: var(--hover-bg);
+                color: var(--text-secondary);
+                font-size: 11px;
+            }
+            .ai-context-ref-item {
+                font-size: 12px;
+                padding: 6px 8px;
+                background: var(--bg-card);
+                border: 1px solid var(--border-color);
+                border-radius: 6px;
+                margin-bottom: 4px;
+            }
+            .ai-context-ref-title {
+                font-weight: 600;
+                color: var(--text-primary);
+                margin-bottom: 2px;
+            }
+            .ai-context-ref-summary {
+                font-size: 11px;
+                color: var(--text-muted);
+                line-height: 1.4;
+            }
+            .ai-context-more summary {
+                cursor: pointer;
+                color: var(--text-secondary);
+                font-size: 11px;
+                padding: 4px 0;
             }
             @media (max-width: 900px) {
                 .ai-workspace-layout { grid-template-columns: 70px 1fr; }
@@ -677,11 +765,14 @@ function selectWorkCenter(centerId) {
 
     // 内容中心显示工作流模式
     const contentModeGroup = document.getElementById('contentModeGroup');
+    const workflowHint = document.getElementById('contentWorkflowHint');
     if (centerId === 'content') {
         contentModeGroup.style.display = 'block';
+        if (workflowHint) workflowHint.style.display = 'flex';
         document.getElementById('contentModeSelect').value = '';
     } else {
         contentModeGroup.style.display = 'none';
+        if (workflowHint) workflowHint.style.display = 'none';
     }
 
     // 清空输出
@@ -883,9 +974,23 @@ function fillExampleInput() {
         'article-draft': '主题：小升初数学规划\n目标家长：六年级学生家长\n核心观点：不要只刷难题，要注重基础和思维训练',
         'xiaohongshu-note': '话题：六年级数学学习规划\n目标人群：小升初家长\n语气：真实、专业',
         'video-script': '主题：如何培养数学思维\n时长：60秒\n需要口播稿：是',
-        'question-bank-plan': '年级：六年级\n章节：小升初综合\n知识点：分数、比例、行程、几何',
-        'resource-brief': '资料方向：2026武汉小升初政策变化',
-        'research-plan': '资料主题：初中数学竞赛入门',
+        'moment-content': '主题：本周六年级小升初复习\n重点：计算习惯和应用题审题\n希望：低营销感，适合朋友圈',
+        'question-bank-plan': '年级：六年级\n章节：小升初综合\n知识点：分数、比例、行程、几何\n目标：建立可按知识点、题型、难度筛选的题库',
+        'question-classify': '题目：甲乙两车同时从两地相向而行，甲每小时60千米，乙每小时50千米，3小时后相遇。求两地距离。\n要求：标注知识点、题型、难度、易错点',
+        'exercise-recommend': '学员：六年级\n薄弱点：分数应用题、行程问题\n要求：给训练顺序和题量建议',
+        'exam-analysis': '试卷：六年级综合测试\n得分：82/100\n薄弱点：计算失分、应用题条件提取不稳定',
+        'resource-brief': '资料方向：2026武汉小升初政策变化\n要求：整理家长最关心的问题和需要持续跟进的信息',
+        'research-plan': '资料主题：初中数学竞赛入门\n要求：列出资料来源、筛选标准和每周整理流程',
+        'weekly-report': '时间范围：本周\n重点：课消、欠费、待续费、意向学员跟进',
+        'monthly-report': '月份：本月\n重点：收入、课消、班级进度、招生线索',
+        'class-consumption': '班级：输入需要分析的班级名称\n重点：计划课次、已进行课次、课时不足风险',
+        'tuition-warning': '检查范围：全部在读学员\n重点：欠费、课时不足、待续费优先级',
+        'renewal-reminder': '检查范围：未来两周\n重点：课时即将不足、已经待续费、需要沟通的学员',
+        'student-feedback': '重点：本周课堂表现、薄弱点、下次课安排\n语气：真实、温和，不夸张',
+        'renewal-script': '背景：课程接近结束，需要和家长确认下一阶段安排\n要求：温和版和直接版各一份',
+        'follow-reminder': '检查范围：近两周意向学员\n重点：谁需要跟进、下一句话怎么说',
+        'trial-report': '试课表现：课堂能跟上，计算细节不稳定\n要求：给家长反馈草稿',
+        'conversion-script': '家长顾虑：担心孩子时间不够\n课程优势：小班、能持续跟进薄弱点',
     };
     if (examples[currentTaskType]) {
         input.value = examples[currentTaskType];
@@ -1062,19 +1167,11 @@ function doRunAgentTask(input, agentNames, taskNames) {
 
         const warningsEl = document.getElementById('aiWarnings');
         if (warningsEl) {
-            warningsEl.innerHTML = response.warnings?.map(w => `<span>⚠️ ${escapeHtml(w)}</span>`).join('') || '';
+            warningsEl.innerHTML = response.warnings?.map(w => `<div>⚠️ ${escapeHtml(w)}</div>`).join('') || '';
             warningsEl.style.display = response.warnings?.length > 0 ? 'block' : 'none';
         }
 
-        const hasContextRefs = response.contextRefs && response.contextRefs.length > 0;
-        const modeNote = response.mode === 'real-ai'
-            ? `<div style="font-size:12px;margin-bottom:8px;">
-                <span style="color:#27ae60;">✅ 真实 AI</span>
-                <span style="color:${hasContextRefs ? '#27ae60' : '#f39c12'};margin-left:8px;">· ${hasContextRefs ? '已引用知识库' : '未引用知识库'}</span>
-                ${response.elapsedMs ? `<span style="color:var(--text-muted);margin-left:8px;">· ${Math.round(response.elapsedMs / 1000)}秒</span>` : ''}
-               </div>`
-            : `<div style="font-size:12px;color:#888;margin-bottom:8px;">📋 本次由本地模板生成${response.fallbackFrom ? '，真实 AI 已自动回退' : '，真实 AI 尚未启用'}。</div>`;
-        output.innerHTML = `<div class="ai-output-text">${renderMarkdown(response.result || '')}</div>${modeNote}`;
+        output.innerHTML = `${renderAIRunStatus(response)}<div class="ai-output-text">${renderMarkdown(response.result || '')}</div>`;
 
         document.getElementById('outputActions').style.display = 'block';
 
@@ -1100,6 +1197,25 @@ function doRunAgentTask(input, agentNames, taskNames) {
         showToast('生成失败');
     })
     .finally(() => { if (btn) { btn.disabled = false; btn.textContent = '生成结果'; } });
+}
+
+function renderAIRunStatus(response) {
+    const refs = response.contextRefs || [];
+    const hasContextRefs = refs.length > 0;
+    const modeLabel = response.mode === 'real-ai' ? '真实 AI' : '本地模板';
+    const modeColor = response.mode === 'real-ai' ? '#27ae60' : '#7f8c8d';
+    const fallbackText = response.fallbackFrom ? '已回退' : '';
+    const refText = hasContextRefs ? `已引用知识库 ${refs.length} 条` : '未引用知识库';
+    const refColor = hasContextRefs ? '#27ae60' : '#f39c12';
+    const elapsedText = response.elapsedMs ? `${Math.max(1, Math.round(response.elapsedMs / 1000))} 秒` : '-';
+
+    return `<div class="ai-run-status">
+        <span class="ai-run-pill" style="border-color:${modeColor};color:${modeColor};">${escapeHtml(modeLabel)}</span>
+        ${fallbackText ? `<span class="ai-run-pill" style="border-color:#f39c12;color:#f39c12;">${fallbackText}</span>` : ''}
+        <span class="ai-run-pill" style="border-color:${refColor};color:${refColor};">${escapeHtml(refText)}</span>
+        <span class="ai-run-pill">用时 ${escapeHtml(elapsedText)}</span>
+        <span class="ai-run-pill">需老师确认后使用</span>
+    </div>`;
 }
 
 function collectAdvancedOptions() {
@@ -1208,33 +1324,54 @@ function renderDrafts(drafts) {
     area.innerHTML = drafts.slice(0, 20).map(draft => {
         const time = draft.createdAt ? new Date(draft.createdAt).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         const modeTag = draft.source === 'real-ai' ? '<span style="color:#27ae60;font-size:10px;">真实AI</span>' : '<span style="color:#888;font-size:10px;">本地</span>';
-        const centerBadge = draft.center ? `<span style="background:#3498db;color:white;padding:1px 4px;border-radius:3px;font-size:9px;margin-left:4px;">${WORK_CENTERS[draft.center]?.name || draft.center}</span>` : '';
-        return `<div class="ai-log-item" style="padding:8px 0;border-bottom:1px solid var(--border-color);">
+        const typeLabel = getDraftTypeLabel(draft);
+        const typeBadge = typeLabel ? `<span style="background:#3498db;color:white;padding:1px 5px;border-radius:999px;font-size:9px;margin-left:4px;">${escapeHtml(typeLabel)}</span>` : '';
+        const summary = (draft.content || '').replace(/\s+/g, ' ').trim();
+        return `<div class="ai-log-item ai-draft-card" style="padding:8px 0;border-bottom:1px solid var(--border-color);">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div>
-                    <div style="font-size:12px;font-weight:600;">${escapeHtml(draft.title || draft.task)}${centerBadge}</div>
+                    <div style="font-size:12px;font-weight:600;">${escapeHtml(draft.title || draft.task)}${typeBadge}</div>
                     <div style="font-size:10px;color:var(--text-muted);">${time} · ${modeTag}</div>
                 </div>
                 <div style="display:flex;gap:4px;">
-                    <button class="btn btn-secondary btn-xs" onclick="continueFromDraft('${draft.id}')">继续</button>
+                    <button class="btn btn-secondary btn-xs" onclick="continueFromDraft('${draft.id}')">继续生成</button>
                     <button class="btn btn-secondary btn-xs" onclick="copyDraft('${draft.id}')">复制</button>
                     <button class="btn btn-danger btn-xs" onclick="deleteDraft('${draft.id}')">删除</button>
                 </div>
             </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml((draft.content || '').substring(0, 80))}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;">${escapeHtml(summary.substring(0, 80))}${summary.length > 80 ? '...' : ''}</div>
         </div>`;
     }).join('');
 }
 
 function filterDrafts() {
     const search = document.getElementById('draftSearchInput')?.value?.toLowerCase() || '';
-    const centerFilter = document.getElementById('draftCenterFilter')?.value || '';
+    const typeFilter = document.getElementById('draftCenterFilter')?.value || '';
     try {
         let drafts = JSON.parse(localStorage.getItem('ai_drafts') || '[]');
         if (search) drafts = drafts.filter(d => (d.title || '').toLowerCase().includes(search) || (d.content || '').toLowerCase().includes(search));
-        if (centerFilter) drafts = drafts.filter(d => d.center === centerFilter);
+        if (typeFilter) {
+            drafts = drafts.filter(d => d.task === typeFilter || d.center === typeFilter || getDraftGroup(d) === typeFilter);
+        }
         renderDrafts(drafts);
     } catch (e) { renderDrafts([]); }
+}
+
+function getDraftGroup(draft) {
+    if (['question-bank-plan', 'question-classify', 'exercise-recommend', 'exam-analysis'].includes(draft.task)) return 'question-bank';
+    if (['resource-brief', 'research-plan'].includes(draft.task)) return 'resource';
+    if (['weekly-report', 'monthly-report', 'class-consumption', 'tuition-warning', 'renewal-reminder'].includes(draft.task)) return 'operations';
+    return draft.center || '';
+}
+
+function getDraftTypeLabel(draft) {
+    const exact = DRAFT_TYPE_OPTIONS.find(item => item.value === draft.task);
+    if (exact) return exact.label;
+    const group = getDraftGroup(draft);
+    if (group === 'question-bank') return '题库';
+    if (group === 'resource') return '资料';
+    if (group === 'operations') return '经营';
+    return WORK_CENTERS[draft.center]?.name || '';
 }
 
 function saveToDrafts() {
@@ -1269,9 +1406,15 @@ function continueFromDraft(draftId) {
         const drafts = JSON.parse(localStorage.getItem('ai_drafts') || '[]');
         const draft = drafts.find(d => d.id === draftId);
         if (draft) {
+            if (draft.center && WORK_CENTERS[draft.center]) selectWorkCenter(draft.center);
+            if (draft.task) {
+                const center = WORK_CENTERS[draft.center] || {};
+                const task = [...(center.tasks || []), ...MORE_TASKS].find(item => item.task === draft.task);
+                if (task) selectTask(task.task, task.agent, task.label, { focusInput: false, clearInput: false });
+            }
             const input = document.getElementById('agentInput');
-            if (input) input.value = draft.content.substring(0, 500);
-            showToast('已填入输入框，可继续编辑');
+            if (input) input.value = draft.content.substring(0, 1000);
+            showToast('已填入输入框，可继续编辑后再生成');
         }
     } catch (e) { showToast('操作失败'); }
 }
@@ -1457,7 +1600,7 @@ function renderContextRefs(contextRefs, mode) {
 
     if (!contextRefs || contextRefs.length === 0) {
         area.style.display = 'block';
-        content.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">本次未引用知识库资料，仅使用当前输入和业务数据。</div>';
+        content.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">本次未引用知识库资料，仅使用当前输入和业务数据。可到「知识库」补充风格样本、内容素材、升学资料或题库规则，后续生成会更贴近你的真实业务。</div>';
         return;
     }
 
@@ -1478,24 +1621,32 @@ function renderContextRefs(contextRefs, mode) {
     let html = '';
     Object.entries(grouped).forEach(([type, refs]) => {
         const label = typeLabels[type] || type;
+        const visibleRefs = refs.slice(0, 3);
+        const hiddenRefs = refs.slice(3);
         html += `<div style="margin-bottom:10px;">
             <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;font-weight:600;">📂 ${escapeHtml(label)}（${refs.length}条）</div>`;
-        refs.forEach((ref, idx) => {
-            const refId = `ctx-ref-${type}-${idx}`;
-            const titleText = escapeHtml(ref.title || ref.name || '未命名');
-            const summaryText = ref.summary ? escapeHtml(ref.summary) : '';
-            const hasLongContent = summaryText.length > 80;
-
-            html += `<div style="font-size:12px;padding:6px 8px;background:var(--card-bg);border-radius:4px;margin-bottom:4px;">
-                <div style="font-weight:600;color:var(--text-primary);margin-bottom:2px;">${titleText}</div>
-                ${summaryText ? `<div style="font-size:11px;color:var(--text-muted);line-height:1.4;">${hasLongContent ? summaryText.substring(0, 80) + '...' : summaryText}</div>` : ''}
-            </div>`;
-        });
+        visibleRefs.forEach(ref => { html += renderContextRefItem(ref); });
+        if (hiddenRefs.length > 0) {
+            html += `<details class="ai-context-more">
+                <summary>查看其余 ${hiddenRefs.length} 条引用</summary>
+                <div style="margin-top:6px;">${hiddenRefs.map(ref => renderContextRefItem(ref)).join('')}</div>
+            </details>`;
+        }
         html += '</div>';
     });
 
     content.innerHTML = html;
     area.style.display = 'block';
+}
+
+function renderContextRefItem(ref) {
+    const titleText = escapeHtml(ref.title || ref.name || '未命名');
+    const summaryText = ref.summary ? escapeHtml(ref.summary) : '';
+    const hasLongContent = summaryText.length > 100;
+    return `<div class="ai-context-ref-item">
+        <div class="ai-context-ref-title">${titleText}</div>
+        ${summaryText ? `<div class="ai-context-ref-summary">${hasLongContent ? summaryText.substring(0, 100) + '...' : summaryText}</div>` : ''}
+    </div>`;
 }
 
 function previewContextRefs() {
