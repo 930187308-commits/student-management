@@ -141,7 +141,7 @@ function resolveStaticPath(urlPath) {
     const decodedPath = decodeURIComponent(urlPath);
     const cleanPath = decodedPath === '/' ? '/index.html' : decodedPath;
     const firstSegment = cleanPath.split('/').filter(Boolean)[0] || 'index.html';
-    const allowedRootFiles = new Set(['index.html', 'favicon.ico']);
+    const allowedRootFiles = new Set(['index.html', 'question-bank.html', 'favicon.ico']);
     const allowedDirs = new Set(['css', 'js']);
 
     if (

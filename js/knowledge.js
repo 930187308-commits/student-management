@@ -25,6 +25,9 @@ function renderKnowledge() {
             <div class="card knowledge-header">
                 <h3 style="margin:0 0 8px 0;font-size:16px;">📚 知识库管理</h3>
                 <p style="margin:0;font-size:12px;color:var(--text-muted);">风格库 · 资料库 · 题库。后续 AI 会读取风格库、资料库、题库摘要进行生成。当前先完成资料录入和管理。</p>
+                <div style="margin-top:10px;">
+                    <button class="btn btn-primary btn-sm" onclick="window.open('question-bank.html', '_blank')">打开独立数学题库工作台</button>
+                </div>
             </div>
 
             <div class="card knowledge-stats" id="knowledgeStats">
