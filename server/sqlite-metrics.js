@@ -27,6 +27,23 @@ function roundMoney(value) {
     return Math.round(Number(value || 0) * 100) / 100;
 }
 
+function getGradeSchoolStage(grade = '') {
+    if (['五年级', '六年级'].includes(grade)) return 'primary';
+    if (['初一', '初二', '初三', '七年级', '八年级', '九年级'].includes(grade)) return 'middle';
+    if (['高一', '高二', '高三'].includes(grade)) return 'high';
+    return '';
+}
+
+function getCurrentStageSchool(student = {}) {
+    const history = student.schoolHistory || {};
+    const fallback = String(student.school || '').trim();
+    const stage = getGradeSchoolStage(student.grade || '');
+    if (stage === 'primary') return String(history.primarySchool || fallback || '').trim() || '未填写';
+    if (stage === 'middle') return String(history.middleSchool || fallback || '').trim() || '未填写';
+    if (stage === 'high') return String(history.highSchool || fallback || '').trim() || '未填写';
+    return '未判断';
+}
+
 function sumPaidFeeHours(fees, studentId) {
     return fees
         .filter(fee => fee.studentId === studentId && fee.status === 'paid')
@@ -147,7 +164,7 @@ function createReportsSummaryFromData(data, now = new Date()) {
 
     const schoolDist = {};
     students.filter(student => student.status === 'active').forEach(student => {
-        const school = String(student.school || '').trim() || '未填写';
+        const school = getCurrentStageSchool(student);
         schoolDist[school] = (schoolDist[school] || 0) + 1;
     });
 

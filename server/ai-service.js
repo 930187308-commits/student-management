@@ -1,8 +1,10 @@
 const config = require('./config');
 const { getDb, getDataFromEntityColumns } = require('./db');
 const { listResource, getResource } = require('./knowledge-service');
+const { buildSystemQAContext, buildSystemFactAnswer, buildSystemQAWriteIntentAnswer, buildNoEvidenceSystemQAAnswer, normalizeSourceScope, isSystemQAAdviceIntent, wantsSystemDataForAdvice } = require('./ai-system-qa');
 
 const AGENT_NAMES = {
+    'system-agent': '系统问答助手',
     'admin-agent': '教务 Agent',
     'learning-agent': '学情沟通 Agent',
     'recruit-agent': '招生跟进 Agent',
@@ -11,6 +13,8 @@ const AGENT_NAMES = {
 };
 
 const TASK_NAMES = {
+    'system-qa': '系统数据问答',
+
     // 学情/续费
     'student-feedback': '生成学情反馈',
     'renewal-script': '生成续费沟通话术',
@@ -55,6 +59,8 @@ const TASK_NAMES = {
 };
 
 const TASK_DATA_RANGES = {
+    'system-qa': ['学生', '班级', '收费', '考勤', '成绩', '沟通记录', '意向学员', '数据异常摘要'],
+
     'student-feedback': ['学员基础信息', '最近成绩', '最近考勤', '课时余额', '沟通摘要'],
     'renewal-script': ['学员基础信息', '课时余额', '班级进度', '收费摘要'],
     'parent-greeting': ['学员基础信息', '班级信息', '用户补充说明'],
@@ -110,39 +116,74 @@ function normalizeProvider(value) {
     return String(value || 'disabled').trim().toLowerCase();
 }
 
-function getAiStatus() {
-    const provider = normalizeProvider(config.ai.provider);
-    const model = config.ai.model || getDefaultModel(provider) || '';
-    const endpoint = getProviderEndpoint(provider);
+function normalizeAnswerLength(value) {
+    return value === 'detailed' ? 'detailed' : 'brief';
+}
+
+function resolveAIProviderConfig(providerOverride = '') {
+    const requestedProvider = normalizeProvider(providerOverride || config.ai.provider);
+    const provider = requestedProvider === 'disabled' ? requestedProvider : requestedProvider || 'minimax';
+    const savedConfig = config.ai.providers?.[provider] || {};
+    return {
+        provider,
+        label: savedConfig.label || provider,
+        apiKey: savedConfig.apiKey || (provider === normalizeProvider(config.ai.provider) ? config.ai.apiKey : ''),
+        model: savedConfig.model || (provider === normalizeProvider(config.ai.provider) ? config.ai.model : '') || getDefaultModel(provider),
+        baseUrl: savedConfig.baseUrl || (provider === normalizeProvider(config.ai.provider) ? config.ai.baseUrl : '') || getDefaultBaseUrl(provider),
+        timeoutMs: Number(savedConfig.timeoutMs || config.ai.timeoutMs || 60000)
+    };
+}
+
+function getAiStatus(providerOverride = '') {
+    const providerConfig = resolveAIProviderConfig(providerOverride);
+    const provider = providerConfig.provider;
+    const model = providerConfig.model || getDefaultModel(provider) || '';
+    const endpoint = getProviderEndpoint(provider, providerConfig.baseUrl);
     const missing = [];
     if (provider === 'disabled') missing.push('AI_PROVIDER');
-    if (provider !== 'disabled' && !config.ai.apiKey) missing.push('AI_API_KEY');
+    if (provider !== 'disabled' && !providerConfig.apiKey) missing.push(`${provider.toUpperCase()}_API_KEY`);
     if (provider !== 'disabled' && !model) missing.push('AI_MODEL');
     if (provider !== 'disabled' && !endpoint) missing.push('AI_BASE_URL');
     const enabled = missing.length === 0;
+    const providers = Object.values(config.ai.providers || {}).map(item => {
+        const itemProvider = normalizeProvider(item.provider);
+        const itemConfig = resolveAIProviderConfig(itemProvider);
+        const itemEndpoint = getProviderEndpoint(itemProvider, itemConfig.baseUrl);
+        return {
+            provider: itemProvider,
+            label: item.label || itemProvider,
+            enabled: Boolean(itemConfig.apiKey && itemConfig.model && itemEndpoint),
+            model: itemConfig.model || '',
+            baseUrl: itemConfig.baseUrl || ''
+        };
+    });
     return {
         provider,
+        activeProvider: provider,
         enabled,
         mode: enabled ? 'real-ai' : 'local-template',
         model,
         timeoutMs: config.ai.timeoutMs,
         envFileLoaded: Boolean(config.ai.envFileLoaded),
         envFile: config.ai.envFile,
+        providers,
         missing
     };
 }
 
 function getDefaultBaseUrl(provider) {
     if (provider === 'openai') return 'https://api.openai.com/v1';
-    if (provider === 'deepseek') return 'https://api.deepseek.com/v1';
+    if (provider === 'deepseek') return 'https://api.deepseek.com';
     if (provider === 'minimax') return 'https://api.minimax.io/v1';
+    if (provider === 'qwen') return 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     return config.ai.baseUrl || '';
 }
 
 function getDefaultModel(provider) {
     if (provider === 'openai') return 'gpt-4.1-mini';
-    if (provider === 'deepseek') return 'deepseek-chat';
+    if (provider === 'deepseek') return 'deepseek-v4-flash';
     if (provider === 'minimax') return 'MiniMax-M2.7-highspeed';
+    if (provider === 'qwen') return 'qwen-plus';
     return config.ai.model || '';
 }
 
@@ -167,6 +208,28 @@ function displayName(name, privacyMode) {
 
 function stripThinkTags(text) {
     return String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+}
+
+function compactBriefAdviceResult(text) {
+    const sourceLine = String(text || '').split(/\n/).find(line => /根据当前选择的回答依据/.test(line)) || '';
+    const lines = String(text || '')
+        .replace(/^[-–—]{3,}$/gm, '')
+        .split(/\n+/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .filter(line => !/^\|?\s*-{2,}/.test(line))
+        .filter(line => !/^#+\s*/.test(line))
+        .filter(line => !/^\|/.test(line));
+    const contentLines = lines
+        .filter(line => line !== sourceLine)
+        .filter(line => !/以上为辅助判断/.test(line))
+        .slice(0, 6)
+        .map(line => line.length > 90 ? `${line.slice(0, 90)}...` : line);
+    const resultLines = [];
+    if (sourceLine) resultLines.push(sourceLine);
+    resultLines.push(...contentLines);
+    resultLines.push('以上为辅助判断，重要操作请以原始记录为准。');
+    return resultLines.join('\n');
 }
 
 function getStudentConsumption(data, studentId) {
@@ -438,17 +501,20 @@ function buildKnowledgeContext(task, payload) {
     const userText = payload.userInstruction || payload.input || '';
     const keywords = tokenizeForMatch(userText);
     const platform = getPlatformForTask(task);
+    const sourceScope = normalizeSourceScope(payload);
     const refs = [];
     const knowledge = {
         styleProfile: null,
         styleSamples: [],
         sources: [],
+        chunks: [],
+        webResults: [],
         questions: [],
         refs,
         warnings: []
     };
 
-    const profiles = listResource('styleProfiles');
+    const profiles = task === 'system-qa' ? [] : listResource('styleProfiles');
     const defaultProfile = profiles.find(item => item.isDefault) ||
         profiles.find(item => item.platform === platform) ||
         profiles.find(item => item.platform === 'general') ||
@@ -473,7 +539,7 @@ function buildKnowledgeContext(task, payload) {
             content: safeLongText(item.content, 600)
         }));
         knowledge.styleSamples.forEach(item => refs.push(toContextRef('style-sample', item, 'content')));
-    } else {
+    } else if (task !== 'system-qa') {
         knowledge.warnings.push('知识库还没有风格配置，当前只使用系统默认“白老师风格”。');
     }
 
@@ -481,7 +547,29 @@ function buildKnowledgeContext(task, payload) {
     const contentTasks = ['article-draft', 'xiaohongshu-note', 'video-script', 'moment-content'];
     const resourceTasks = ['resource-brief', 'research-plan'];
     const teachingTasks = ['question-bank-plan', 'question-classify', 'exercise-recommend', 'lesson-plan', 'learning-path', 'exam-analysis'];
-    if (contentTasks.includes(task)) {
+    if (task === 'system-qa' && sourceScope.knowledgeBase) {
+        knowledge.sources = pickKnowledgeItems(sources.filter(item => ['resource', 'content', 'style'].includes(item.category)), keywords, 8)
+            .map(item => ({
+                id: item.id,
+                title: item.title,
+                category: item.category,
+                subCategory: item.subCategory,
+                trustLevel: item.trustLevel,
+                grade: item.grade,
+                sourceType: item.sourceType,
+                filePath: item.filePath,
+                tags: item.tags || [],
+                summary: safeLongText(item.summary || item.rawText, 800)
+            }));
+        knowledge.chunks = pickKnowledgeItems(listResource('knowledgeChunks'), keywords, 8)
+            .map(item => ({
+                id: item.id,
+                sourceId: item.sourceId,
+                title: item.title,
+                summary: safeLongText(item.summary || item.content, 700),
+                tags: item.tags || []
+            }));
+    } else if (contentTasks.includes(task)) {
         knowledge.sources = pickKnowledgeItems(sources.filter(item => ['content', 'resource', 'style'].includes(item.category)), keywords, 5)
             .map(item => ({
                 id: item.id,
@@ -504,7 +592,8 @@ function buildKnowledgeContext(task, payload) {
             }));
     }
     knowledge.sources.forEach(item => refs.push(toContextRef('source', item)));
-    if ((contentTasks.includes(task) || resourceTasks.includes(task)) && knowledge.sources.length === 0) {
+    knowledge.chunks.forEach(item => refs.push(toContextRef('source', item, 'summary')));
+    if ((contentTasks.includes(task) || resourceTasks.includes(task) || (task === 'system-qa' && sourceScope.knowledgeBase)) && knowledge.sources.length === 0 && knowledge.chunks.length === 0) {
         knowledge.warnings.push('本次没有匹配到资料库内容，生成质量主要依赖你的输入。');
     }
 
@@ -534,18 +623,29 @@ function buildAIContext(payload) {
     const data = getDataFromEntityColumns();
     const privacyMode = payload.privacyMode === 'named' ? 'named' : 'masked';
     const task = normalizeTask(payload.task || '');
+    const sourceScope = normalizeSourceScope(payload);
     const base = {
         agent: payload.agent || '',
         agentName: AGENT_NAMES[payload.agent] || payload.agent || '',
         task,
         requestedTask: payload.task || '',
         taskName: TASK_NAMES[task] || task,
+        modelProvider: normalizeProvider(payload.modelProvider || payload.aiProvider || payload.providerOverride || config.ai.provider),
+        answerLength: normalizeAnswerLength(payload.answerLength),
         privacyMode,
+        sourceScope,
         dataRange: getTaskDataRange(task),
-        userInstruction: safeText(payload.userInstruction || payload.input || '', 1000),
+        userInstruction: safeText(payload.latestQuestion || payload.userInstruction || payload.input || '', 1000),
+        conversationHistory: Array.isArray(payload.conversationHistory) ? payload.conversationHistory.slice(-8).map(item => ({
+            role: item?.role === 'assistant' ? 'assistant' : 'user',
+            content: safeText(item?.content || '', 500)
+        })).filter(item => item.content) : [],
         knowledge: buildKnowledgeContext(task, payload)
     };
 
+    if (task === 'system-qa') {
+        return { ...base, context: buildSystemQAContext(data, payload, privacyMode) };
+    }
     if (task === 'student-feedback' || task === 'renewal-script') {
         return { ...base, context: buildStudentContext(data, payload, privacyMode) };
     }
@@ -564,6 +664,12 @@ function buildAIContext(payload) {
 function buildLocalTemplate(context) {
     const { task, taskName, privacyMode, userInstruction } = context;
     const modeText = privacyMode === 'named' ? '带姓名生成' : '脱敏生成';
+    if (task === 'system-qa') {
+        const item = context.context || {};
+        const summary = item.summary || {};
+        const risks = item.riskStudents || [];
+        return `【${taskName}｜本地模板】\n生成模式：${modeText}\n\n仅根据当前系统数据回答：\n- 在读学员：${summary.activeStudentCount || 0}人\n- 待续费学员：${summary.renewalPendingCount || 0}人\n- 正常班级：${summary.activeClassCount || 0}个\n- 意向学员：${summary.prospectCount || 0}人\n- 欠费金额：${summary.pendingFeeAmount || 0}元\n- 本月已登记课次：${summary.currentMonthAttendanceSessions || 0}次\n\n需要优先关注：\n${risks.slice(0, 8).map(row => `- ${row.name}：${row.grade}，${row.className}，剩余课时 ${row.remainingHours}，欠费 ${row.pendingFeeAmount}元`).join('\n') || '- 暂无明显风险学员'}\n\n你的问题：${userInstruction || '无'}\n\n以上为系统数据辅助判断，重要操作请以原始记录为准。`;
+    }
     if (task === 'student-feedback') {
         const item = context.context;
         const name = item.found ? item.student.name : '该学员';
@@ -606,6 +712,7 @@ function getStyleGuide(context) {
 
 function getTaskOutputInstruction(task) {
     const map = {
+        'system-qa': '回答用户关于学生管理系统、知识库资料或联网资料的问题。只能基于上下文 JSON 中的真实数据和资料回答；可以做统计、筛选、分组、风险提示和下一步建议。不要说已经修改、创建、删除或发送任何数据。回答开头必须写“根据当前选择的回答依据：”。回答结尾必须写“以上为辅助判断，重要操作请以原始记录为准。”',
         'article-draft': '输出公众号文章草稿：标题3个、开头、正文分段、小标题、结尾引导、可补充素材清单。正文要有观点和例子，不要只列提纲。',
         'xiaohongshu-note': '输出小红书笔记：标题5个、正文、分段符号、互动结尾、封面文字建议。避免夸张营销。',
         'video-script': '输出视频号脚本：标题、30-90秒口播稿、镜头/字幕提示、结尾引导。口语化，像老师本人在说。',
@@ -632,11 +739,72 @@ function getTaskOutputInstruction(task) {
     return map[task] || '输出可直接使用的中文草稿或行动清单，结构清晰，避免空泛。';
 }
 
+function getPromptContext(context) {
+    if (context.task !== 'system-qa') return context.context;
+    const source = context.context || {};
+    const facts = source.queryFacts || {};
+    const hasFacts = Object.keys(facts).length > 0;
+    const isAdvice = source.intent === 'advice' || isSystemQAAdviceIntent(source.userQuestion || context.userInstruction || '');
+    const adviceWithSystemData = isAdvice && wantsSystemDataForAdvice(source.userQuestion || context.userInstruction || '');
+    return {
+        type: source.type,
+        readonly: true,
+        intent: source.intent || (isAdvice ? 'advice' : 'data-query'),
+        adviceWithSystemData,
+        userQuestion: source.userQuestion,
+        answerLength: context.answerLength,
+        summary: isAdvice && !adviceWithSystemData ? {} : (source.summary || {}),
+        gradeCounts: isAdvice && !adviceWithSystemData ? {} : (source.gradeCounts || {}),
+        queryFacts: facts,
+        students: hasFacts || isAdvice ? [] : (source.students || []).slice(0, 30),
+        classes: isAdvice && !adviceWithSystemData ? [] : (source.classes || []),
+        riskStudents: isAdvice ? [] : (source.riskStudents || []),
+        pendingFees: isAdvice ? [] : (source.pendingFees || []),
+        grades: hasFacts || isAdvice ? [] : (source.grades || []).slice(0, 80),
+        recentAttendance: isAdvice && !adviceWithSystemData ? [] : (source.recentAttendance || []),
+        communications: hasFacts || isAdvice ? [] : (source.communications || []).slice(-30),
+        prospects: hasFacts || isAdvice ? [] : (source.prospects || []).slice(0, 30),
+        note: hasFacts
+            ? '本次已命中系统精确查询，回答必须优先使用 queryFacts。'
+            : isAdvice
+                ? adviceWithSystemData
+                    ? '本次是方案/建议类问题，用户明确要求结合系统数据；只可使用摘要和班级层信息，不要输出完整学员名单。'
+                    : '本次是方案/建议类问题；按通用教培经验回答，不要声称读取了系统明细，不要输出学员名单、人数、班级数量、课消或欠费金额。'
+                : '本次未命中专门事实查询，请基于精简上下文回答；如果没有证据，直接说明看不到。'
+    };
+}
+
+function getSystemQASourceInstruction(context) {
+    if (context.task !== 'system-qa') {
+        return `回答依据：当前系统=${context.sourceScope?.systemData ? '是' : '否'}；知识库/Obsidian=${context.sourceScope?.knowledgeBase ? '是' : '否'}；联网搜索=${context.sourceScope?.webSearch ? '是' : '否'}`;
+    }
+    const question = context.context?.userQuestion || context.userInstruction || '';
+    if (isSystemQAAdviceIntent(question) && !wantsSystemDataForAdvice(question)) {
+        return `回答依据：通用教培建议${context.sourceScope?.knowledgeBase ? ' + 已导入资料库' : ''}${context.sourceScope?.webSearch ? ' + 联网搜索' : ''}；未读取系统学员/班级明细。`;
+    }
+    return `回答依据：当前系统=${context.sourceScope?.systemData ? '是' : '否'}；知识库/Obsidian=${context.sourceScope?.knowledgeBase ? '是' : '否'}；联网搜索=${context.sourceScope?.webSearch ? '是' : '否'}`;
+}
+
+function getSystemQADataRangeInstruction(context) {
+    if (context.task !== 'system-qa') return `读取范围：${context.dataRange.join('、')}`;
+    const question = context.context?.userQuestion || context.userInstruction || '';
+    if (isSystemQAAdviceIntent(question) && !wantsSystemDataForAdvice(question)) {
+        return '读取范围：通用建议；未读取学生名单、班级明细、收费、考勤、成绩明细。';
+    }
+    return `读取范围：${context.dataRange.join('、')}`;
+}
+
 function buildPrompt(context) {
     return [
-        '你是一个个人教培机构的 AI 助手。',
+        '你是一个个人数学教培机构的 AI 助手，服务对象是数学老师本人。',
         '请根据给定的脱敏业务上下文生成中文内容。',
         '必须遵守：只输出建议或文案，不声称已经修改系统，不自动发送给家长。',
+        context.task === 'system-qa' ? '当前任务是系统数据问答：你只能读数据、解释数据、做统计和给建议，绝不能声称执行了写入操作。' : '',
+        context.task === 'system-qa' ? '如果用户问“怎么做、如何准备、方案、家长会、招生内容、沟通话术”等建议类问题，不要强行列学员名单；请给简洁可执行方案。除非用户明确要求“结合我的数据/按班级/按学员”，否则不要主动引用系统人数、班级数量、课消进度、欠费金额等内部数据。' : '',
+        context.task === 'system-qa' ? '如果数据中没有证据，请明确说“当前系统数据里看不到/无法判断”，不要编造。' : '',
+        context.task === 'system-qa' ? '如果上下文 JSON 里有 queryFacts，必须优先使用 queryFacts 的 total 和 matches 回答；回答精确筛选问题时先写“共找到 X 条/人”，再列姓名、班级、测试、日期、分数等明细。' : '',
+        context.task === 'system-qa' ? '不要只根据 recentGrades 回答全量成绩查询；全量成绩查询应参考 grades 或 queryFacts。' : '',
+        context.task === 'system-qa' ? '查询学校时优先参考 student.currentSchool 和 student.schoolHistory；查询学生详情时可参考 students 与 queryFacts.studentLookup。' : '',
         '隐私要求：如果上下文中的姓名带有 *，输出时必须保留 *，不要改成单字姓氏，也不要猜测完整姓名。',
         '不要输出思考过程，不要输出 <think> 标签内容。',
         '',
@@ -645,44 +813,124 @@ function buildPrompt(context) {
         '',
         '【输出要求】',
         getTaskOutputInstruction(context.task),
+        context.task === 'system-qa' && context.answerLength === 'brief' ? '输出模式：简洁。能一句话回答就一句话回答；列表最多先列 5-8 条；建议类问题最多 6 条要点，禁止表格，禁止长篇分段。' : '',
+        context.task === 'system-qa' && context.answerLength === 'detailed' ? '输出模式：详细。先给结论，再给明细和必要建议。' : '',
         `任务：${context.taskName || context.task}`,
         `隐私模式：${context.privacyMode}`,
-        `读取范围：${context.dataRange.join('、')}`,
+        `输出模式：${context.answerLength === 'detailed' ? '详细' : '简洁'}`,
+        getSystemQASourceInstruction(context),
+        getSystemQADataRangeInstruction(context),
         `用户补充：${context.userInstruction || '无'}`,
+        context.conversationHistory?.length ? `最近对话：${JSON.stringify(context.conversationHistory, null, 2)}` : '',
         '',
         '【知识库上下文】',
         JSON.stringify({
             styleSamples: context.knowledge?.styleSamples || [],
             sources: context.knowledge?.sources || [],
+            chunks: context.knowledge?.chunks || [],
+            webResults: context.knowledge?.webResults || [],
             questions: context.knowledge?.questions || []
         }, null, 2),
         '',
         '上下文 JSON：',
-        JSON.stringify(context.context, null, 2)
+        JSON.stringify(getPromptContext(context), null, 2)
     ].join('\n');
 }
 
-function getProviderEndpoint(provider) {
-    const baseUrl = (config.ai.baseUrl || getDefaultBaseUrl(provider)).replace(/\/$/, '');
+function stripHtmlTags(value) {
+    return String(value || '')
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+async function fetchWebSearchResults(query) {
+    const cleanQuery = safeText(query, 120);
+    if (!cleanQuery) return [];
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+        const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(cleanQuery)}`;
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 StudentAIConsole/1.0' },
+            signal: controller.signal
+        });
+        if (!response.ok) throw new Error(`搜索请求失败：${response.status}`);
+        const html = await response.text();
+        const results = [];
+        const resultBlocks = html.match(/<div class="result[\s\S]*?<\/div>\s*<\/div>/g) || [];
+        resultBlocks.forEach(block => {
+            if (results.length >= 5) return;
+            const linkMatch = block.match(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
+            if (!linkMatch) return;
+            const snippetMatch = block.match(/<a[^>]+class="result__snippet"[\s\S]*?>([\s\S]*?)<\/a>|<div[^>]+class="result__snippet"[\s\S]*?>([\s\S]*?)<\/div>/);
+            results.push({
+                title: stripHtmlTags(linkMatch[2]),
+                url: stripHtmlTags(linkMatch[1]),
+                snippet: stripHtmlTags(snippetMatch?.[1] || snippetMatch?.[2] || '')
+            });
+        });
+        return results;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function augmentContextWithWebSearch(context) {
+    if (!context.sourceScope?.webSearch) return context;
+    context.knowledge = context.knowledge || { refs: [], warnings: [] };
+    try {
+        const query = context.context?.userQuestion || context.userInstruction || '';
+        const results = await fetchWebSearchResults(query);
+        context.knowledge.webResults = results;
+        if (!Array.isArray(context.knowledge.refs)) context.knowledge.refs = [];
+        results.forEach((item, index) => {
+            context.knowledge.refs.push({
+                refType: 'web',
+                refId: item.url || `web-${index + 1}`,
+                title: item.title || `联网结果 ${index + 1}`,
+                summary: safeText(item.snippet || item.url, 240)
+            });
+        });
+        if (results.length === 0) {
+            context.knowledge.warnings = [...(context.knowledge.warnings || []), '本次联网搜索未返回可用结果。'];
+        }
+    } catch (error) {
+        context.knowledge.webResults = [];
+        context.knowledge.warnings = [...(context.knowledge.warnings || []), `联网搜索失败：${error.name === 'AbortError' ? '请求超时' : error.message}`];
+    }
+    return context;
+}
+
+function getProviderEndpoint(provider, baseUrlOverride = '') {
+    const baseUrl = (baseUrlOverride || config.ai.baseUrl || getDefaultBaseUrl(provider)).replace(/\/$/, '');
     if (!baseUrl) return '';
     return `${baseUrl}/chat/completions`;
 }
 
 async function callRealAI(context) {
-    const provider = normalizeProvider(config.ai.provider);
-    const endpoint = getProviderEndpoint(provider);
-    const model = config.ai.model || getDefaultModel(provider);
-    if (!endpoint || !model || !config.ai.apiKey) {
+    const providerConfig = resolveAIProviderConfig(context.modelProvider || '');
+    const provider = providerConfig.provider;
+    const endpoint = getProviderEndpoint(provider, providerConfig.baseUrl);
+    const model = providerConfig.model || getDefaultModel(provider);
+    if (!endpoint || !model || !providerConfig.apiKey) {
         throw new Error('AI 配置不完整');
     }
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), config.ai.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), providerConfig.timeoutMs);
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${config.ai.apiKey}`
+                Authorization: `Bearer ${providerConfig.apiKey}`
             },
             body: JSON.stringify({
                 model,
@@ -693,6 +941,48 @@ async function callRealAI(context) {
                 temperature: 0.4,
                 reasoning_split: true
             }),
+            signal: controller.signal
+        });
+        const parsed = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(parsed.error?.message || `AI 接口返回 ${response.status}`);
+        }
+        const result = parsed.choices?.[0]?.message?.content;
+        if (!result) throw new Error('AI 返回内容为空');
+        return stripThinkTags(result);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function generateRawAIText({ system = '', user = '', temperature = 0.1, timeoutMs = 0, provider: providerOverride = '', model: modelOverride = '', baseUrl = '', apiKey = '', jsonMode = false } = {}) {
+    const providerConfig = resolveAIProviderConfig(providerOverride || '');
+    const provider = providerConfig.provider;
+    const endpoint = getProviderEndpoint(provider, baseUrl || providerConfig.baseUrl);
+    const model = modelOverride || providerConfig.model || getDefaultModel(provider);
+    const key = apiKey || providerConfig.apiKey;
+    if (!endpoint || !model || !key) {
+        throw new Error('AI 配置不完整');
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs || config.ai.timeoutMs);
+    const body = {
+        model,
+        messages: [
+            { role: 'system', content: system || '你是谨慎的结构化信息抽取助手，只输出用户要求的内容。' },
+            { role: 'user', content: user || '' }
+        ],
+        temperature
+    };
+    if (jsonMode) body.response_format = { type: 'json_object' };
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${key}`
+            },
+            body: JSON.stringify(body),
             signal: controller.signal
         });
         const parsed = await response.json().catch(() => ({}));
@@ -779,10 +1069,15 @@ function buildLogInput(context) {
     const input = {
         agent: context.agent,
         task: context.task,
+        modelProvider: context.modelProvider || '',
+        answerLength: context.answerLength || '',
         privacyMode: context.privacyMode,
         dataRange: context.dataRange,
         relatedFound: Boolean(context.context?.found),
-        contextType: context.context?.type || ''
+        contextType: context.context?.type || '',
+        latestQuestion: context.context?.userQuestion || context.userInstruction || '',
+        factQuestion: context.context?.factQuestion || '',
+        queryFactKeys: Object.keys(context.context?.queryFacts || {})
     };
     if (config.ai.logFullInput) {
         input.fullContext = context;
@@ -805,8 +1100,9 @@ async function generateAIResponse(payload) {
         error.statusCode = 400;
         throw error;
     }
-    const context = buildAIContext({ ...payload, agent, task, requestedTask });
-    const status = getAiStatus();
+    let context = buildAIContext({ ...payload, agent, task, requestedTask });
+    context = await augmentContextWithWebSearch(context);
+    const status = getAiStatus(context.modelProvider);
     const taskId = newId('ai_task');
     const createdAt = nowIso();
     insertAiTask({
@@ -828,21 +1124,65 @@ async function generateAIResponse(payload) {
         let mode = status.mode;
         let result;
         let fallbackFrom = '';
-        if (status.enabled) {
+        const writeIntentAnswer = buildSystemQAWriteIntentAnswer(context.context?.userQuestion || context.userInstruction || '');
+        const noEvidenceAnswer = buildNoEvidenceSystemQAAnswer(context);
+        const factAnswer = buildSystemFactAnswer(context);
+        const adviceIntent = context.task === 'system-qa' && isSystemQAAdviceIntent(context.context?.userQuestion || context.userInstruction || '');
+        if (context.task === 'system-qa' && writeIntentAnswer) {
+            mode = 'system-safe';
+            result = writeIntentAnswer;
+        } else if (context.task === 'system-qa' && factAnswer) {
+            mode = 'system-facts';
+            result = factAnswer;
+        } else if (context.task === 'system-qa' && noEvidenceAnswer) {
+            mode = 'system-safe';
+            result = noEvidenceAnswer;
+        } else if (context.task === 'system-qa' && context.answerLength !== 'detailed' && !adviceIntent) {
+            mode = 'system-safe';
+            result = [
+                '这个问题暂时没有命中系统精确查询规则，我先不乱答。',
+                '你可以换成更明确的问法，例如：',
+                '- 某个学生的学校/班级/课时/欠费/成绩/考勤',
+                '- 某个年级或班级有哪些学生',
+                '- 多少分以上/以下/不及格/满分有哪些学生',
+                '- 本月课消、待收款、需要关注的学生',
+                '如果你想让我做综合分析，可以切换到“详细”模式再问。'
+            ].join('\n');
+        } else if (status.enabled) {
             try {
                 result = await callRealAI(context);
             } catch (error) {
                 const message = error.name === 'AbortError' ? 'AI 接口超时' : error.message;
                 if (payload.fallbackOnError === false) throw error;
-                mode = 'local-template';
-                fallbackFrom = status.mode;
-                result = buildLocalTemplate(context);
-                warnings.push(`真实 AI 调用失败，已自动回退本地模板：${message}`);
+                if (context.task === 'system-qa' && factAnswer) {
+                    mode = 'system-facts';
+                    fallbackFrom = status.mode;
+                    result = `${factAnswer}\n\n注：真实 AI 组织语言失败，以上为系统精确查询结果。`;
+                    warnings.push(`真实 AI 调用失败，已显示系统精确查询结果：${message}`);
+                } else if (context.task === 'system-qa') {
+                    throw error;
+                } else {
+                    mode = 'local-template';
+                    fallbackFrom = status.mode;
+                    result = buildLocalTemplate(context);
+                    warnings.push(`真实 AI 调用失败，已自动回退本地模板：${message}`);
+                }
             }
         } else {
-            mode = 'local-template';
-            result = buildLocalTemplate(context);
-            warnings.push('AI_PROVIDER 未启用或未配置密钥，已使用本地模板。');
+            if (context.task === 'system-qa' && factAnswer) {
+                mode = 'system-facts';
+                result = `${factAnswer}\n\n注：真实 AI 未启用，以上为系统精确查询结果。`;
+                warnings.push('真实 AI 未启用，已显示系统精确查询结果。');
+            } else if (context.task === 'system-qa') {
+                throw new Error('真实 AI 未启用或配置不完整，且本次问题没有命中系统精确查询。');
+            } else {
+                mode = 'local-template';
+                result = buildLocalTemplate(context);
+                warnings.push('AI_PROVIDER 未启用或未配置密钥，已使用本地模板。');
+            }
+        }
+        if (context.task === 'system-qa' && context.answerLength === 'brief' && adviceIntent && result) {
+            result = compactBriefAdviceResult(result);
         }
         const elapsedMs = Date.now() - startedAt;
         updateAiTask(taskId, { outputText: result, status: 'done' });
@@ -858,7 +1198,9 @@ async function generateAIResponse(payload) {
                 outputLength: result.length,
                 warnings,
                 fallbackFrom,
-                elapsedMs
+                elapsedMs,
+                provider: status.provider,
+                contextSize: JSON.stringify(getPromptContext(context)).length
             },
             createdAt: nowIso()
         });
@@ -868,7 +1210,12 @@ async function generateAIResponse(payload) {
             mode,
             provider: status.provider,
             result,
+            generatedAt: nowIso(),
+            answerLength: context.answerLength,
             dataRange: context.dataRange,
+            sourceScope: context.sourceScope,
+            queryFactKeys: Object.keys(context.context?.queryFacts || {}),
+            contextSize: JSON.stringify(getPromptContext(context)).length,
             contextRefs: listAIContextRefs(taskId),
             privacyMode: context.privacyMode,
             warnings,
@@ -887,7 +1234,9 @@ async function generateAIResponse(payload) {
                 mode: status.mode,
                 success: false,
                 taskId,
-                error: message
+                error: message,
+                provider: status.provider,
+                contextSize: JSON.stringify(getPromptContext(context)).length
             },
             createdAt: nowIso()
         });
@@ -947,5 +1296,6 @@ module.exports = {
     listAgentLogs,
     listAIContextRefs,
     buildAIContext,
-    buildLocalTemplate
+    buildLocalTemplate,
+    generateRawAIText
 };

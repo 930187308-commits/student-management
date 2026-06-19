@@ -3,6 +3,60 @@
 let currentStudentTab = 'active'; // active / renewalPending / inactive
 let studentBatchMode = false;
 
+const STUDENT_DEFAULT_GRADES = ['五年级', '六年级', '初一', '初二', '初三', '高一', '高二', '高三'];
+const STUDENT_GRADE_UPGRADE_MAP = {
+    '五年级': '六年级',
+    '六年级': '初一',
+    '初一': '初二',
+    '初二': '初三',
+    '高一': '高二',
+    '高二': '高三'
+};
+
+function getStudentGradeOptions(currentGrade = '') {
+    const options = [...new Set([...(data.gradeOptions || []), ...STUDENT_DEFAULT_GRADES, currentGrade].filter(Boolean))]
+        .filter(g => g !== '新初一');
+    return options.length ? options : STUDENT_DEFAULT_GRADES;
+}
+
+function getGradeSchoolStage(grade = '') {
+    if (['五年级', '六年级'].includes(grade)) return 'primary';
+    if (['初一', '初二', '初三', '七年级', '八年级', '九年级'].includes(grade)) return 'middle';
+    if (['高一', '高二', '高三'].includes(grade)) return 'high';
+    return '';
+}
+
+function getSchoolHistory(student = {}) {
+    const history = student.schoolHistory || {};
+    const result = {
+        primarySchool: String(history.primarySchool || '').trim(),
+        middleSchool: String(history.middleSchool || '').trim(),
+        highSchool: String(history.highSchool || '').trim()
+    };
+    const legacySchool = String(student.school || '').trim();
+    const stage = getGradeSchoolStage(student.grade || '');
+    if (legacySchool) {
+        if (stage === 'primary' && !result.primarySchool) result.primarySchool = legacySchool;
+        if (stage === 'middle' && !result.middleSchool) result.middleSchool = legacySchool;
+        if (stage === 'high' && !result.highSchool) result.highSchool = legacySchool;
+    }
+    return result;
+}
+
+function getCurrentStageSchool(student = {}) {
+    const history = getSchoolHistory(student);
+    const stage = getGradeSchoolStage(student.grade || '');
+    if (stage === 'primary') return { stage, stageText: '小学', school: history.primarySchool || '' };
+    if (stage === 'middle') return { stage, stageText: '初中', school: history.middleSchool || '' };
+    if (stage === 'high') return { stage, stageText: '高中', school: history.highSchool || '' };
+    return { stage: '', stageText: '未判断', school: '' };
+}
+
+function getLegacySchoolFromHistory(grade, schoolHistory, fallback = '') {
+    const stageInfo = getCurrentStageSchool({ grade, schoolHistory, school: fallback });
+    return stageInfo.school || fallback || '';
+}
+
 function renderStudents() {
     const container = document.getElementById('tab-students');
     const grades = [...new Set(data.classes.map(c => c.grade))];
@@ -29,6 +83,7 @@ function renderStudents() {
                 </div>
                 <input type="text" id="studentSearchInput" placeholder="搜索学员姓名..." oninput="renderStudentList()" style="margin-bottom: 8px; width: 100%;">
 
+                <div id="studentCountBar" style="font-size: 12px; color: var(--text-muted); margin: -2px 0 8px;"></div>
                 <div class="student-list" id="studentList"></div>
                 <div style="display: flex; gap: 8px; margin-top: 12px;">
                     <button class="btn btn-secondary" style="flex:1;" onclick="downloadStudentTemplate()">下载模板</button>
@@ -39,6 +94,7 @@ function renderStudents() {
                 </div>
                 <div style="display: flex; gap: 8px; margin-top: 8px;">
                     <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="toggleStudentBatchMode()">${studentBatchMode ? '退出多选' : '多选'}</button>
+                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="openGradeUpgradePreview()">升年级预览</button>
                 </div>
                 ${studentBatchMode ? `<div id="studentBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
                     <span>已选择 <strong id="studentSelectedCount">0</strong> 条</span>
@@ -77,15 +133,21 @@ function renderStudentList() {
     const classId = document.getElementById('studentClassFilter')?.value || '';
     const search = document.getElementById('studentSearchInput')?.value?.toLowerCase() || '';
 
-    const filtered = data.students.filter(s => {
-        // Tab筛选
+    const tabStudents = data.students.filter(s => {
         if (currentStudentTab === 'active' && s.status !== 'active') return false;
         if (currentStudentTab === 'renewalPending' && s.status !== 'renewalPending') return false;
         if (currentStudentTab === 'inactive' && (s.status === 'active' || s.status === 'renewalPending' || !s.status)) return false;
+        return true;
+    });
 
+    const filteredBeforeSearch = tabStudents.filter(s => {
         if (grade && s.grade !== grade) return false;
         if (classId === '__unassigned__' && s.classId) return false;
         if (classId && classId !== '__unassigned__' && s.classId !== classId) return false;
+        return true;
+    });
+
+    const filtered = filteredBeforeSearch.filter(s => {
         if (search && !s.name.toLowerCase().includes(search)) return false;
         return true;
     }).sort((a, b) => {
@@ -95,6 +157,18 @@ function renderStudentList() {
         if (bTime < aTime) return -1;
         return (a.name || '').localeCompare(b.name || '');
     });
+
+    const countBar = document.getElementById('studentCountBar');
+    if (countBar) {
+        const filterLabel = grade || (classId ? '当前筛选' : '');
+        if (search) {
+            countBar.textContent = `当前 ${filtered.length} 名 / 筛选前 ${filteredBeforeSearch.length} 名`;
+        } else if (filterLabel) {
+            countBar.textContent = `${filterLabel}：${filtered.length} 名 / 本栏共 ${tabStudents.length} 名`;
+        } else {
+            countBar.textContent = `当前 ${filtered.length} 名 / 本栏共 ${tabStudents.length} 名`;
+        }
+    }
 
     const list = document.getElementById('studentList');
     list.innerHTML = filtered.map(s => {
@@ -160,9 +234,12 @@ function renderStudentDetail() {
     if (!student) return;
 
     const cls = data.classes.find(c => c.id === student.classId);
-    const studentFees = data.fees.filter(f => f.studentId === student.id);
-    const studentGrades = data.grades.filter(g => g.studentId === student.id).sort((a, b) => a.testDate.localeCompare(b.testDate));
-    const studentComms = data.communications.filter(c => c.studentId === student.id);
+    const schoolHistory = getSchoolHistory(student);
+    const currentSchool = getCurrentStageSchool(student);
+    const studentFees = data.fees.filter(f => f.studentId === student.id).sort((a, b) => String(b.paymentDate || '').localeCompare(String(a.paymentDate || '')));
+    const studentGrades = data.grades.filter(g => g.studentId === student.id).sort((a, b) => String(a.testDate || '').localeCompare(String(b.testDate || '')));
+    const displayStudentGrades = [...studentGrades].sort((a, b) => String(b.testDate || '').localeCompare(String(a.testDate || '')));
+    const studentComms = data.communications.filter(c => c.studentId === student.id).sort((a, b) => String(b.contactDate || '').localeCompare(String(a.contactDate || '')));
 
     // 按类型筛选成绩
     const schoolGrades = studentGrades.filter(g => g.examType === 'school');
@@ -173,6 +250,10 @@ function renderStudentDetail() {
     // 计算课时统计
     const totalPaidHours = studentFees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.hours, 0);
     const totalPaidAmount = studentFees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
+    const pendingFees = studentFees.filter(f => f.status === 'pending');
+    const pendingFeeAmount = pendingFees.reduce((sum, f) => sum + Number(f.amount || 0), 0);
+    const latestGrade = displayStudentGrades[0];
+    const latestComm = studentComms[0];
 
     // 计算已消课时和请假课时
     let usedHours = 0, absentHours = 0;
@@ -182,6 +263,13 @@ function renderStudentDetail() {
     });
     const remainingHours = totalPaidHours - usedHours;
     const usageRate = totalPaidHours > 0 ? Math.round((usedHours / totalPaidHours) * 100) : 0;
+    const riskNotes = [
+        totalPaidHours === 0 && usedHours > 0 ? '已上课但没有已缴课时记录' : '',
+        remainingHours < 0 ? `课时余额为负：${remainingHours}` : '',
+        remainingHours >= 0 && remainingHours <= 2 && totalPaidHours > 0 ? `剩余课时较少：${remainingHours}` : '',
+        pendingFeeAmount > 0 ? `有欠费记录：¥${pendingFeeAmount.toLocaleString()}` : '',
+        student.status === 'renewalPending' ? '当前状态为待续费' : ''
+    ].filter(Boolean);
 
     const detail = document.getElementById('studentDetail');
     let chartHtml = '';
@@ -229,13 +317,47 @@ function renderStudentDetail() {
             <div class="detail-item"><div class="label">已缴课时</div><div class="value">${totalPaidHours > 0 ? totalPaidHours + ' 课时 <span style="font-size:12px;color:#888;">¥' + totalPaidAmount.toLocaleString() : '---暂无收费记录'}</div></div>
             <div class="detail-item"><div class="label">性别</div><div class="value">${escapeHtml(student.gender)}</div></div>
             <div class="detail-item"><div class="label">授课老师</div><div class="value">${escapeHtml(student.teacher)}</div></div>
-            <div class="detail-item"><div class="label">就读学校</div><div class="value">${escapeHtml(student.school) || '-'}</div></div>
+            <div class="detail-item"><div class="label">当前就读阶段学校</div><div class="value">${currentSchool.stageText} · ${escapeHtml(currentSchool.school) || '-'}</div></div>
             <div class="detail-item"><div class="label">入班时间</div><div class="value">${student.enrollDate}</div></div>
             <div class="detail-item"><div class="label">首次入学</div><div class="value">${student.firstEnrollDate || '-'}</div></div>
+            <div class="detail-item"><div class="label">首次上课年级</div><div class="value">${escapeHtml(student.firstEnrollGrade) || '-'}</div></div>
             <div class="detail-item"><div class="label">联系电话</div><div class="value">${escapeHtml(student.phone) || '-'}</div></div>
+            <div class="detail-item"><div class="label">小学学校</div><div class="value">${escapeHtml(schoolHistory.primarySchool) || '-'}</div></div>
+            <div class="detail-item"><div class="label">初中学校</div><div class="value">${escapeHtml(schoolHistory.middleSchool) || '-'}</div></div>
+            <div class="detail-item"><div class="label">高中学校</div><div class="value">${escapeHtml(schoolHistory.highSchool) || '-'}</div></div>
         </div>
 
         ${student.remark ? `<div style="margin-top: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px;"><div class="label">备注</div><div class="value">${escapeHtml(student.remark)}</div></div>` : ''}
+
+        <div class="student-detail-summary-grid">
+            <div class="student-detail-card ${riskNotes.length ? 'is-risk' : ''}">
+                <div class="student-detail-card-title">关注提醒</div>
+                ${riskNotes.length ? riskNotes.map(note => `<div class="student-detail-line">${escapeHtml(note)}</div>`).join('') : '<div class="student-detail-muted">暂无明显课时/收费风险</div>'}
+            </div>
+            <div class="student-detail-card">
+                <div class="student-detail-card-title">最近成绩</div>
+                ${latestGrade ? `
+                    <div class="student-detail-line">${escapeHtml(latestGrade.testName || '未命名测试')} · ${escapeHtml(latestGrade.testDate || '-')}</div>
+                    <div class="student-detail-big">${escapeHtml(latestGrade.score ?? '-')}/${escapeHtml(latestGrade.fullScore ?? '-')}</div>
+                    <div class="student-detail-muted">薄弱点：${escapeHtml(latestGrade.weakPoints || '-')}</div>
+                ` : '<div class="student-detail-muted">暂无成绩记录</div>'}
+            </div>
+            <div class="student-detail-card">
+                <div class="student-detail-card-title">最近收费</div>
+                ${studentFees[0] ? `
+                    <div class="student-detail-line">${escapeHtml(studentFees[0].paymentDate || '-')} · ${studentFees[0].status === 'paid' ? '已缴' : '欠费'}</div>
+                    <div class="student-detail-big">¥${Number(studentFees[0].amount || 0).toLocaleString()}</div>
+                    <div class="student-detail-muted">${Number(studentFees[0].hours || 0)} 课时 · ${escapeHtml(studentFees[0].package || '-')}</div>
+                ` : '<div class="student-detail-muted">暂无收费记录</div>'}
+            </div>
+            <div class="student-detail-card">
+                <div class="student-detail-card-title">最近沟通</div>
+                ${latestComm ? `
+                    <div class="student-detail-line">${escapeHtml(latestComm.contactDate || '-')} · ${escapeHtml(latestComm.status || '-')}</div>
+                    <div class="student-detail-muted">${escapeHtml(latestComm.content || latestComm.followUp || '-')}</div>
+                ` : '<div class="student-detail-muted">暂无沟通记录</div>'}
+            </div>
+        </div>
 
         <!-- 成绩记录 -->
         <div style="margin-top: 24px;">
@@ -252,9 +374,24 @@ function renderStudentDetail() {
                     <table>
                         <thead><tr><th>测试</th><th>日期</th><th>类型</th><th>得分</th><th>排名</th></tr></thead>
                         <tbody>
-                            ${displayGrades.map(g => `<tr><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td></tr>`).join('')}
+                            ${[...displayGrades].sort((a, b) => String(b.testDate || '').localeCompare(String(a.testDate || ''))).map(g => `<tr><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td></tr>`).join('')}
                         </tbody>
                     </table>
+                </div>
+            `}
+        </div>
+
+        <div style="margin-top: 24px;">
+            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 12px;">沟通记录 (${studentComms.length})</div>
+            ${studentComms.length === 0 ? '<div class="empty-state" style="padding: 20px;">暂无记录</div>' : `
+                <div class="student-detail-timeline">
+                    ${studentComms.slice(0, 8).map(c => `
+                        <div class="student-detail-timeline-item">
+                            <div class="student-detail-timeline-date">${escapeHtml(c.contactDate || '-')} · ${escapeHtml(c.status || '-')}</div>
+                            <div>${escapeHtml(c.content || '-')}</div>
+                            ${c.followUp ? `<div class="student-detail-muted">跟进：${escapeHtml(c.followUp)}</div>` : ''}
+                        </div>
+                    `).join('')}
                 </div>
             `}
         </div>
@@ -296,6 +433,8 @@ function openStudentModal(id = null) {
     currentEditId = id;
     const student = id ? data.students.find(s => s.id === id) : null;
     const classOptions = data.classes.filter(c => c.status === 'active').map(c => `<option value="${c.id}" ${student?.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+    const schoolHistory = getSchoolHistory(student || {});
+    const gradeOptions = getStudentGradeOptions(student?.grade);
 
     document.getElementById('modalTitle').textContent = id ? '编辑学员' : '新增学员';
     document.getElementById('modalBody').innerHTML = `
@@ -312,7 +451,7 @@ function openStudentModal(id = null) {
                 <div class="form-group">
                     <label>年级</label>
                     <select name="grade">
-                        ${(data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']).map(g => `<option value="${escapeHtml(g)}" ${student?.grade === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
+                        ${gradeOptions.map(g => `<option value="${escapeHtml(g)}" ${student?.grade === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
                     </select>
                 </div>
             </div>
@@ -327,7 +466,18 @@ function openStudentModal(id = null) {
                 <div class="form-group"><label>首次入学时间</label><input type="date" name="firstEnrollDate" value="${student?.firstEnrollDate || student?.enrollDate || new Date().toISOString().split('T')[0]}"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>就读学校</label><input type="text" name="school" value="${escapeHtml(student?.school || '')}" placeholder="如：XX小学" list="schoolDatalist" autocomplete="off"></div>
+                <div class="form-group">
+                    <label>首次上课年级</label>
+                    <select name="firstEnrollGrade">
+                        <option value="">未填写</option>
+                        ${getStudentGradeOptions(student?.firstEnrollGrade || student?.grade).map(g => `<option value="${escapeHtml(g)}" ${student?.firstEnrollGrade === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group"><label>小学学校</label><input type="text" name="primarySchool" value="${escapeHtml(schoolHistory.primarySchool)}" placeholder="如：XX小学" list="schoolDatalist" autocomplete="off"></div>
+                <div class="form-group"><label>初中学校</label><input type="text" name="middleSchool" value="${escapeHtml(schoolHistory.middleSchool)}" placeholder="如：XX中学" list="schoolDatalist" autocomplete="off"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>高中学校</label><input type="text" name="highSchool" value="${escapeHtml(schoolHistory.highSchool)}" placeholder="如：XX高中" list="schoolDatalist" autocomplete="off"></div>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -394,13 +544,24 @@ async function saveStudent(e) {
         classJoinSessions[form.classId.value] = 1;
     }
 
+    const schoolHistory = {
+        primarySchool: form.primarySchool.value.trim(),
+        middleSchool: form.middleSchool.value.trim(),
+        highSchool: form.highSchool.value.trim()
+    };
+    const firstEnrollGrade = form.firstEnrollGrade.value || (!currentEditId ? form.grade.value : existingStudent?.firstEnrollGrade || '');
+    const legacySchool = getLegacySchoolFromHistory(form.grade.value, schoolHistory, '');
+
     const studentData = {
         id: currentEditId || generateId(),
         name: form.name.value, gender: form.gender.value, grade: form.grade.value,
         classId: form.classId.value, teacher: form.teacher.value, enrollDate: form.enrollDate.value,
         firstEnrollDate: form.firstEnrollDate.value || existingStudent?.firstEnrollDate || form.enrollDate.value,
+        firstEnrollGrade,
         phone: form.phone.value, emergencyContact: form.emergencyContact.value,
-        status: form.status.value, followUpStatus: form.followUpStatus?.value || '', remark: form.remark.value, school: form.school.value,
+        status: form.status.value, followUpStatus: form.followUpStatus?.value || '', remark: form.remark.value,
+        schoolHistory,
+        school: legacySchool,
         classJoinSessions,
         classLeaveSessions,
         createdAt: currentEditId ? existingStudent?.createdAt : new Date().toISOString()
@@ -432,8 +593,110 @@ function getStudentLastRecordedSessionIndex(studentId, classId) {
 function updateSchoolDatalist() {
     const datalist = document.getElementById('schoolDatalist');
     if (!datalist) return;
-    const schools = [...new Set((data.students || []).map(s => s.school).filter(Boolean))];
+    const schools = [...new Set((data.students || []).flatMap(s => {
+        const history = getSchoolHistory(s);
+        return [history.primarySchool, history.middleSchool, history.highSchool, s.school].filter(Boolean);
+    }))];
     datalist.innerHTML = schools.map(s => `<option value="${escapeHtml(s)}">`).join('');
+}
+
+function openGradeUpgradePreview() {
+    const students = data.students || [];
+    const gradeOptions = getStudentGradeOptions();
+    document.getElementById('modalTitle').textContent = '升年级预览';
+    document.getElementById('modalBody').innerHTML = `
+        <div style="margin-bottom: 12px; padding: 10px; background: var(--hover-bg); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
+            只会更新勾选学员的当前年级，不修改首次上课年级、班级关系、班级年级或学员状态。确认前会自动创建服务器备份。
+        </div>
+        <div class="table-wrapper" style="max-height: 60vh; overflow: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" onchange="toggleAllGradeUpgradeRows(this)" checked></th>
+                        <th>学员</th>
+                        <th>状态</th>
+                        <th>当前年级</th>
+                        <th>目标年级</th>
+                        <th>首次上课年级</th>
+                        <th>当前就读阶段学校</th>
+                        <th>当前班级</th>
+                        <th>处理状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${students.map(student => {
+                        const targetGrade = STUDENT_GRADE_UPGRADE_MAP[student.grade] || '';
+                        const cls = (data.classes || []).find(c => c.id === student.classId);
+                        const school = getCurrentStageSchool(student);
+                        const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业' };
+                        return `
+                            <tr>
+                                <td><input type="checkbox" class="grade-upgrade-row" data-student-id="${student.id}" ${targetGrade ? 'checked' : ''}></td>
+                                <td>${escapeHtml(student.name || '')}</td>
+                                <td>${escapeHtml(statusMap[student.status] || student.status || '-')}</td>
+                                <td>${escapeHtml(student.grade || '-')}</td>
+                                <td>
+                                    <select class="grade-upgrade-target" data-student-id="${student.id}">
+                                        <option value="">手动处理</option>
+                                        ${gradeOptions.map(g => `<option value="${escapeHtml(g)}" ${targetGrade === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
+                                    </select>
+                                </td>
+                                <td>${escapeHtml(student.firstEnrollGrade || '-')}</td>
+                                <td>${escapeHtml(school.stageText)} · ${escapeHtml(school.school || '-')}</td>
+                                <td>${escapeHtml(cls?.name || '未分班')}</td>
+                                <td><span class="badge ${targetGrade ? 'badge-active' : 'badge-pending'}">${targetGrade ? '可升级' : '需手动处理'}</span></td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button type="button" class="btn btn-primary" onclick="applyGradeUpgrade()">确认升级勾选学员</button>
+        </div>
+    `;
+    document.getElementById('modal').classList.add('show');
+}
+
+function toggleAllGradeUpgradeRows(master) {
+    document.querySelectorAll('.grade-upgrade-row').forEach(row => {
+        const target = document.querySelector(`.grade-upgrade-target[data-student-id="${row.dataset.studentId}"]`)?.value || '';
+        row.checked = Boolean(master.checked && target);
+    });
+}
+
+async function applyGradeUpgrade() {
+    const updates = [];
+    document.querySelectorAll('.grade-upgrade-row:checked').forEach(row => {
+        const studentId = row.dataset.studentId;
+        const targetGrade = document.querySelector(`.grade-upgrade-target[data-student-id="${studentId}"]`)?.value || '';
+        const student = (data.students || []).find(s => s.id === studentId);
+        if (student && targetGrade && targetGrade !== student.grade) {
+            updates.push({ student, targetGrade });
+        }
+    });
+    if (updates.length === 0) {
+        showToast('没有可升级的学员');
+        return;
+    }
+    if (!confirm(`确认升级 ${updates.length} 名学员的当前年级吗？\n\n此操作不会修改首次上课年级、班级关系和学员状态。`)) return;
+    await createServerBackup('升年级前自动备份');
+    updates.forEach(({ student, targetGrade }) => {
+        const existingHistory = getSchoolHistory(student);
+        student.grade = targetGrade;
+        student.schoolHistory = existingHistory;
+        student.school = getLegacySchoolFromHistory(student.grade, student.schoolHistory, '');
+    });
+    try {
+        await saveStudentsToApi(data.students);
+    } catch (error) {
+        showToast('升年级保存失败：' + error.message);
+        return;
+    }
+    closeModal();
+    showToast(`已升级 ${updates.length} 名学员`);
+    render();
 }
 
 async function deleteStudent(id) {
@@ -540,10 +803,11 @@ function formatPendingFeeSummary(summary) {
 
 function exportStudentRows(students, filename) {
     const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业', forming: '组班中（旧）' };
-    const headers = ['姓名', '性别', '年级', '所在班级', '授课老师', '入班时间', '首次入学', '联系电话', '紧急联系人', '就读学校', '状态', '备注'];
+    const headers = ['姓名', '性别', '年级', '所在班级', '授课老师', '入班时间', '首次入学', '首次上课年级', '联系电话', '紧急联系人', '小学学校', '初中学校', '高中学校', '状态', '备注'];
     const rows = students.map(s => {
         const cls = (data.classes || []).find(c => c.id === s.classId);
-        return [s.name || '', s.gender || '', s.grade || '', cls?.name || '未分班', s.teacher || '', s.enrollDate || '', s.firstEnrollDate || '', s.phone || '', s.emergencyContact || '', s.school || '', statusMap[s.status] || s.status || '', s.remark || ''];
+        const history = getSchoolHistory(s);
+        return [s.name || '', s.gender || '', s.grade || '', cls?.name || '未分班', s.teacher || '', s.enrollDate || '', s.firstEnrollDate || '', s.firstEnrollGrade || '', s.phone || '', s.emergencyContact || '', history.primarySchool || '', history.middleSchool || '', history.highSchool || '', statusMap[s.status] || s.status || '', s.remark || ''];
     });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const wb = XLSX.utils.book_new();
@@ -555,8 +819,8 @@ function exportStudentRows(students, filename) {
 // 下载学员导入模板（含填写说明）
 function downloadStudentTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([
-        ['姓名', '性别', '年级', '班级名称', '授课老师', '入班时间', '联系电话', '紧急联系人', '状态', '备注', '就读学校'],
-        ['张三', '男', '六年级', '六年级奥数-周五18:00', '白老师', '2025-09-01', '13800138001', '13900139001', 'active', '数学基础扎实', 'XX小学'],
+        ['姓名', '性别', '年级', '班级名称', '授课老师', '入班时间', '首次入学', '首次上课年级', '联系电话', '紧急联系人', '状态', '备注', '小学学校', '初中学校', '高中学校'],
+        ['张三', '男', '六年级', '六年级奥数-周五18:00', '白老师', '2025-09-01', '2025-09-01', '六年级', '13800138001', '13900139001', 'active', '数学基础扎实', 'XX小学', '', ''],
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '学员数据');
@@ -570,16 +834,21 @@ function downloadStudentTemplate() {
         ['班级名称', '班级名称，匹配已有班级', '选填', '如：六年级培优A班'],
         ['授课老师', '授课老师姓名', '选填', '如：白老师'],
         ['入班时间', '报名/入班日期', '选填', 'yyyy-mm-dd，如 2025-09-01'],
+        ['首次入学', '第一次来上课日期', '选填', 'yyyy-mm-dd，如 2025-09-01'],
+        ['首次上课年级', '第一次来上课时的年级，只做历史记录', '选填', '如：六年级'],
         ['联系电话', '家长电话', '选填', '如：13800138001'],
         ['紧急联系人', '紧急联系人', '选填', '如：13900139001'],
         ['状态', '在读状态', '选填', 'active（默认在读）/ inactive / renewalPending / withdrawn / graduated / 在读 / 停课 / 待续费 / 已退费 / 已毕业'],
         ['备注', '补充说明', '选填', '如：数学基础扎实'],
-        ['就读学校', '就读学校', '选填', '如：XX小学'],
+        ['小学学校', '小学阶段学校', '选填', '如：XX小学'],
+        ['初中学校', '初中阶段学校', '选填', '如：XX中学'],
+        ['高中学校', '高中阶段学校', '选填', '如：XX高中'],
         [''],
         ['注意事项'],
         ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-09-01'],
         ['2. 班级名称如不匹配现有班级，会以"未分班"状态导入'],
         ['3. 状态：active/在读=正常在读，inactive/停课，renewalPending/待续费，withdrawn/已退费，graduated/已毕业，无法识别会导入失败并跳过'],
+        ['4. 当前学校不用填写，系统会根据当前年级自动显示小学/初中/高中对应学校'],
     ]);
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '学员导入模板.xlsx');
@@ -616,6 +885,33 @@ function importStudents(event) {
 
 function precheckStudentImport(rows) {
     const statusMap = { '在读': 'active', 'active': 'active', '停课': 'inactive', 'inactive': 'inactive', '待续费': 'renewalPending', 'renewalpending': 'renewalPending', '已退费': 'withdrawn', 'withdrawn': 'withdrawn', '已毕业': 'graduated', 'graduated': 'graduated' };
+    const headers = (rows[0] || []).map(h => String(h || '').trim());
+    const idx = (names, fallback) => {
+        for (const name of names) {
+            const found = headers.indexOf(name);
+            if (found !== -1) return found;
+        }
+        return fallback;
+    };
+    const indexes = {
+        name: idx(['姓名'], 0),
+        gender: idx(['性别'], 1),
+        grade: idx(['年级'], 2),
+        className: idx(['班级名称', '所在班级'], 3),
+        teacher: idx(['授课老师'], 4),
+        enrollDate: idx(['入班时间'], 5),
+        firstEnrollDate: idx(['首次入学', '首次入学时间'], -1),
+        firstEnrollGrade: idx(['首次上课年级'], -1),
+        phone: idx(['联系电话'], headers.includes('首次上课年级') ? 8 : 6),
+        emergencyContact: idx(['紧急联系人'], headers.includes('首次上课年级') ? 9 : 7),
+        status: idx(['状态'], headers.includes('首次上课年级') ? 10 : 8),
+        remark: idx(['备注'], headers.includes('首次上课年级') ? 11 : 9),
+        legacySchool: idx(['就读学校'], 10),
+        primarySchool: idx(['小学学校'], -1),
+        middleSchool: idx(['初中学校'], -1),
+        highSchool: idx(['高中学校'], -1)
+    };
+    const getCell = (row, key) => indexes[key] >= 0 ? row[indexes[key]] : '';
     const validRows = [];
     const errors = [];
     const warnings = [];
@@ -627,18 +923,19 @@ function precheckStudentImport(rows) {
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const rowNum = i + 1;
-        if (!row[0]) { skipped++; skippedDetails.push({ row: rowNum, msg: '未填写学员姓名' }); continue; }
+        if (!getCell(row, 'name')) { skipped++; skippedDetails.push({ row: rowNum, msg: '未填写学员姓名' }); continue; }
 
-        const name = String(row[0]).trim();
-        const phone = String(row[6] || '').trim();
-        const rawStatus = String(row[8] || '').trim().toLowerCase();
+        const name = String(getCell(row, 'name')).trim();
+        const phone = String(getCell(row, 'phone') || '').trim();
+        const rawStatus = String(getCell(row, 'status') || '').trim().toLowerCase();
         if (rawStatus && !statusMap[rawStatus]) {
             errors.push({ row: rowNum, msg: `状态"${rawStatus}"无法识别` });
             failed++;
             continue;
         }
 
-        const className = String(row[3] || '').trim();
+        const grade = String(getCell(row, 'grade') || '六年级').trim();
+        const className = String(getCell(row, 'className') || '').trim();
         const normalizedClassName = normalizeTextForMatch(className);
         const cls = className ? data.classes.find(c =>
             normalizeTextForMatch(c.name) === normalizedClassName ||
@@ -654,7 +951,32 @@ function precheckStudentImport(rows) {
         if (isDupe) {
             duplicates.push({ row: rowNum, msg: `${name}${phone ? ` / ${phone}` : ''}` });
         }
-        validRows.push({ row, cls, name, phone, rawStatus, status: statusMap[rawStatus] || 'active', isDupe });
+        const schoolHistory = {
+            primarySchool: String(getCell(row, 'primarySchool') || '').trim(),
+            middleSchool: String(getCell(row, 'middleSchool') || '').trim(),
+            highSchool: String(getCell(row, 'highSchool') || '').trim()
+        };
+        const legacySchool = String(getCell(row, 'legacySchool') || '').trim();
+        const normalizedHistory = getSchoolHistory({ grade, schoolHistory, school: legacySchool });
+        validRows.push({
+            row,
+            cls,
+            name,
+            phone,
+            grade,
+            gender: String(getCell(row, 'gender') || '男').trim(),
+            teacher: String(getCell(row, 'teacher') || '白老师').trim(),
+            enrollDateRaw: getCell(row, 'enrollDate'),
+            firstEnrollDateRaw: getCell(row, 'firstEnrollDate'),
+            firstEnrollGrade: String(getCell(row, 'firstEnrollGrade') || '').trim(),
+            emergencyContact: String(getCell(row, 'emergencyContact') || '').trim(),
+            remark: String(getCell(row, 'remark') || '').trim(),
+            schoolHistory: normalizedHistory,
+            legacySchool,
+            rawStatus,
+            status: statusMap[rawStatus] || 'active',
+            isDupe
+        });
     }
 
     const total = Math.max(rows.length - 1, 0);
@@ -675,21 +997,29 @@ async function executeStudentImport(checkResult, strategies = {}) {
             const idx = data.students.findIndex(s => normalizeNameForMatch(s.name) === normName && (v.phone ? s.phone === v.phone : true));
             if (idx !== -1) {
                 const existing = data.students[idx];
-                const enrollDate = normalizeExcelDate(v.row[5]) || String(v.row[5] || '').trim() || existing.enrollDate || '';
+                const enrollDate = normalizeExcelDate(v.enrollDateRaw) || String(v.enrollDateRaw || '').trim() || existing.enrollDate || '';
+                const firstEnrollDate = normalizeExcelDate(v.firstEnrollDateRaw) || String(v.firstEnrollDateRaw || '').trim() || existing.firstEnrollDate || enrollDate;
+                const firstEnrollGrade = v.firstEnrollGrade || existing.firstEnrollGrade || '';
+                const schoolHistory = {
+                    ...getSchoolHistory(existing),
+                    ...Object.fromEntries(Object.entries(v.schoolHistory || {}).filter(([, value]) => value))
+                };
                 data.students[idx] = {
                     id: existing.id,
                     name: v.name,
-                    gender: String(v.row[1] || existing.gender || '男').trim(),
-                    grade: String(v.row[2] || existing.grade || '六年级').trim(),
+                    gender: v.gender || existing.gender || '男',
+                    grade: v.grade || existing.grade || '六年级',
                     classId: v.cls?.id || existing.classId || '',
-                    teacher: String(v.row[4] || existing.teacher || '白老师').trim(),
+                    teacher: v.teacher || existing.teacher || '白老师',
                     enrollDate,
-                    firstEnrollDate: existing.firstEnrollDate || enrollDate,
+                    firstEnrollDate,
+                    firstEnrollGrade,
                     phone: v.phone,
-                    emergencyContact: String(v.row[7] || '').trim(),
+                    emergencyContact: v.emergencyContact,
                     status: v.status,
-                    remark: String(v.row[9] || '').trim(),
-                    school: String(v.row[10] || '').trim(),
+                    remark: v.remark,
+                    schoolHistory,
+                    school: getLegacySchoolFromHistory(v.grade || existing.grade, schoolHistory, existing.school || v.legacySchool || ''),
                     classJoinSessions: existing.classJoinSessions || (v.cls?.id ? { [v.cls.id]: 1 } : {}),
                     classLeaveSessions: existing.classLeaveSessions || {},
                     createdAt: existing.createdAt || new Date().toISOString()
@@ -700,21 +1030,25 @@ async function executeStudentImport(checkResult, strategies = {}) {
             }
         }
 
-        const enrollDate = normalizeExcelDate(v.row[5]) || String(v.row[5] || '').trim() || new Date().toISOString().split('T')[0];
+        const enrollDate = normalizeExcelDate(v.enrollDateRaw) || String(v.enrollDateRaw || '').trim() || new Date().toISOString().split('T')[0];
+        const firstEnrollDate = normalizeExcelDate(v.firstEnrollDateRaw) || String(v.firstEnrollDateRaw || '').trim() || enrollDate;
+        const firstEnrollGrade = v.firstEnrollGrade || v.grade;
         data.students.push({
             id: generateId(),
             name: v.name,
-            gender: String(v.row[1] || '男').trim(),
-            grade: String(v.row[2] || '六年级').trim(),
+            gender: v.gender || '男',
+            grade: v.grade || '六年级',
             classId: v.cls?.id || '',
-            teacher: String(v.row[4] || '白老师').trim(),
+            teacher: v.teacher || '白老师',
             enrollDate,
-            firstEnrollDate: enrollDate,
+            firstEnrollDate,
+            firstEnrollGrade,
             phone: v.phone,
-            emergencyContact: String(v.row[7] || '').trim(),
+            emergencyContact: v.emergencyContact,
             status: v.status,
-            remark: String(v.row[9] || '').trim(),
-            school: String(v.row[10] || '').trim(),
+            remark: v.remark,
+            schoolHistory: v.schoolHistory,
+            school: getLegacySchoolFromHistory(v.grade || '六年级', v.schoolHistory, v.legacySchool || ''),
             classJoinSessions: v.cls?.id ? { [v.cls.id]: 1 } : {},
             classLeaveSessions: {},
             createdAt: new Date().toISOString()

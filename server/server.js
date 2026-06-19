@@ -7,9 +7,25 @@ const { openDatabase, getData, getDataFromEntityTables, getDataFromEntityColumns
 const { createReconciliationReport } = require('./reconcile-sqlite-split');
 const { createSqliteMetricsReport, createReportsSummary, createDashboardSummary } = require('./sqlite-metrics');
 const { createDataHealthReport } = require('./data-health');
+const { getDictionaries, getDictionary } = require('./dictionaries');
 const { convertProspectToStudent, saveClassWithTransitions, finishClass, archiveClass, unarchiveClass, permanentlyDeleteArchivedClass, cleanSafeDataHealthIssues } = require('./actions');
 const { getAiStatus, generateAIResponse, listAITasks, listAgentLogs, listAIContextRefs, buildAIContext } = require('./ai-service');
-const { listResource, getResource, upsertResource, deleteResource, getKnowledgeSummary } = require('./knowledge-service');
+const { listResource, getResource, upsertResource, deleteResource, getKnowledgeSummary, rebuildAllKnowledgeChunks } = require('./knowledge-service');
+const { importText, importUrl, importFile, importFolder, importObsidian, generateKnowledgeSummary, draftFromUrl, draftFromFile } = require('./knowledge-import-service');
+const {
+    createImportBatch,
+    listImportBatches,
+    getImportBatch,
+    listImportCandidates,
+    getImportCandidate,
+    updateImportCandidate,
+    ignoreImportCandidate,
+    deleteImportCandidate,
+    batchUpdateImportCandidates,
+    acceptImportCandidate,
+    parseQuestionImportWithAI,
+    saveQuestionBankAsset
+} = require('./question-import-service');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -19,6 +35,8 @@ const MIME_TYPES = {
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon'
 };
@@ -36,7 +54,9 @@ const API_COLLECTIONS = new Set([
     'communicationTopics',
     'prospectSources',
     'classTypes',
-    'gradeOptions'
+    'gradeOptions',
+    'aiQuestionPrompts',
+    'aiConversations'
 ]);
 const API_ITEM_COLLECTIONS = new Set([
     'classes',
@@ -141,7 +161,7 @@ function resolveStaticPath(urlPath) {
     const decodedPath = decodeURIComponent(urlPath);
     const cleanPath = decodedPath === '/' ? '/index.html' : decodedPath;
     const firstSegment = cleanPath.split('/').filter(Boolean)[0] || 'index.html';
-    const allowedRootFiles = new Set(['index.html', 'question-bank.html', 'favicon.ico']);
+    const allowedRootFiles = new Set(['index.html', 'question-bank-b.html', 'favicon.ico']);
     const allowedDirs = new Set(['css', 'js']);
 
     if (
@@ -159,6 +179,28 @@ function resolveStaticPath(urlPath) {
 }
 
 function serveStatic(req, res, pathname) {
+    if (pathname.startsWith('/question-bank-assets/')) {
+        const fileName = path.basename(decodeURIComponent(pathname.slice('/question-bank-assets/'.length)));
+        const filePath = path.resolve(config.dataRoot, 'question-bank-assets', fileName);
+        const assetRoot = path.resolve(config.dataRoot, 'question-bank-assets');
+        if (!filePath.startsWith(assetRoot)) {
+            sendText(res, 403, 'Forbidden');
+            return;
+        }
+        fs.stat(filePath, (statError, stat) => {
+            if (statError || !stat.isFile()) {
+                sendText(res, 404, 'Not found');
+                return;
+            }
+            const ext = path.extname(filePath).toLowerCase();
+            res.writeHead(200, {
+                'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+                'Content-Length': stat.size
+            });
+            fs.createReadStream(filePath).pipe(res);
+        });
+        return;
+    }
     const filePath = resolveStaticPath(pathname);
     if (!filePath) {
         sendText(res, 403, 'Forbidden');
@@ -198,6 +240,22 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === 'GET' && pathname === '/api/meta') {
         sendJson(res, 200, getMeta());
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/dictionaries') {
+        sendJson(res, 200, getDictionaries());
+        return true;
+    }
+
+    const dictionaryMatch = pathname.match(/^\/api\/dictionaries\/([^/]+)$/);
+    if (req.method === 'GET' && dictionaryMatch) {
+        const dictionary = getDictionary(decodeURIComponent(dictionaryMatch[1]));
+        if (!dictionary) {
+            sendJson(res, 404, { error: '字典不存在' });
+            return true;
+        }
+        sendJson(res, 200, { name: decodeURIComponent(dictionaryMatch[1]), items: dictionary });
         return true;
     }
 
@@ -282,6 +340,141 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === 'GET' && pathname === '/api/knowledge/summary') {
         sendJson(res, 200, getKnowledgeSummary());
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/rebuild-chunks') {
+        sendJson(res, 200, rebuildAllKnowledgeChunks());
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/summarize') {
+        const rawBody = await readRequestBody(req);
+        const parsed = JSON.parse(rawBody || '{}');
+        sendJson(res, 200, { summary: await generateKnowledgeSummary(parsed) });
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/draft-url') {
+        const rawBody = await readRequestBody(req);
+        sendJson(res, 200, await draftFromUrl(JSON.parse(rawBody || '{}')));
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/draft-file') {
+        const rawBody = await readRequestBody(req);
+        sendJson(res, 200, await draftFromFile(JSON.parse(rawBody || '{}')));
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/import-text') {
+        const rawBody = await readRequestBody(req);
+        sendJson(res, 200, await importText(JSON.parse(rawBody || '{}')));
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/import-url') {
+        const rawBody = await readRequestBody(req);
+        sendJson(res, 200, await importUrl(JSON.parse(rawBody || '{}')));
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/import-file') {
+        const rawBody = await readRequestBody(req);
+        sendJson(res, 200, await importFile(JSON.parse(rawBody || '{}')));
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/import-folder') {
+        const rawBody = await readRequestBody(req);
+        sendJson(res, 200, await importFolder(JSON.parse(rawBody || '{}')));
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/knowledge/import-obsidian') {
+        const rawBody = await readRequestBody(req);
+        sendJson(res, 200, await importObsidian(JSON.parse(rawBody || '{}')));
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/question-import/batches') {
+        sendJson(res, 200, { batches: listImportBatches(Number(requestUrl.searchParams.get('limit') || 30)) });
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/question-import/ai-parse') {
+        const rawBody = await readRequestBody(req);
+        const parsed = JSON.parse(rawBody || '{}');
+        const result = await parseQuestionImportWithAI(parsed);
+        sendJson(res, 200, result);
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/question-bank-assets') {
+        const rawBody = await readRequestBody(req);
+        const parsed = JSON.parse(rawBody || '{}');
+        const asset = saveQuestionBankAsset(parsed);
+        sendJson(res, 201, asset);
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/question-import/batches') {
+        const rawBody = await readRequestBody(req);
+        const parsed = JSON.parse(rawBody || '{}');
+        const batch = createImportBatch(parsed);
+        sendJson(res, 201, { batch });
+        return true;
+    }
+
+    const importBatchMatch = pathname.match(/^\/api\/question-import\/batches\/([^/]+)$/);
+    if (req.method === 'GET' && importBatchMatch) {
+        sendJson(res, 200, { batch: getImportBatch(decodeURIComponent(importBatchMatch[1])) });
+        return true;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/question-import/candidates') {
+        const filters = Object.fromEntries(requestUrl.searchParams.entries());
+        sendJson(res, 200, { candidates: listImportCandidates(filters) });
+        return true;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/question-import/candidates/batch') {
+        const rawBody = await readRequestBody(req);
+        const parsed = JSON.parse(rawBody || '{}');
+        sendJson(res, 200, batchUpdateImportCandidates(parsed));
+        return true;
+    }
+
+    const importCandidateMatch = pathname.match(/^\/api\/question-import\/candidates\/([^/]+)$/);
+    if (importCandidateMatch) {
+        const candidateId = decodeURIComponent(importCandidateMatch[1]);
+        if (req.method === 'GET') {
+            sendJson(res, 200, { candidate: getImportCandidate(candidateId) });
+            return true;
+        }
+        if (req.method === 'PUT' || req.method === 'PATCH') {
+            const rawBody = await readRequestBody(req);
+            const parsed = JSON.parse(rawBody || '{}');
+            sendJson(res, 200, { candidate: updateImportCandidate(candidateId, parsed.candidate || parsed) });
+            return true;
+        }
+        if (req.method === 'DELETE') {
+            sendJson(res, 200, deleteImportCandidate(candidateId));
+            return true;
+        }
+    }
+
+    const importCandidateActionMatch = pathname.match(/^\/api\/question-import\/candidates\/([^/]+)\/(accept|ignore)$/);
+    if (req.method === 'POST' && importCandidateActionMatch) {
+        const candidateId = decodeURIComponent(importCandidateActionMatch[1]);
+        const action = importCandidateActionMatch[2];
+        const rawBody = await readRequestBody(req).catch(() => '');
+        const parsed = rawBody ? JSON.parse(rawBody) : {};
+        if (action === 'ignore') {
+            sendJson(res, 200, { candidate: ignoreImportCandidate(candidateId) });
+            return true;
+        }
+        sendJson(res, 200, acceptImportCandidate(candidateId, parsed.question || parsed));
         return true;
     }
 
@@ -504,7 +697,7 @@ async function handleApi(req, res, pathname) {
         return true;
     }
 
-    const collectionMatch = pathname.match(/^\/api\/(classes|students|prospects|fees|attendance|grades|communications|communicationTopics|prospectSources|classTypes|gradeOptions)$/);
+    const collectionMatch = pathname.match(/^\/api\/(classes|students|prospects|fees|attendance|grades|communications|communicationTopics|prospectSources|classTypes|gradeOptions|aiQuestionPrompts|aiConversations)$/);
     if (collectionMatch) {
         const collectionName = collectionMatch[1];
         if (req.method === 'GET') {

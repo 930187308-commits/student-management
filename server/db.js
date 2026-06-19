@@ -21,7 +21,17 @@ const DEFAULT_DATA = {
     prospects: [],
     prospectSources: ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'],
     classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'],
-    gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '新初一']
+    gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '新初一'],
+    aiQuestionPrompts: [
+        { id: 'qa_prompt_school_student', text: '某个同学是哪个学校的？', category: '学生', sortOrder: 10, isDefault: true },
+        { id: 'qa_prompt_school_list', text: '某个学校有哪些学生？', category: '学生', sortOrder: 20, isDefault: true },
+        { id: 'qa_prompt_hours_risk', text: '哪些学生课时快不够了？', category: '课时', sortOrder: 30, isDefault: true },
+        { id: 'qa_prompt_grade_count', text: '六年级目前有多少在读学员？', category: '学生', sortOrder: 40, isDefault: true },
+        { id: 'qa_prompt_score_100', text: '期中考100分的有哪些？', category: '成绩', sortOrder: 50, isDefault: true },
+        { id: 'qa_prompt_fee_risk', text: '哪些学生有欠费或需要续费？', category: '收费', sortOrder: 60, isDefault: true },
+        { id: 'qa_prompt_focus_students', text: '帮我总结一下最近需要关注的学生', category: '经营', sortOrder: 70, isDefault: true }
+    ],
+    aiConversations: []
 };
 
 const ENTITY_COLLECTIONS = new Set([
@@ -105,6 +115,7 @@ function migrate() {
             gender TEXT,
             grade TEXT,
             school TEXT,
+            school_history_json TEXT,
             phone TEXT,
             emergency_contact TEXT,
             class_id TEXT,
@@ -112,6 +123,7 @@ function migrate() {
             status TEXT,
             enroll_date TEXT,
             first_enroll_date TEXT,
+            first_enroll_grade TEXT,
             follow_up_status TEXT,
             created_at TEXT,
             class_join_sessions_json TEXT,
@@ -343,6 +355,136 @@ function migrate() {
             FOREIGN KEY(source_id) REFERENCES knowledge_sources(id) ON DELETE SET NULL
         );
 
+        CREATE TABLE IF NOT EXISTS question_import_batches (
+            id TEXT PRIMARY KEY,
+            input_type TEXT NOT NULL,
+            original_file_name TEXT,
+            original_file_path TEXT,
+            extracted_text_path TEXT,
+            raw_text TEXT,
+            source_json TEXT,
+            status TEXT,
+            summary_json TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS question_import_candidates (
+            id TEXT PRIMARY KEY,
+            batch_id TEXT NOT NULL,
+            candidate_index INTEGER,
+            raw_text TEXT NOT NULL,
+            detected_stem TEXT,
+            detected_answer TEXT,
+            detected_solution TEXT,
+            ai_answer TEXT,
+            ai_solution TEXT,
+            ai_suggestions_json TEXT,
+            source_json TEXT,
+            source_page TEXT,
+            warnings_json TEXT,
+            duplicate_of TEXT,
+            status TEXT,
+            accepted_question_id TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(batch_id) REFERENCES question_import_batches(id) ON DELETE CASCADE,
+            FOREIGN KEY(accepted_question_id) REFERENCES question_items(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS student_question_records (
+            id TEXT PRIMARY KEY,
+            student_id TEXT,
+            question_id TEXT,
+            raw_image_path TEXT,
+            raw_text TEXT,
+            source_type TEXT,
+            wrong_reason TEXT,
+            teacher_comment TEXT,
+            mastery_status TEXT,
+            review_count INTEGER DEFAULT 0,
+            last_reviewed_at TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(student_id) REFERENCES students(id) ON DELETE SET NULL,
+            FOREIGN KEY(question_id) REFERENCES question_items(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS curriculum_plans (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            grade TEXT,
+            term TEXT,
+            start_date TEXT,
+            status TEXT,
+            raw_json TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS curriculum_units (
+            id TEXT PRIMARY KEY,
+            plan_id TEXT,
+            title TEXT NOT NULL,
+            week_no INTEGER,
+            chapter TEXT,
+            knowledge_points_json TEXT,
+            raw_json TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(plan_id) REFERENCES curriculum_plans(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS source_watch_rules (
+            id TEXT PRIMARY KEY,
+            keyword TEXT NOT NULL,
+            grade TEXT,
+            region TEXT,
+            exam_type TEXT,
+            frequency TEXT,
+            enabled INTEGER DEFAULT 1,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS source_candidates (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            url TEXT,
+            source_site TEXT,
+            matched_rule_id TEXT,
+            trust_level TEXT,
+            copyright_risk TEXT,
+            status TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(matched_rule_id) REFERENCES source_watch_rules(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS paper_drafts (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            draft_type TEXT,
+            version TEXT,
+            output_mode TEXT,
+            source_display_mode TEXT,
+            raw_json TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS paper_items (
+            id TEXT PRIMARY KEY,
+            paper_id TEXT NOT NULL,
+            question_id TEXT,
+            item_order INTEGER,
+            snapshot_json TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY(paper_id) REFERENCES paper_drafts(id) ON DELETE CASCADE,
+            FOREIGN KEY(question_id) REFERENCES question_items(id) ON DELETE SET NULL
+        );
+
         CREATE TABLE IF NOT EXISTS ai_context_refs (
             id TEXT PRIMARY KEY,
             ai_task_id TEXT NOT NULL,
@@ -379,6 +521,8 @@ function ensureFieldColumns() {
     addColumnIfMissing('classes', 'archived_snapshot_json', 'TEXT');
 
     addColumnIfMissing('students', 'first_enroll_date', 'TEXT');
+    addColumnIfMissing('students', 'first_enroll_grade', 'TEXT');
+    addColumnIfMissing('students', 'school_history_json', 'TEXT');
     addColumnIfMissing('students', 'follow_up_status', 'TEXT');
     addColumnIfMissing('students', 'created_at', 'TEXT');
     addColumnIfMissing('students', 'class_join_sessions_json', 'TEXT');
@@ -400,6 +544,12 @@ function ensureFieldColumns() {
     addColumnIfMissing('question_items', 'variant_group', 'TEXT');
     addColumnIfMissing('question_items', 'origin_text', 'TEXT');
     addColumnIfMissing('question_items', 'ai_notes', 'TEXT');
+    addColumnIfMissing('question_items', 'sub_knowledge_point', 'TEXT');
+    addColumnIfMissing('question_items', 'source_json', 'TEXT');
+    addColumnIfMissing('question_items', 'answer_status', 'TEXT');
+    addColumnIfMissing('question_items', 'quality_flags_json', 'TEXT');
+    addColumnIfMissing('question_items', 'import_candidate_id', 'TEXT');
+    addColumnIfMissing('question_items', 'internal_no', 'TEXT');
 }
 
 function nowIso() {
@@ -466,6 +616,9 @@ function getCollection(collectionName) {
         return getCollectionFromEntityColumns(collectionName);
     }
     const data = getData();
+    if (!Object.prototype.hasOwnProperty.call(data, collectionName) && Array.isArray(DEFAULT_DATA[collectionName])) {
+        return DEFAULT_DATA[collectionName];
+    }
     const value = data[collectionName];
     return Array.isArray(value) ? value : [];
 }
@@ -576,6 +729,7 @@ function getCollectionFromEntityColumns(collectionName) {
             assignIfPresent(item, 'gender', row.gender || '');
             assignIfPresent(item, 'grade', row.grade || '');
             assignIfPresent(item, 'school', row.school || '');
+            assignIfPresent(item, 'schoolHistory', parseJsonObject(row.school_history_json));
             assignIfPresent(item, 'phone', row.phone || '');
             assignIfPresent(item, 'emergencyContact', row.emergency_contact || '');
             assignIfPresent(item, 'classId', row.class_id || '');
@@ -583,6 +737,7 @@ function getCollectionFromEntityColumns(collectionName) {
             assignIfPresent(item, 'status', row.status || '');
             assignIfPresent(item, 'enrollDate', row.enroll_date || '');
             assignIfPresent(item, 'firstEnrollDate', row.first_enroll_date || '');
+            assignIfPresent(item, 'firstEnrollGrade', row.first_enroll_grade || '');
             assignIfPresent(item, 'followUpStatus', row.follow_up_status || '');
             assignIfPresent(item, 'createdAt', row.created_at || '');
             assignIfPresent(item, 'classJoinSessions', parseJsonObject(row.class_join_sessions_json));
@@ -808,6 +963,7 @@ function buildEntityRows(data) {
         gender: s.gender || '',
         grade: s.grade || '',
         school: s.school || '',
+        school_history_json: json(s.schoolHistory || {}),
         phone: s.phone || '',
         emergency_contact: s.emergencyContact || '',
         class_id: s.classId || null,
@@ -815,6 +971,7 @@ function buildEntityRows(data) {
         status: s.status || 'active',
         enroll_date: s.enrollDate || '',
         first_enroll_date: s.firstEnrollDate || '',
+        first_enroll_grade: s.firstEnrollGrade || '',
         follow_up_status: s.followUpStatus || '',
         created_at: s.createdAt || '',
         class_join_sessions_json: json(s.classJoinSessions || {}),
@@ -945,10 +1102,10 @@ function insertEntityRows(database, rows, stamp) {
     rows.classes.forEach(row => insertClass.run(row.id, row.name, row.grade, row.class_type, row.schedule, row.semester, row.max_students, row.status, row.summer_schedule, row.planned_sessions, row.archived, row.archived_at, row.archived_snapshot_json, row.raw_json, stamp));
 
     const insertStudent = database.prepare(`
-        INSERT INTO students (id, name, gender, grade, school, phone, emergency_contact, class_id, teacher, status, enroll_date, first_enroll_date, follow_up_status, created_at, class_join_sessions_json, class_leave_sessions_json, remark, archived_at, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO students (id, name, gender, grade, school, school_history_json, phone, emergency_contact, class_id, teacher, status, enroll_date, first_enroll_date, first_enroll_grade, follow_up_status, created_at, class_join_sessions_json, class_leave_sessions_json, remark, archived_at, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    rows.students.forEach(row => insertStudent.run(row.id, row.name, row.gender, row.grade, row.school, row.phone, row.emergency_contact, row.class_id, row.teacher, row.status, row.enroll_date, row.first_enroll_date, row.follow_up_status, row.created_at, row.class_join_sessions_json, row.class_leave_sessions_json, row.remark, row.archived_at, row.raw_json, stamp));
+    rows.students.forEach(row => insertStudent.run(row.id, row.name, row.gender, row.grade, row.school, row.school_history_json, row.phone, row.emergency_contact, row.class_id, row.teacher, row.status, row.enroll_date, row.first_enroll_date, row.first_enroll_grade, row.follow_up_status, row.created_at, row.class_join_sessions_json, row.class_leave_sessions_json, row.remark, row.archived_at, row.raw_json, stamp));
 
     const insertFee = database.prepare(`
         INSERT INTO fees (id, student_id, student_name, amount, hours, price_per_hour, payment_date, payment_method, package_name, status, remark, raw_json, updated_at)

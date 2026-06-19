@@ -3,6 +3,23 @@
 let currentReportClassId = '';
 let consumptionStatusFilter = 'all'; // all, normal, warning, insufficient, noRecord
 
+function getReportGradeSchoolStage(grade = '') {
+    if (['五年级', '六年级'].includes(grade)) return 'primary';
+    if (['初一', '初二', '初三', '七年级', '八年级', '九年级'].includes(grade)) return 'middle';
+    if (['高一', '高二', '高三'].includes(grade)) return 'high';
+    return '';
+}
+
+function getReportCurrentStageSchool(student = {}) {
+    const history = student.schoolHistory || {};
+    const legacySchool = String(student.school || '').trim();
+    const stage = getReportGradeSchoolStage(student.grade || '');
+    if (stage === 'primary') return String(history.primarySchool || legacySchool || '').trim() || '未填写';
+    if (stage === 'middle') return String(history.middleSchool || legacySchool || '').trim() || '未填写';
+    if (stage === 'high') return String(history.highSchool || legacySchool || '').trim() || '未填写';
+    return '未判断';
+}
+
 function buildLocalReportsSummary() {
     const monthlyConsumption = {};
     data.attendance.forEach(session => {
@@ -99,7 +116,7 @@ function buildLocalReportsSummary() {
 
     const schoolDist = {};
     data.students.filter(s => s.status === 'active').forEach(s => {
-        const school = s.school?.trim() || '未填写';
+        const school = getReportCurrentStageSchool(s);
         schoolDist[school] = (schoolDist[school] || 0) + 1;
     });
 

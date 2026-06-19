@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数学题库 B - 组卷输出沙盘</title>
+    <style>
+        :root {
+            --blue: #2f7df6;
+            --blue-2: #eaf2ff;
+            --ink: #172033;
+            --muted: #667085;
+            --line: #dfe5ef;
+            --bg: #f3f6fb;
+            --panel: #fff;
+            --soft: #f8fafc;
+            --green: #12a36d;
+            --orange: #f08a24;
+            --red: #df3d42;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--ink);
+            background: var(--bg);
+            height: 100vh;
+            overflow: hidden;
+        }
+        button, input, select, textarea {
+            font: inherit;
+        }
+        button {
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--ink);
+            border-radius: 6px;
+            padding: 7px 10px;
+            cursor: pointer;
+        }
+        button:hover { border-color: #b7c4d8; }
+        button.primary {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+        }
+        button.ghost {
+            background: transparent;
+        }
+        button.small {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        .app {
+            height: 100vh;
+            display: grid;
+            grid-template-rows: 46px 1fr;
+        }
+        .topbar {
+            display: grid;
+            grid-template-columns: 210px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            background: #fff;
+            border-bottom: 1px solid var(--line);
+            padding: 0 14px;
+        }
+        .brand {
+            font-weight: 850;
+            letter-spacing: 0;
+        }
+        .brand span {
+            color: var(--blue);
+        }
+        .top-tools {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            min-width: 0;
+        }
+        .doc-type-switch {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #f8fafc;
+            flex: 0 0 auto;
+        }
+        .doc-type-switch span {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+            padding: 0 4px;
+        }
+        .doc-type-switch button {
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            background: transparent;
+        }
+        .doc-type-switch button.active {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+        }
+        .top-tools button.active {
+            background: var(--blue-2);
+            border-color: #b9d1ff;
+            color: #195cc7;
+            font-weight: 750;
+        }
+        .save-state {
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .workspace {
+            display: grid;
+            grid-template-columns: 230px minmax(620px, 1fr) 382px 58px;
+            gap: 0;
+            min-height: 0;
+        }
+        .outline {
+            border-right: 1px solid var(--line);
+            background: #f8fafc;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-head {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            border-bottom: 1px solid var(--line);
+            background: #fff;
+            font-weight: 800;
+        }
+        .outline-body {
+            padding: 12px;
+            overflow: auto;
+        }
+        .outline-section {
+            margin-bottom: 14px;
+        }
+        .outline-section.collapsed .outline-child {
+            display: none;
+        }
+        .outline-title {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 800;
+            margin: 0 0 8px;
+        }
+        .outline-item {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 7px 8px;
+            border-radius: 6px;
+            color: #374151;
+            margin-bottom: 3px;
+        }
+        .outline-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 24px;
+            gap: 4px;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+        .outline-row .outline-item {
+            margin-bottom: 0;
+        }
+        .outline-item.active {
+            background: #e8f1ff;
+            color: #1557b7;
+            font-weight: 800;
+        }
+        .outline-item.section-row {
+            font-weight: 850;
+        }
+        .outline-toggle {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            border-radius: 5px;
+            flex: 0 0 auto;
+            font-weight: 900;
+        }
+        .outline-child {
+            margin-left: 30px;
+        }
+        .outline-child .outline-item {
+            font-size: 13px;
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+        .outline-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border: 1px solid var(--line);
+            font-size: 12px;
+            flex: 0 0 auto;
+        }
+        .outline-item.active .outline-dot {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+        }
+        .canvas-wrap {
+            min-width: 0;
+            min-height: 0;
+            overflow: auto;
+            padding: 12px 22px 30px;
+            background: #eef2f8;
+        }
+        .paper-tools {
+            width: 794px;
+            margin: 0 auto 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 7px 9px;
+            box-shadow: 0 6px 18px rgba(15,23,42,.05);
+        }
+        .paper-tools-left,
+        .paper-tools-right {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .paper-tools .tool-label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+        .paper {
+            width: 794px;
+            min-height: 1122px;
+            margin: 0 auto;
+            background: #fff;
+            border: 1px solid #d9e1ee;
+            box-shadow: 0 12px 28px rgba(15,23,42,.08);
+            padding: 34px 48px;
+            position: relative;
+        }
+        .paper-theme {
+            height: 18px;
+            margin: -34px -48px 22px;
+            background: linear-gradient(180deg, #eaf7ff 0%, rgba(234,247,255,0) 100%);
+        }
+        .paper-title {
+            text-align: center;
+            color: #2f5597;
+            font-size: 22px;
+            font-weight: 900;
+            margin: 0 0 9px;
+        }
+        .paper-subtitle {
+            text-align: center;
+            color: var(--muted);
+            margin: 0 0 13px;
+            font-size: 12px;
+        }
+        .section-title {
+            margin: 12px 0 6px;
+            font-size: 15px;
+            font-weight: 900;
+            border-left: 4px solid var(--blue);
+            padding-left: 10px;
+        }
+        .handout-note {
+            border: 1px solid #d9e5f9;
+            background: #f7fbff;
+            border-radius: 6px;
+            padding: 6px 8px;
+            line-height: 1.45;
+            margin: 6px 0 8px;
+            font-size: 13px;
+        }
+        .question {
+            position: relative;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 5px 8px;
+            margin: 3px -8px 7px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .question.selected {
+            border-color: #a8c5ff;
+            background: #fbfdff;
+            box-shadow: 0 0 0 3px rgba(47,125,246,.10);
+        }
+        .q-toolbar {
+            display: none;
+            position: absolute;
+            right: 8px;
+            bottom: -16px;
+            background: #fff;
+            border: 1px solid var(--line);
+            box-shadow: 0 8px 18px rgba(15,23,42,.08);
+            border-radius: 6px;
+            overflow: hidden;
+            z-index: 4;
+        }
+        .question.selected .q-toolbar {
+            display: flex;
+        }
+        .q-toolbar button {
+            border: 0;
+            border-radius: 0;
+            font-size: 12px;
+            padding: 6px 9px;
+        }
+        .q-line {
+            display: flex;
+            gap: 8px;
+            line-height: 1.42;
+            font-size: 13px;
+            align-items: baseline;
+        }
+        .q-no {
+            font-weight: 850;
+            flex: 0 0 auto;
+        }
+        .q-meta {
+            color: var(--muted);
+            font-size: 12px;
+            margin-right: 4px;
+        }
+        .q-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .q-source {
+            color: #7b8798;
+            font-size: 11px;
+            margin: 0 0 2px 24px;
+        }
+        .figure-card {
+            width: 326px;
+            margin: 4px 0 4px 24px;
+            border: 1px solid #d7dce8;
+            border-radius: 4px;
+            padding: 5px;
+            background: #fff;
+        }
+        .figure-snapshot {
+            height: 82px;
+            border-radius: 3px;
+            background-image: url("assets/question-bank-compose-reference-question.png");
+            background-size: 950px auto;
+            background-repeat: no-repeat;
+            background-color: #fff;
+            border: 1px solid #edf0f5;
+        }
+        .figure-snapshot.one { background-position: -216px -142px; }
+        .figure-snapshot.two { background-position: -220px -414px; }
+        .figure-snapshot.three {
+            height: 92px;
+            background-image: url("assets/question-bank-compose-reference-paper.png");
+            background-size: 950px auto;
+            background-position: -445px -600px;
+        }
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 2px 18px;
+            margin: 4px 0 0 24px;
+        }
+        .option {
+            min-height: 22px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .answer-block {
+            display: none;
+            margin: 5px 0 0 24px;
+            padding: 5px 8px;
+            background: #f8fafc;
+            border-left: 3px solid #9bb7e8;
+            line-height: 1.45;
+        }
+        .page-break-preview {
+            margin: 12px -48px 9px;
+            border-top: 1px dashed #9fb1ca;
+            border-bottom: 1px dashed #d5deeb;
+            text-align: left;
+            color: var(--muted);
+            font-size: 11px;
+            padding: 5px 48px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: center;
+            background: #fbfdff;
+        }
+        .page-break-actions {
+            display: flex;
+            gap: 5px;
+            flex: 0 0 auto;
+        }
+        .edit-hint {
+            display: inline-flex;
+            margin-left: 6px;
+            color: #2364d8;
+            font-size: 11px;
+            font-weight: 800;
+            border: 1px solid #c9dcff;
+            background: #f2f7ff;
+            border-radius: 999px;
+            padding: 1px 6px;
+        }
+        body.teacher .answer-block,
+        body.answer-only .answer-block { display: block; }
+        body.answer-only .paper .question .q-source,
+        body.answer-only .paper .question .q-line .q-body,
+        body.answer-only .paper .question .figure-card,
+        body.answer-only .paper .question .option-grid {
+            display: none;
+        }
+        body.answer-only .paper .question {
+            margin-bottom: 4px;
+            padding-top: 4px;
+            padding-bottom: 4px;
+        }
+        body.answer-only .answer-block {
+            margin-left: 28px;
+            background: transparent;
+            border-left: 0;
+            padding: 0;
+        }
+        .side {
+            border-left: 1px solid var(--line);
+            background: #fff;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .tabs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            border-bottom: 1px solid var(--line);
+        }
+        .tab {
+            border: 0;
+            border-radius: 0;
+            padding: 12px 4px;
+            font-weight: 800;
+            color: var(--muted);
+        }
+        .tab.active {
+            color: var(--blue);
+            box-shadow: inset 0 -3px 0 var(--blue);
+            background: #fff;
+        }
+        .side-body {
+            padding: 14px;
+            overflow: auto;
+            min-height: 0;
+        }
+        .side-section {
+            margin-bottom: 14px;
+        }
+        .side-title {
+            font-weight: 850;
+            margin: 0 0 9px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-bottom: 10px;
+        }
+        .pill {
+            border-radius: 999px;
+            background: #eef4ff;
+            color: #2364d8;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 750;
+        }
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+        }
+        .search-scope {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+        }
+        .search-scope button {
+            font-size: 12px;
+            padding: 6px 7px;
+        }
+        .search-scope button.active {
+            background: var(--blue-2);
+            border-color: #b9d1ff;
+            color: #195cc7;
+            font-weight: 800;
+        }
+        .field {
+            display: grid;
+            gap: 5px;
+            margin-bottom: 9px;
+        }
+        .field label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 750;
+        }
+        input, select, textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 8px 9px;
+            background: #fff;
+            color: var(--ink);
+        }
+        textarea {
+            resize: vertical;
+            min-height: 76px;
+        }
+        .setting-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .check {
+            display: flex;
+            gap: 7px;
+            align-items: center;
+            font-size: 13px;
+            padding: 7px 8px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+        }
+        .check input { width: auto; }
+        .card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px;
+            background: #fff;
+            margin-bottom: 9px;
+        }
+        .card.selected {
+            border-color: #9fc0ff;
+            background: #f8fbff;
+        }
+        .card-title {
+            font-weight: 850;
+            margin-bottom: 5px;
+            line-height: 1.45;
+        }
+        .card-meta {
+            color: var(--muted);
+            font-size: 12px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .paper-question-list {
+            border: 1px solid #c9dcff;
+            background: #f7fbff;
+            border-radius: 8px;
+            padding: 9px;
+            margin: -2px 0 10px;
+            display: none;
+        }
+        .paper-question-list.show {
+            display: block;
+        }
+        .paper-question {
+            display: grid;
+            grid-template-columns: 22px minmax(0, 1fr) auto;
+            gap: 7px;
+            align-items: start;
+            padding: 7px 0;
+            border-bottom: 1px solid #e4ecfb;
+        }
+        .paper-question:last-child {
+            border-bottom: 0;
+        }
+        .paper-question input {
+            width: auto;
+            margin-top: 4px;
+        }
+        .ai-card {
+            border: 1px solid #cfe0ff;
+            background: linear-gradient(180deg, #f8fbff, #fff);
+        }
+        .basket-rail {
+            border-left: 1px solid var(--line);
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding-top: 52px;
+            position: relative;
+        }
+        .basket-button {
+            width: 42px;
+            height: 42px;
+            padding: 0;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            color: #1f5fc9;
+            background: #fff;
+        }
+        .basket-count {
+            position: absolute;
+            top: -7px;
+            right: -7px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: var(--blue);
+            color: #fff;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .basket-label {
+            writing-mode: vertical-rl;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+        .basket-drawer {
+            position: fixed;
+            right: 58px;
+            top: 46px;
+            bottom: 0;
+            width: 330px;
+            background: #fff;
+            border-left: 1px solid var(--line);
+            box-shadow: -18px 0 34px rgba(15,23,42,.12);
+            transform: translateX(calc(100% + 58px));
+            transition: transform .18s ease;
+            z-index: 18;
+            display: flex;
+            flex-direction: column;
+        }
+        .basket-drawer.show {
+            transform: translateX(0);
+        }
+        .drawer-head {
+            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            border-bottom: 1px solid var(--line);
+            font-weight: 900;
+        }
+        .drawer-body {
+            padding: 12px;
+            overflow: auto;
+        }
+        .insert-preview {
+            border: 1px dashed #bdd2f9;
+            background: #f8fbff;
+            border-radius: 7px;
+            padding: 7px 9px;
+            margin: 6px 0 8px;
+            font-size: 12px;
+            color: #35507a;
+        }
+        .tiny {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+        .ref-img {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            display: block;
+        }
+        .edit-panel {
+            position: fixed;
+            right: 398px;
+            top: 74px;
+            width: 380px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            box-shadow: 0 20px 48px rgba(15,23,42,.16);
+            padding: 14px;
+            display: none;
+            z-index: 20;
+        }
+        .edit-panel.show { display: block; }
+        .edit-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: 850;
+        }
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%);
+            background: #111827;
+            color: #fff;
+            padding: 9px 14px;
+            border-radius: 8px;
+            display: none;
+            z-index: 40;
+        }
+        .toast.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="topbar">
+            <div class="brand">数学题库 B <span>组卷输出沙盘</span></div>
+            <div class="top-tools">
+                <div class="doc-type-switch" aria-label="创建类型">
+                    <span>创建</span>
+                    <button class="doc-type active" data-doc-type="quiz">小测卷</button>
+                    <button class="doc-type" data-doc-type="paper">正式试卷</button>
+                    <button class="doc-type" data-doc-type="handout">专题讲义</button>
+                    <button class="doc-type" data-doc-type="homework">作业</button>
+                </div>
+                <button class="active" data-mode="student">学生版</button>
+                <button data-mode="teacher">教师版</button>
+                <button data-mode="answer-only">答案版</button>
+                <button id="compactBtn">紧凑试卷</button>
+                <button id="handoutBtn">讲义结构</button>
+            </div>
+            <div class="top-tools">
+                <span class="save-state">本次沙盘不回写正式题库</span>
+                <button>打印/PDF</button>
+                <button class="primary">导出 Word</button>
+            </div>
+        </header>
+
+        <main class="workspace">
+            <aside class="outline">
+                <div class="panel-head">
+                    <span>文档目录</span>
+                    <button class="small">＋</button>
+                </div>
+                <div class="outline-body">
+                    <div class="outline-section">
+                        <p class="outline-title">文档顺序</p>
+                        <button class="outline-item active" data-jump="title"><span class="outline-dot">封</span>标题区</button>
+                    </div>
+                    <div class="outline-section" data-outline-group>
+                        <div class="outline-row">
+                            <button class="outline-item section-row" data-jump="section-1"><span class="outline-dot">一</span>选择题</button>
+                            <button class="outline-toggle" type="button" aria-label="折叠选择题">−</button>
+                        </div>
+                        <div class="outline-child">
+                            <button class="outline-item" data-select="q1"><span class="outline-dot">1</span>面积比较图形题</button>
+                            <button class="outline-item" data-select="q2"><span class="outline-dot">2</span>多边形面积计算</button>
+                        </div>
+                    </div>
+                    <div class="outline-section" data-outline-group>
+                        <div class="outline-row">
+                            <button class="outline-item section-row" data-jump="section-2"><span class="outline-dot">二</span>讲义说明</button>
+                            <button class="outline-toggle" type="button" aria-label="折叠讲义说明">−</button>
+                        </div>
+                        <div class="outline-child">
+                            <button class="outline-item" data-select="q3"><span class="outline-dot">3</span>平行线间面积</button>
+                        </div>
+                    </div>
+                    <div class="outline-section">
+                        <button class="outline-item" data-jump="answers"><span class="outline-dot">答</span>答案解析</button>
+                    </div>
+                    <div class="outline-section">
+                        <p class="outline-title">整卷逻辑</p>
+                        <div class="tiny">试卷库调出：按原试卷题号排序。<br>自由组卷：按本卷编辑顺序排序。</div>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="canvas-wrap">
+                <div class="paper-tools">
+                    <div class="paper-tools-left">
+                        <span class="tool-label">本卷编辑</span>
+                        <button class="small insert-action" data-insert="标题">插入标题</button>
+                        <button class="small insert-action" data-insert="说明">插入说明</button>
+                        <button class="small insert-action" data-insert="表格">插入表格</button>
+                        <button class="small insert-action" data-insert="图片">插入图片</button>
+                        <button class="small primary insert-action" data-insert="分页">插入分页</button>
+                    </div>
+                    <div class="paper-tools-right">
+                        <span class="tiny">蓝色选中题可临时编辑；导出前不回写题库</span>
+                    </div>
+                </div>
+                <article class="paper">
+                    <div class="paper-theme" id="title"></div>
+                    <h1 class="paper-title" contenteditable="true">多边形面积-比较 20260617<span class="edit-hint">可改标题</span></h1>
+                    <p class="paper-subtitle" contenteditable="true">姓名：__________　班级：__________　得分：__________<span class="edit-hint">可改抬头</span></p>
+
+                    <h2 class="section-title" id="section-1" contenteditable="true">一、选择题<span class="edit-hint">可改栏目</span></h2>
+
+                    <section class="question selected" id="q1">
+                        <p class="q-source">来源：2024 广东深圳小升初数学试卷 · 原第 1 题</p>
+                        <div class="q-line">
+                            <span class="q-no">1.</span>
+                            <div class="q-body" contenteditable="true"><span class="q-meta">3分｜中等</span>下图图形中，面积与其他图形不相等的是（　）。</div>
+                        </div>
+                        <div class="figure-card"><div class="figure-snapshot one" role="img" aria-label="教研云截图中的面积比较图形题"></div></div>
+                        <div class="option-grid">
+                            <div class="option">A. A</div>
+                            <div class="option">B. B</div>
+                            <div class="option">C. C</div>
+                            <div class="option">D. D</div>
+                        </div>
+                        <div class="answer-block"><strong>答案：</strong>B　<strong>解析：</strong>同高时比较底，高为 3cm，B 的底边对应关系不同。</div>
+                        <div class="q-toolbar">
+                            <button data-action="edit">临时编辑</button>
+                            <button data-action="up">上移</button>
+                            <button data-action="down">下移</button>
+                            <button data-action="remove">移出</button>
+                        </div>
+                    </section>
+
+                    <section class="question" id="q2">
+                        <p class="q-source">来源：2024 广东深圳小升初数学试卷 · 原第 2 题</p>
+                        <div class="q-line">
+                            <span class="q-no">2.</span>
+                            <div class="q-body" contenteditable="true"><span class="q-meta">4分｜基础</span>下图图形中，面积与其它图形不相等的是（　）。</div>
+                        </div>
+                        <div class="figure-card"><div class="figure-snapshot two" role="img" aria-label="教研云截图中的多边形面积选项图"></div></div>
+                        <div class="option-grid">
+                            <div class="option">A. 三角形</div>
+                            <div class="option">B. 梯形</div>
+                            <div class="option">C. 平行四边形</div>
+                            <div class="option">D. 长方形</div>
+                        </div>
+                        <div class="answer-block"><strong>答案：</strong>D　<strong>解析：</strong>先统一用底乘高或底乘高除以 2，再比较面积。</div>
+                        <div class="q-toolbar">
+                            <button data-action="edit">临时编辑</button>
+                            <button data-action="up">上移</button>
+                            <button data-action="down">下移</button>
+                            <button data-action="remove">移出</button>
+                        </div>
+                    </section>
+
+                    <h2 class="section-title" id="section-2" contenteditable="true">二、讲义说明<span class="edit-hint">可改栏目</span></h2>
+                    <div class="handout-note" contenteditable="true">方法提示：平行线间同底或同高的图形，面积比较时先找共同高度，再看底边关系。讲义模式可以在这里加入公式、易错点和课堂提醒。</div>
+                    <div class="page-break-preview">
+                        <span>分页控制：长题默认整题移到下一页，也可以手动在这里插入分页</span>
+                        <span class="page-break-actions"><button class="small insert-action" data-insert="分页">插入分页</button><button class="small insert-action" data-insert="整题下页">整题下页</button></span>
+                    </div>
+
+                    <section class="question" id="q3">
+                        <p class="q-source">来源：2024 广东深圳小升初数学试卷 · 原第 3 题</p>
+                        <div class="q-line">
+                            <span class="q-no">3.</span>
+                            <div class="q-body" contenteditable="true"><span class="q-meta">5分｜提高</span>如图所示，平行线之间的三个图形 A、B、C 的面积大小关系是（　）。</div>
+                        </div>
+                        <div class="figure-card"><div class="figure-snapshot three" role="img" aria-label="教研云截图中的平行线间面积比较图"></div></div>
+                        <div class="option-grid">
+                            <div class="option">A. A 的面积最大</div>
+                            <div class="option">B. B 的面积最大</div>
+                            <div class="option">C. C 的面积最大</div>
+                            <div class="option">D. 三者相等</div>
+                        </div>
+                        <div class="answer-block" id="answers"><strong>答案：</strong>A　<strong>解析：</strong>平行线间高度相同，比较底边长度即可。</div>
+                        <div class="q-toolbar">
+                            <button data-action="edit">临时编辑</button>
+                            <button data-action="up">上移</button>
+                            <button data-action="down">下移</button>
+                            <button data-action="remove">移出</button>
+                        </div>
+                    </section>
+                </article>
+            </section>
+
+            <aside class="side">
+                <div class="tabs">
+                    <button class="tab active" data-tab="questions">试题</button>
+                    <button class="tab" data-tab="papers">试卷</button>
+                    <button class="tab" data-tab="ai">AI</button>
+                    <button class="tab" data-tab="settings">设置</button>
+                </div>
+                <div class="side-body">
+                    <section class="tab-panel" id="tab-questions">
+                        <div class="side-section">
+                            <p class="side-title">搜索试题</p>
+                            <div class="field"><label>关键词</label><input value="多边形面积"></div>
+                            <div class="field">
+                                <label>搜索范围</label>
+                                <div class="search-scope">
+                                    <button class="active">正式题库</button>
+                                    <button>试卷库题目</button>
+                                    <button>待确认题池</button>
+                                    <button>AI 相似题</button>
+                                </div>
+                            </div>
+                            <div class="filter-grid">
+                                <div class="field"><label>年级</label><select><option>六年级</option><option>五年级</option></select></div>
+                                <div class="field"><label>年份</label><select><option>2024-2026</option><option>2026</option><option>2025</option><option>2024</option></select></div>
+                                <div class="field"><label>题型</label><select><option>选择题</option><option>填空题</option><option>解答题</option></select></div>
+                                <div class="field"><label>难度</label><select><option>全部</option><option>基础</option><option>中等</option><option>提高</option></select></div>
+                            </div>
+                            <div class="pill-row"><span class="pill">含图</span><span class="pill">含公式</span><span class="pill">来源可追溯</span></div>
+                            <div class="card-actions"><button class="small primary">搜索</button><button class="small">AI 扩展关键词</button><button class="small">找相似题</button></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">面积与其它图形不相等的是（　）。</div>
+                            <div class="card-meta"><span>2024 深圳</span><span>中等</span><span>含图</span></div>
+                            <div class="card-actions"><button class="small primary">加入</button><button class="small">预览</button></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">平行线间三个图形面积大小关系</div>
+                            <div class="card-meta"><span>小升初</span><span>提高</span><span>含图</span></div>
+                            <div class="card-actions"><button class="small primary">加入</button><button class="small">预览</button></div>
+                        </div>
+                    </section>
+
+                    <section class="tab-panel" id="tab-papers" hidden>
+                        <div class="field"><label>搜索试卷库</label><input value="2024 深圳 小升初"></div>
+                        <div class="card selected paper-card">
+                            <div class="card-title">2024年广东深圳宝安区六年级小升初数学试卷</div>
+                            <div class="card-meta"><span>18题</span><span>已入库</span><span>可整卷打印</span></div>
+                            <div class="card-actions"><button class="small primary show-paper-questions">查看题目</button><button class="small">按原卷调出</button><button class="small">归档</button><button class="small">删除记录</button></div>
+                        </div>
+                        <div class="paper-question-list show" id="paperQuestionList">
+                            <p class="side-title"><span>原卷题目</span><span class="pill">按原题号</span></p>
+                            <div class="paper-question">
+                                <input type="checkbox" checked>
+                                <div><strong>1. 面积比较图形题</strong><div class="tiny">选择题 · 含题干图 · 原第 1 题</div></div>
+                                <button class="small primary add-paper-question">加入讲义</button>
+                            </div>
+                            <div class="paper-question">
+                                <input type="checkbox" checked>
+                                <div><strong>2. 多边形面积计算</strong><div class="tiny">选择题 · 选项图 · 原第 2 题</div></div>
+                                <button class="small primary add-paper-question">加入讲义</button>
+                            </div>
+                            <div class="paper-question">
+                                <input type="checkbox">
+                                <div><strong>3. 平行线间面积</strong><div class="tiny">选择题 · 提高 · 原第 3 题</div></div>
+                                <button class="small primary add-paper-question">加入讲义</button>
+                            </div>
+                            <div class="card-actions"><button class="small primary">勾选题加入讲义</button><button class="small">整卷打印</button></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">2024年广东深圳福田区六年级小升初数学试卷</div>
+                            <div class="card-meta"><span>20题</span><span>部分待确认</span></div>
+                            <div class="card-actions"><button class="small primary show-paper-questions">查看题目</button><button class="small">删除记录</button></div>
+                        </div>
+                        <p class="tiny">删除试卷记录不删除正式题库题目；真正删除题目需到正式题库逐题处理。</p>
+                    </section>
+
+                    <section class="tab-panel" id="tab-ai" hidden>
+                        <div class="side-section">
+                            <p class="side-title">私人题库 AI</p>
+                            <div class="card ai-card">
+                                <div class="card-title">把题篮整理成讲义结构</div>
+                                <div class="card-meta"><span>按知识点分段</span><span>自动补过渡说明</span></div>
+                                <div class="card-actions"><button class="small primary ai-action">生成结构建议</button></div>
+                            </div>
+                            <div class="card ai-card">
+                                <div class="card-title">生成变式训练</div>
+                                <div class="card-meta"><span>基于当前 3 题</span><span>控制难度梯度</span></div>
+                                <div class="card-actions"><button class="small primary ai-action">生成 3 道变式</button></div>
+                            </div>
+                            <div class="card ai-card">
+                                <div class="card-title">质量体检</div>
+                                <div class="card-meta"><span>检查图形归属</span><span>答案解析</span><span>版面拥挤</span></div>
+                                <div class="card-actions"><button class="small primary ai-action">检查本卷</button><button class="small ai-action">找相似真题</button></div>
+                            </div>
+                        </div>
+                        <p class="tiny">AI 更适合做私人工作台的“整理、补讲义、找相似、查缺漏”，正式题目仍以你确认后的题库数据为准。</p>
+                    </section>
+
+                    <section class="tab-panel" id="tab-settings" hidden>
+                        <div class="side-section">
+                            <p class="side-title">显示设置</p>
+                            <div class="setting-grid">
+                                <label class="check"><input type="checkbox" checked data-toggle="score"> 分值</label>
+                                <label class="check"><input type="checkbox" checked data-toggle="source"> 来源</label>
+                                <label class="check"><input type="checkbox" checked data-toggle="tags"> 知识点</label>
+                                <label class="check"><input type="checkbox"> 答题区</label>
+                            </div>
+                        </div>
+                        <div class="side-section">
+                            <p class="side-title">分页与导出</p>
+                            <div class="filter-grid">
+                                <div class="field"><label>纸张</label><select><option>A4</option><option>A3</option></select></div>
+                                <div class="field"><label>字号</label><select><option>10.5</option><option>11</option><option>12</option></select></div>
+                            </div>
+                            <label class="check"><input type="checkbox" checked> Word 按分页预览输出</label>
+                        </div>
+                        <div class="side-section">
+                            <p class="side-title">讲义模块</p>
+                            <button style="width:100%;margin-bottom:7px;">插入知识梳理</button>
+                            <button style="width:100%;margin-bottom:7px;">插入例题讲解</button>
+                            <button style="width:100%;margin-bottom:7px;">插入变式训练</button>
+                            <button style="width:100%;">插入课后练习</button>
+                        </div>
+                        <div class="side-section">
+                            <p class="side-title">参考截图</p>
+                            <img class="ref-img" src="assets/question-bank-compose-reference-question.png" alt="教研云试题组卷参考">
+                            <p class="tiny">沙盘参考你发的教研云三栏结构，但保留题库 B 的轻量工作台风格。</p>
+                        </div>
+                    </section>
+                </div>
+            </aside>
+            <aside class="basket-rail">
+                <button class="basket-button" id="basketToggle" aria-label="打开题篮">题<span class="basket-count">3</span></button>
+                <div class="basket-label">全局题篮</div>
+            </aside>
+        </main>
+    </div>
+
+    <section class="basket-drawer" id="basketDrawer">
+        <div class="drawer-head">
+            <span>全局题篮</span>
+            <button class="small" id="closeBasket">收起</button>
+        </div>
+        <div class="drawer-body">
+            <div class="card selected">
+                <div class="card-title">1. 面积比较图形题</div>
+                <div class="card-meta"><span>选择题</span><span>3分</span><span>原第 1 题</span></div>
+                <div class="card-actions"><button class="small">上移</button><button class="small">下移</button><button class="small">移出</button></div>
+            </div>
+            <div class="card">
+                <div class="card-title">2. 多边形面积计算</div>
+                <div class="card-meta"><span>选择题</span><span>4分</span><span>原第 2 题</span></div>
+                <div class="card-actions"><button class="small">上移</button><button class="small">下移</button><button class="small">移出</button></div>
+            </div>
+            <div class="card">
+                <div class="card-title">3. 平行线间面积</div>
+                <div class="card-meta"><span>选择题</span><span>5分</span><span>原第 3 题</span></div>
+                <div class="card-actions"><button class="small">上移</button><button class="small">下移</button><button class="small">移出</button></div>
+            </div>
+            <button class="primary" style="width:100%;">同步到本卷编辑</button>
+            <p class="tiny">题篮负责跨模块选题和默认顺序；本卷编辑负责本次输出的标题、说明、分页、临时改题和讲义内容。</p>
+        </div>
+    </section>
+
+    <section class="edit-panel" id="editPanel">
+        <div class="edit-head">
+            <span>仅本次输出编辑</span>
+            <button class="small" id="closeEdit">关闭</button>
+        </div>
+        <div class="field">
+            <label>题干</label>
+            <textarea id="editStem">下图图形中，面积与其他图形不相等的是（　）。</textarea>
+        </div>
+        <div class="field">
+            <label>答案</label>
+            <input id="editAnswer" value="B">
+        </div>
+        <div class="field">
+            <label>解析</label>
+            <textarea id="editSolution">同高时比较底，高为 3cm，B 的底边对应关系不同。</textarea>
+        </div>
+        <div class="card-actions">
+            <button class="primary" id="applyEdit">应用到本卷</button>
+            <button id="resetEdit">恢复正式题</button>
+        </div>
+        <p class="tiny">这里的改动只影响本次 Word/PDF/HTML 输出，不回写正式题库。</p>
+    </section>
+
+    <div class="toast" id="toast">已应用到本卷编辑</div>
+
+    <script>
+        const body = document.body;
+        const toast = document.getElementById('toast');
+        const editPanel = document.getElementById('editPanel');
+        const basketDrawer = document.getElementById('basketDrawer');
+        let selectedQuestion = document.getElementById('q1');
+
+        function showToast(text) {
+            toast.textContent = text;
+            toast.classList.add('show');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => toast.classList.remove('show'), 1400);
+        }
+
+        function selectQuestion(id) {
+            document.querySelectorAll('.question').forEach(q => q.classList.remove('selected'));
+            selectedQuestion = document.getElementById(id);
+            if (selectedQuestion) {
+                selectedQuestion.classList.add('selected');
+                selectedQuestion.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            document.querySelectorAll('.outline-item').forEach(item => item.classList.toggle('active', item.dataset.select === id));
+        }
+
+        document.querySelectorAll('[data-mode]').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('[data-mode]').forEach(item => item.classList.remove('active'));
+                button.classList.add('active');
+                body.classList.remove('teacher', 'answer-only');
+                if (button.dataset.mode === 'teacher') body.classList.add('teacher');
+                if (button.dataset.mode === 'answer-only') body.classList.add('answer-only');
+            });
+        });
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(item => item.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.tab-panel').forEach(panel => panel.hidden = panel.id !== `tab-${tab.dataset.tab}`);
+            });
+        });
+
+        document.querySelectorAll('.doc-type').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.doc-type').forEach(item => item.classList.remove('active'));
+                button.classList.add('active');
+                const label = button.textContent.trim();
+                showToast(`已切换创建类型：${label}`);
+            });
+        });
+
+        document.querySelectorAll('.outline-toggle').forEach(button => {
+            button.addEventListener('click', event => {
+                const group = button.closest('[data-outline-group]');
+                group.classList.toggle('collapsed');
+                button.textContent = group.classList.contains('collapsed') ? '+' : '−';
+                event.stopPropagation();
+            });
+        });
+
+        document.querySelectorAll('.search-scope button').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.search-scope button').forEach(item => item.classList.remove('active'));
+                button.classList.add('active');
+                showToast(`搜索范围：${button.textContent.trim()}`);
+            });
+        });
+
+        document.querySelectorAll('.show-paper-questions').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.paper-card').forEach(card => card.classList.remove('selected'));
+                button.closest('.card')?.classList.add('selected');
+                document.getElementById('paperQuestionList').classList.add('show');
+                showToast('已展开原卷题目，可勾选后加入讲义');
+            });
+        });
+
+        document.querySelectorAll('.add-paper-question').forEach(button => {
+            button.addEventListener('click', () => showToast('已加入讲义草稿，顺序按原试卷题号保留'));
+        });
+
+        document.querySelectorAll('.ai-action').forEach(button => {
+            button.addEventListener('click', () => showToast(`AI 沙盘：${button.textContent.trim()}`));
+        });
+
+        document.querySelectorAll('.insert-action').forEach(button => {
+            button.addEventListener('click', () => {
+                const type = button.dataset.insert;
+                if (type === '分页' || type === '整题下页') {
+                    showToast(type === '分页' ? '已在当前位置插入手动分页' : '已设置当前题整题移到下一页');
+                    return;
+                }
+                showToast(`已进入插入${type}模式，可放到当前光标位置`);
+            });
+        });
+
+        document.getElementById('basketToggle').addEventListener('click', () => {
+            basketDrawer.classList.toggle('show');
+        });
+        document.getElementById('closeBasket').addEventListener('click', () => {
+            basketDrawer.classList.remove('show');
+        });
+
+        document.querySelectorAll('[data-select]').forEach(item => {
+            item.addEventListener('click', () => selectQuestion(item.dataset.select));
+        });
+
+        document.querySelectorAll('[data-jump]').forEach(item => {
+            item.addEventListener('click', () => {
+                const target = document.getElementById(item.dataset.jump);
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                document.querySelectorAll('.outline-item').forEach(node => node.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.question').forEach(question => {
+            question.addEventListener('click', event => {
+                if (event.target.closest('.q-toolbar')) return;
+                selectQuestion(question.id);
+            });
+        });
+
+        document.querySelectorAll('[data-action]').forEach(button => {
+            button.addEventListener('click', event => {
+                const action = button.dataset.action;
+                const q = button.closest('.question');
+                if (action === 'edit') {
+                    selectedQuestion = q;
+                    document.getElementById('editStem').value = q.querySelector('.q-body')?.innerText.replace(/^.*?分｜.*?/, '').trim() || '';
+                    document.getElementById('editAnswer').value = q.querySelector('.answer-block')?.innerText.match(/答案：([^解]+)/)?.[1]?.trim() || '';
+                    document.getElementById('editSolution').value = q.querySelector('.answer-block')?.innerText.match(/解析：(.+)$/)?.[1]?.trim() || '';
+                    editPanel.classList.add('show');
+                }
+                if (action === 'remove') {
+                    q.style.opacity = '.38';
+                    showToast('已从本卷编辑移出，正式题库不受影响');
+                }
+                if (action === 'up' || action === 'down') {
+                    showToast('沙盘提示：这里将调整本卷编辑顺序');
+                }
+                event.stopPropagation();
+            });
+        });
+
+        document.getElementById('closeEdit').addEventListener('click', () => editPanel.classList.remove('show'));
+        document.getElementById('applyEdit').addEventListener('click', () => {
+            if (selectedQuestion) {
+                const bodyNode = selectedQuestion.querySelector('.q-body');
+                const meta = bodyNode.querySelector('.q-meta')?.outerHTML || '';
+                bodyNode.innerHTML = `${meta}${document.getElementById('editStem').value}`;
+                const answer = document.getElementById('editAnswer').value;
+                const solution = document.getElementById('editSolution').value;
+                selectedQuestion.querySelector('.answer-block').innerHTML = `<strong>答案：</strong>${answer}　<strong>解析：</strong>${solution}`;
+            }
+            editPanel.classList.remove('show');
+            showToast('已应用到本卷编辑');
+        });
+        document.getElementById('resetEdit').addEventListener('click', () => showToast('沙盘提示：这里将恢复正式题库原题'));
+        document.getElementById('compactBtn').addEventListener('click', () => showToast('紧凑试卷：隐藏答题区，题号题干同一行'));
+        document.getElementById('handoutBtn').addEventListener('click', () => showToast('讲义结构：显示知识梳理、例题、变式、练习模块'));
+    </script>
+</body>
+</html>

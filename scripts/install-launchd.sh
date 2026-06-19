@@ -36,6 +36,10 @@ cat > "$PLIST_PATH" <<PLIST
         <string>$DATA_ROOT</string>
         <key>STUDENT_LOG_DIR</key>
         <string>$LOG_ROOT</string>
+        <key>STUDENT_READ_FULL_DATA_FROM_SQLITE</key>
+        <string>1</string>
+        <key>STUDENT_READ_FULL_DATA_FROM_SQLITE_COLUMNS</key>
+        <string>1</string>
         <key>NODE_BIN</key>
         <string>$(command -v node)</string>
     </dict>

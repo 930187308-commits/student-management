@@ -57,6 +57,10 @@ const CHECKS = [
         script: 'server/check-ai-runtime.js'
     },
     {
+        name: 'AI system QA runtime',
+        script: 'server/check-ai-system-qa-runtime.js'
+    },
+    {
         name: 'Knowledge library runtime',
         script: 'server/check-knowledge-runtime.js'
     }

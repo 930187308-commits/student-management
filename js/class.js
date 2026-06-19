@@ -200,11 +200,11 @@ async function deleteClassTypeByIdx(idx) {
 
 function openGradeManager() {
     document.getElementById('modalTitle').textContent = '年级管理';
-    const grades = (data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一']);
-    const gradeList = grades.map((g, idx) => `
+    const grades = getGradeOptions();
+    const gradeList = grades.map(g => `
         <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hover-bg); border-radius: 6px; margin-bottom: 8px;">
             <span style="flex:1;">${escapeHtml(g)}</span>
-            <button class="btn btn-danger btn-xs" onclick="deleteGradeByIdx(${idx})">删除</button>
+            <button class="btn btn-danger btn-xs" data-grade="${escapeHtml(g)}" onclick="deleteGradeByName(this.dataset.grade)">删除</button>
         </div>
     `).join('');
 
@@ -222,7 +222,7 @@ function openGradeManager() {
 async function addGrade() {
     const name = document.getElementById('newGradeName').value.trim();
     if (!name) { showToast('请输入年级名称'); return; }
-    if (!data.gradeOptions) data.gradeOptions = ['五年级', '六年级', '初一', '初二', '初三', '新初一'];
+    if (!data.gradeOptions) data.gradeOptions = ['五年级', '六年级', '初一', '初二', '初三', '高一', '高二', '高三'];
     if (data.gradeOptions.includes(name)) { showToast('该年级已存在'); return; }
     data.gradeOptions.push(name);
     try {
@@ -235,9 +235,9 @@ async function addGrade() {
     showToast('年级已添加');
 }
 
-async function deleteGradeByIdx(idx) {
+async function deleteGradeByName(name) {
     if (!confirm('删除该年级？')) return;
-    data.gradeOptions.splice(idx, 1);
+    data.gradeOptions = (data.gradeOptions || []).filter(g => g !== name);
     try {
         await saveGradeOptionsToApi(data.gradeOptions);
     } catch (error) {
@@ -249,7 +249,8 @@ async function deleteGradeByIdx(idx) {
 }
 
 function getGradeOptions() {
-    return data.gradeOptions || ['五年级', '六年级', '初一', '初二', '初三', '新初一'];
+    return [...new Set([...(data.gradeOptions || []), '五年级', '六年级', '初一', '初二', '初三', '高一', '高二', '高三'])]
+        .filter(g => g !== '新初一');
 }
 
 function openClassModal(id = null) {

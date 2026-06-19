@@ -33,6 +33,7 @@ const FIELD_MAPPINGS = {
         gender: 'students.gender',
         grade: 'students.grade',
         school: 'students.school',
+        schoolHistory: 'students.school_history_json',
         phone: 'students.phone',
         emergencyContact: 'students.emergency_contact',
         classId: 'students.class_id',
@@ -40,6 +41,7 @@ const FIELD_MAPPINGS = {
         status: 'students.status',
         enrollDate: 'students.enroll_date',
         firstEnrollDate: 'students.first_enroll_date',
+        firstEnrollGrade: 'students.first_enroll_grade',
         followUpStatus: 'students.follow_up_status',
         createdAt: 'students.created_at',
         classJoinSessions: 'students.class_join_sessions_json',
@@ -123,6 +125,8 @@ const NEXT_COLUMN_CANDIDATES = {
     ],
     students: [
         'firstEnrollDate',
+        'firstEnrollGrade',
+        'schoolHistory',
         'followUpStatus',
         'classJoinSessions',
         'classLeaveSessions'

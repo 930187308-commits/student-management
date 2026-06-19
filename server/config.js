@@ -32,6 +32,33 @@ function loadLocalEnvFile(filePath) {
 
 const aiEnvFileLoaded = loadLocalEnvFile(AI_ENV_FILE);
 
+const defaultAiProvider = process.env.AI_PROVIDER || 'disabled';
+const defaultMinimaxModel = process.env.MINIMAX_MODEL || process.env.AI_MODEL || 'MiniMax-M2.7-highspeed';
+const defaultMinimaxBaseUrl = process.env.MINIMAX_BASE_URL || process.env.AI_BASE_URL || 'https://api.minimax.io/v1';
+const aiProviders = {
+    minimax: {
+        provider: 'minimax',
+        label: 'MiniMax',
+        apiKey: process.env.MINIMAX_API_KEY || process.env.AI_API_KEY || '',
+        model: defaultMinimaxModel,
+        baseUrl: defaultMinimaxBaseUrl
+    },
+    deepseek: {
+        provider: 'deepseek',
+        label: 'DeepSeek',
+        apiKey: process.env.DEEPSEEK_API_KEY || process.env.QUESTION_IMPORT_AI_API_KEY || '',
+        model: process.env.DEEPSEEK_MODEL || process.env.QUESTION_IMPORT_AI_MODEL || 'deepseek-v4-flash',
+        baseUrl: process.env.DEEPSEEK_BASE_URL || process.env.QUESTION_IMPORT_AI_BASE_URL || 'https://api.deepseek.com'
+    },
+    qwen: {
+        provider: 'qwen',
+        label: 'Qwen',
+        apiKey: process.env.QWEN_API_KEY || '',
+        model: process.env.QWEN_MODEL || 'qwen-plus',
+        baseUrl: process.env.QWEN_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+    }
+};
+
 const config = {
     env: process.env.STUDENT_CONSOLE_ENV || 'production',
     host: process.env.STUDENT_SERVER_HOST || '0.0.0.0',
@@ -46,14 +73,22 @@ const config = {
     readFullDataFromSqlite: process.env.STUDENT_READ_FULL_DATA_FROM_SQLITE === '1',
     readFullDataFromSqliteColumns: process.env.STUDENT_READ_FULL_DATA_FROM_SQLITE_COLUMNS === '1',
     ai: {
-        provider: process.env.AI_PROVIDER || 'disabled',
+        provider: defaultAiProvider,
         apiKey: process.env.AI_API_KEY || '',
         model: process.env.AI_MODEL || '',
         baseUrl: process.env.AI_BASE_URL || '',
         timeoutMs: Number(process.env.AI_TIMEOUT_MS || 60000),
         logFullInput: process.env.AI_LOG_FULL_INPUT === '1',
         envFile: AI_ENV_FILE,
-        envFileLoaded: aiEnvFileLoaded
+        envFileLoaded: aiEnvFileLoaded,
+        providers: aiProviders,
+        questionImport: {
+            provider: process.env.QUESTION_IMPORT_AI_PROVIDER || '',
+            apiKey: process.env.QUESTION_IMPORT_AI_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.QWEN_API_KEY || '',
+            model: process.env.QUESTION_IMPORT_AI_MODEL || '',
+            baseUrl: process.env.QUESTION_IMPORT_AI_BASE_URL || '',
+            timeoutMs: Number(process.env.QUESTION_IMPORT_AI_TIMEOUT_MS || 15000)
+        }
     }
 };
 

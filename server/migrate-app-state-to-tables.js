@@ -83,6 +83,7 @@ function buildMigrationPlan(data) {
             gender: s.gender || '',
             grade: s.grade || '',
             school: s.school || '',
+            school_history_json: json(s.schoolHistory || {}),
             phone: s.phone || '',
             emergency_contact: s.emergencyContact || '',
             class_id: s.classId || null,
@@ -90,6 +91,7 @@ function buildMigrationPlan(data) {
             status: s.status || 'active',
             enroll_date: s.enrollDate || '',
             first_enroll_date: s.firstEnrollDate || '',
+            first_enroll_grade: s.firstEnrollGrade || '',
             follow_up_status: s.followUpStatus || '',
             created_at: s.createdAt || '',
             class_join_sessions_json: json(s.classJoinSessions || {}),
@@ -263,12 +265,12 @@ function insertRows(db, rows) {
     ));
 
     const insertStudent = db.prepare(`
-        INSERT INTO students (id, name, gender, grade, school, phone, emergency_contact, class_id, teacher, status, enroll_date, first_enroll_date, follow_up_status, created_at, class_join_sessions_json, class_leave_sessions_json, remark, archived_at, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO students (id, name, gender, grade, school, school_history_json, phone, emergency_contact, class_id, teacher, status, enroll_date, first_enroll_date, first_enroll_grade, follow_up_status, created_at, class_join_sessions_json, class_leave_sessions_json, remark, archived_at, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     rows.students.forEach(row => insertStudent.run(
-        row.id, row.name, row.gender, row.grade, row.school, row.phone, row.emergency_contact,
-        row.class_id, row.teacher, row.status, row.enroll_date, row.first_enroll_date,
+        row.id, row.name, row.gender, row.grade, row.school, row.school_history_json, row.phone, row.emergency_contact,
+        row.class_id, row.teacher, row.status, row.enroll_date, row.first_enroll_date, row.first_enroll_grade,
         row.follow_up_status, row.created_at, row.class_join_sessions_json,
         row.class_leave_sessions_json, row.remark, row.archived_at, row.raw_json, stamp
     ));

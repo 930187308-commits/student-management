@@ -1764,3 +1764,248 @@ recruit-agent 的 4 个任务类型改为调用 `generateRecruitAgentContent()` 
 - `server/server.js`
 - `PROJECT_PROGRESS.md`
 - `docs/STAGE_10_MATH_QUESTION_BANK_PRODUCT_DESIGN.md`
+
+---
+
+### Stage 10B：数学题库工作台 V2 导入中心与候选题池
+
+日期：2026-06-09
+
+#### A. 本轮目标
+
+把独立数学题库从“单题录入 + 正式题库列表”推进到 V2 的核心导入闭环：
+
+```text
+文本/文件导入
+-> 保存批次和原始文本
+-> 切分候选题
+-> 待确认题目池
+-> 左右对照校对
+-> 人工逐题确认
+-> 正式入库
+```
+
+#### B. 后端完成
+
+- 新增 `server/question-import-service.js`
+- 新增导入批次表：
+  - `question_import_batches`
+- 新增候选题池表：
+  - `question_import_candidates`
+- 正式题库 `question_items` 补充：
+  - 来源 JSON
+  - 答案状态
+  - 质量标记
+  - 导入候选题关联
+  - 内部编号预留
+  - 子知识点预留
+- 预留后续扩展基座：
+  - 学生错题 `student_question_records`
+  - 教学大纲 `curriculum_plans` / `curriculum_units`
+  - 网络题源发现 `source_watch_rules` / `source_candidates`
+  - 试卷讲义草稿 `paper_drafts` / `paper_items`
+- 新增 API：
+  - `POST /api/question-import/batches`
+  - `GET /api/question-import/batches`
+  - `GET /api/question-import/batches/:id`
+  - `GET /api/question-import/candidates`
+  - `GET /api/question-import/candidates/:id`
+  - `PATCH /api/question-import/candidates/:id`
+  - `POST /api/question-import/candidates/:id/accept`
+  - `POST /api/question-import/candidates/:id/ignore`
+
+#### C. 前端完成
+
+- `question-bank.html` 新增 V2 区域：
+  - 导入中心
+  - 待确认题目池
+  - 候选题状态筛选
+- `js/question-bank-system.js` 新增：
+  - OCR 文本批量导入
+  - 候选题列表加载
+  - 候选题校对弹窗
+  - 候选题保存
+  - 候选题忽略
+  - 候选题确认入库
+  - 正式题库显示来源、答案状态、质量标记
+- KPI 增加：
+  - 待确认
+  - 缺答案
+
+#### D. 当前支持程度
+
+- OCR 文本粘贴：已可用。
+- Word `.docx`：后端保存原文件，并做基础 XML 文本提取。
+- PDF：后端保存原文件，并尝试基础文本提取；扫描版或提取不足时提示先复制文字/OCR 后粘贴。
+- AI 仍只做建议，不自动确认正式题库数据。
+
+#### E. 验证
+
+- `scripts/node.sh --check server/question-import-service.js` 通过
+- `scripts/node.sh --check server/server.js` 通过
+- `scripts/node.sh --check server/db.js` 通过
+- `scripts/node.sh --check server/knowledge-service.js` 通过
+- `node --check js/question-bank-system.js` 通过
+- `npm run check` 通过
+- 临时 SQLite 后端闭环验证通过：
+  - 文本导入生成 2 道候选题
+  - 1 道题确认入库
+  - 正式题库生成题目
+  - 答案状态为“人工已确认”
+  - 候选题关联存在
+- Browser 临时服务验证通过：
+  - 打开 `http://127.0.0.1:3107/question-bank.html`
+  - 导入中心粘贴两道题
+  - 生成 2 道候选题
+  - 第二题标记缺答案/缺解析
+  - 候选题校对弹窗显示原文、来源、warnings、结构化字段
+  - 确认入库后正式题库显示题目、来源、答案和“人工已确认”
+
+#### F. 下一步
+
+- 批量操作：批量忽略、批量标记来源、批量标记章节/知识点。
+- 输出端来源显示开关：不显示 / 简短 / 完整。
+- 小测默认过滤未确认答案题。
+- Word/PDF 导入的 warnings 和错误提示继续细化。
+- 增加专门的题库导入 runtime check 脚本。
+
+**修改文件**
+- `server/db.js`
+- `server/knowledge-service.js`
+- `server/server.js`
+- `server/question-import-service.js`
+- `question-bank.html`
+- `js/question-bank-system.js`
+- `package.json`
+- `docs/MATH_QUESTION_BANK_CONTEXT.md`
+- `PROJECT_PROGRESS.md`
+
+#### G. 输出端补齐
+
+同日补齐 V2 已沟通但页面漏掉的导出入口：
+
+- 保留 `复制`
+- 新增 `打印/PDF`
+  - 生成干净 HTML 打印页
+  - 通过浏览器打印对话框保存 PDF
+  - 打印页不包含题库操作按钮
+- 新增 `下载 Word HTML`
+  - 下载 `.doc`
+  - 内容为 HTML 文档，可用 Word/WPS 打开后继续编辑
+- 保留 `下载 MD`
+
+验证：
+
+- `node --check js/question-bank-system.js` 通过
+- `npm run check` 通过
+- Browser 打开正式 `question-bank.html`：
+  - `打印/PDF` 按钮存在，空输出时提示“暂无可打印内容”
+  - `下载 Word HTML` 按钮存在，空输出时提示“暂无可下载内容”
+  - 控制台无新增错误
+
+#### H. 公式与图片导出优化
+
+修复输出端只把 Markdown 文本转 HTML 导致公式、SVG 和图片不能正常进入打印/Word 的问题。
+
+调整后：
+
+- `打印/PDF` 和 `下载 Word HTML` 不再只依赖 `outputArea` 纯文本。
+- 改为基于题篮里的结构化题目数据生成 HTML。
+- 题目中的 `formulaLatex` 会作为独立公式块输出。
+- 题干中的 `\\(...\\)` 行内公式会保留为行内公式样式。
+- `diagramSvg` 会直接进入导出 HTML，打印时可显示 SVG 图形。
+- `imageUrl` 会渲染为 `<img>`：
+  - `http/https/data/blob/file` 直接保留
+  - `/Users/...` 尽量转换为 `file://`
+  - 相对路径转换为当前站点绝对 URL
+- 题目、答案、解析、易错点都走结构化 HTML，避免打印时丢失图形信息。
+
+验证：
+
+- `node --check js/question-bank-system.js` 通过
+- `npm run check` 通过
+- Browser 点击 `打印/PDF` 和 `下载 Word HTML` 空输出状态无报错
+
+#### I. 打印版与 Word/HTML 版分流修正
+
+根据实际使用反馈继续修正输出：
+
+- 打印/PDF 版：
+  - 由于题干里已经能显示公式和图片，不再额外显示独立 `formulaLatex` 公式块。
+  - 避免打印版出现类似“公式 330 \\div (60+50)”的重复原始公式文本。
+- Word/HTML 版：
+  - 常见 LaTeX 命令转换为更稳定的可读数学符号：
+    - `\\div` -> `÷`
+    - `\\times` -> `×`
+    - `\\frac{a}{b}` -> `(a)/(b)`
+    - `\\sqrt{x}` -> `√(x)`
+  - SVG 图形转换为 `data:image/svg+xml` 图片，提升下载后在 HTML/Word 中显示的概率。
+  - 新增单独 `下载 HTML` 按钮，和 `下载 Word HTML` 分开。
+
+验证：
+
+- `node --check js/question-bank-system.js` 通过
+- `npm run check` 通过
+- Browser 打开正式 `question-bank.html`：
+  - `打印/PDF`、`下载 Word HTML`、`下载 HTML` 按钮均存在
+  - 空输出状态点击三个按钮无控制台错误
+
+#### J. 输出选项、候选题批量操作与 PDF 乱码防护
+
+根据实际使用反馈继续补齐 V2：
+
+1. 输出显示选项
+   - 新增是否显示题目标签。
+   - 新增是否显示知识点标签。
+   - 新增是否显示试题来源。
+   - 来源显示方式支持：
+     - 不显示
+     - 简短来源
+     - 完整来源
+   - 这些选项会影响：
+     - 页面生成文本
+     - 打印/PDF
+     - Word HTML
+     - HTML
+     - Markdown 下载前的输出内容
+
+2. 候选题池批量操作
+   - 新增候选题勾选框。
+   - 新增全选 / 取消。
+   - 新增批量标记：
+     - 年级
+     - 体系
+     - 章节
+     - 知识点
+     - 来源类型
+     - 年份
+     - 地区
+     - 考试/资料名称
+   - 新增批量忽略。
+   - 新增批量删除。
+   - 新增单题删除按钮。
+   - 已入库候选题不允许删除。
+
+3. PDF 乱码防护
+   - PDF 文件导入后会做文本质量检测。
+   - 若提取文本过短、有效字符比例低或符号噪声过高，不再生成候选题。
+   - 批次仍保存原文件和 warning。
+   - 若用户同时粘贴了可复制文本，则用粘贴文本继续拆题。
+
+验证：
+
+- 临时 SQLite 后端验证通过：
+  - 文本导入生成 2 道候选题。
+  - 批量标记年级、章节、知识点、来源成功。
+  - 批量忽略成功。
+  - 批量删除成功。
+  - 乱码 PDF 不生成候选题，并返回 warning。
+- Browser 临时服务验证通过：
+  - 页面存在输出标签/来源选项。
+  - 页面存在批量标记、批量忽略、批量删除。
+  - 导入 2 道题后候选池显示 2 题。
+  - 全选后批量标记成功。
+  - 批量忽略成功。
+  - 批量删除后候选池变为 0。
+  - 默认输出不显示来源；开启完整来源后显示完整来源；关闭知识点标签后不显示标签。
+  - 控制台无新增错误。

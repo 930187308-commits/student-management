@@ -412,6 +412,14 @@ function switchTab(tab) {
     document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
     document.getElementById('tab-' + tab).classList.add('active');
     currentTab = tab;
+    const appMain = document.querySelector('.app-main');
+    if (appMain) {
+        if (tab === 'dashboard' || tab === 'reports') {
+            appMain.classList.remove('hide-stats');
+        } else {
+            appMain.classList.add('hide-stats');
+        }
+    }
 }
 
 function selectClass(classId) {

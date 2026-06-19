@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI 教培工作台产品体检批注报告 · 2026-06-18</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --ink: #1f2933;
+      --muted: #65758b;
+      --line: #d9e2ec;
+      --blue: #2166c2;
+      --blue-soft: #e8f1ff;
+      --green: #0f8a5f;
+      --green-soft: #e6f7ef;
+      --amber: #b7791f;
+      --amber-soft: #fff4d9;
+      --red: #c2410c;
+      --red-soft: #fff0e8;
+      --purple: #6d28d9;
+      --purple-soft: #f0e9ff;
+      --shadow: 0 12px 34px rgba(31, 41, 51, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 18px;
+      background: #101827;
+      color: #dbeafe;
+      overflow: auto;
+    }
+
+    .brand {
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      background: rgba(255,255,255,.05);
+      margin-bottom: 18px;
+    }
+
+    .brand h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .brand p {
+      margin: 0;
+      font-size: 12px;
+      color: #9fb3d1;
+    }
+
+    nav a {
+      display: block;
+      padding: 9px 10px;
+      margin: 4px 0;
+      color: #c9d8ef;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    nav a:hover {
+      background: rgba(255,255,255,.08);
+      color: #fff;
+    }
+
+    main {
+      padding: 28px;
+      max-width: 1280px;
+      width: 100%;
+    }
+
+    .hero {
+      padding: 28px;
+      background: linear-gradient(135deg, #ffffff 0%, #eaf3ff 100%);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    .hero h2 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 920px;
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: var(--blue-soft);
+      color: #174f9a;
+      border: 1px solid #c9ddff;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 14px rgba(31, 41, 51, 0.04);
+    }
+
+    h3 {
+      margin: 0 0 14px;
+      font-size: 20px;
+    }
+
+    h4 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    p { margin: 0 0 10px; }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .metric strong {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .note {
+      border-left: 4px solid var(--blue);
+      background: var(--blue-soft);
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin: 12px 0;
+    }
+
+    .note.warn { border-left-color: var(--amber); background: var(--amber-soft); }
+    .note.good { border-left-color: var(--green); background: var(--green-soft); }
+    .note.risk { border-left-color: var(--red); background: var(--red-soft); }
+    .note.future { border-left-color: var(--purple); background: var(--purple-soft); }
+
+    .annotation {
+      display: grid;
+      grid-template-columns: 130px minmax(0, 1fr);
+      gap: 12px;
+      border: 1px dashed #b7c5d8;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 10px;
+      background: #fbfdff;
+    }
+
+    .annotation .label {
+      font-weight: 700;
+      color: var(--blue);
+      font-size: 13px;
+    }
+
+    .priority {
+      display: inline-block;
+      min-width: 38px;
+      text-align: center;
+      padding: 3px 7px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 12px;
+      margin-right: 6px;
+    }
+
+    .p0 { background: var(--red-soft); color: var(--red); }
+    .p1 { background: var(--amber-soft); color: var(--amber); }
+    .p2 { background: var(--blue-soft); color: var(--blue); }
+    .p3 { background: var(--green-soft); color: var(--green); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+    }
+
+    th {
+      background: #f7f9fc;
+      color: #44546a;
+      font-weight: 700;
+    }
+
+    ul, ol {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    li { margin: 5px 0; }
+
+    code {
+      background: #eef2f7;
+      padding: 2px 5px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .step {
+      position: relative;
+      padding: 12px;
+      min-height: 90px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -14px;
+      top: 33px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .screen {
+      border: 1px solid #cfd8e3;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #eef3f8;
+      margin-top: 12px;
+    }
+
+    .screen-top {
+      height: 44px;
+      background: #1e6fb9;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .screen-body {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      min-height: 260px;
+    }
+
+    .screen-nav {
+      background: #f8fafc;
+      border-right: 1px solid var(--line);
+      padding: 12px;
+    }
+
+    .screen-nav div {
+      height: 26px;
+      border-radius: 7px;
+      margin-bottom: 8px;
+      background: #e8eef6;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      color: #556679;
+    }
+
+    .screen-nav .active {
+      background: #d8eaff;
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .screen-main {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .mini-panel {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      min-height: 120px;
+    }
+
+    .mini-line {
+      height: 10px;
+      background: #e9eef5;
+      border-radius: 999px;
+      margin: 9px 0;
+    }
+
+    .mini-line.short { width: 55%; }
+    .mini-line.mid { width: 75%; }
+
+    .footer {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 12px 0 30px;
+    }
+
+    @media (max-width: 900px) {
+      .page { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      main { padding: 16px; }
+      .grid.cols-2, .grid.cols-3, .grid.cols-4 { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .step::after { display: none; }
+      .screen-body, .screen-main { grid-template-columns: 1fr; }
+      .annotation { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside>
+      <div class="brand">
+        <h1>产品体检批注</h1>
+        <p>AI 教培工作台 · 2026-06-18</p>
+      </div>
+      <nav>
+        <a href="#summary">总判断</a>
+        <a href="#evidence">检查依据</a>
+        <a href="#teacher-flow">老师工作流</a>
+        <a href="#module-audit">模块批注</a>
+        <a href="#ai-audit">AI 问答</a>
+        <a href="#knowledge">资料库与 Obsidian</a>
+        <a href="#architecture">后端与数据底座</a>
+        <a href="#roadmap">下一步路线</a>
+        <a href="#claude">可交给 Claude 的任务</a>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="hero" id="summary">
+        <h2>AI 教培工作台产品体检批注报告</h2>
+        <p>我按“白老师本人周五录课、周末上课、平时录入与复盘”的真实使用场景，把当前系统当成一个个人小型教培机构后台来检查。结论是：教务数据底座已经可以支撑真实业务，下一阶段重点不是继续堆功能，而是把 AI 问答、资料库、首页提醒和模块边界做得更稳、更少打扰、更可信。</p>
+        <div class="meta">
+          <span class="tag">Mac mini 本地服务器</span>
+          <span class="tag">SQLite 数据中心</span>
+          <span class="tag">真实数据已录入</span>
+          <span class="tag">AI 只读问答优先</span>
+          <span class="tag">题库已拆为独立子工作台</span>
+        </div>
+      </div>
+
+      <section>
+        <h3>一句话判断</h3>
+        <div class="note good">
+          当前系统已经从“学生管理页面”进化成了“个人教培经营中枢”的雏形。最值得继续打磨的方向是：让系统先把事实查准，再让 AI 解释、总结、提醒，而不是让 AI 直接自由发挥。
+        </div>
+        <div class="grid cols-4">
+          <div class="card metric"><span>在读学员</span><strong>69</strong></div>
+          <div class="card metric"><span>班级数量</span><strong>8</strong></div>
+          <div class="card metric"><span>课消率</span><strong>84%</strong></div>
+          <div class="card metric"><span>资料库资料</span><strong>19</strong></div>
+        </div>
+        <div class="annotation">
+          <div class="label">批注</div>
+          <div>系统已经有足够真实数据，不适合再靠“感觉”设计。后续所有 AI 与报表优化，都应该基于固定测试问题和运行检查，做到可回归、可验证。</div>
+        </div>
+      </section>
+
+      <section id="evidence">
+        <h3>检查依据</h3>
+        <div class="grid cols-2">
+          <div class="card">
+            <h4>读取的背景</h4>
+            <ul>
+              <li>5 年中小学数学教培经验，小班约 10 人。</li>
+              <li>当前核心年级：六年级、初一；课程包含基础、培优、奥数、中考衔接。</li>
+              <li>痛点偏向招生、教学技巧、资料整理和经营管理，备课流程暂时稳定。</li>
+              <li>设备结构：Mac mini 作为服务器，MacBook 作为主要开发与日常操作机器。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4>实际检查</h4>
+            <ul>
+              <li>打开本地工作台，检查首页、AI 对话、资料库实际页面。</li>
+              <li>调用后端接口：健康检查、AI 状态、首页摘要、数据体检、统计摘要、资料库摘要。</li>
+              <li>运行后端 runtime：15 项通过。</li>
+              <li>运行 AI 系统问答检查：17 项通过。</li>
+            </ul>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>检查项</th><th>结果</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>服务状态</td><td>通过</td><td><code>/api/health</code> 返回正常，服务运行在 Mac mini。</td></tr>
+            <tr><td>AI 配置</td><td>通过</td><td>MiniMax、DeepSeek、Qwen 均显示已配置；默认 MiniMax。</td></tr>
+            <tr><td>数据读取</td><td>通过</td><td>Dashboard、Reports、Data Health 均从 SQLite 列读取路径返回。</td></tr>
+            <tr><td>AI 问答</td><td>通过但需产品化</td><td>规则事实查询已能回答年级人数、满分成绩、学校、上月课消、欠费等问题。</td></tr>
+            <tr><td>资料库</td><td>可用但需增强</td><td>19 条资料，17 条有摘要和原文；分块数为 0，长资料检索能力还不够。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="teacher-flow">
+        <h3>从老师真实工作流看系统</h3>
+        <div class="flow">
+          <div class="step"><h4>周一到周四</h4><p>录入数据、整理资料、复盘招生和学生状态。</p></div>
+          <div class="step"><h4>周五</h4><p>录视频、准备讲义和周末课程。</p></div>
+          <div class="step"><h4>周六周日</h4><p>上课、考勤、课消、临时调课、记录沟通。</p></div>
+          <div class="step"><h4>课后</h4><p>成绩、作业、家长反馈、续费提醒。</p></div>
+          <div class="step"><h4>月度</h4><p>课消、欠费、招生来源、经营复盘。</p></div>
+        </div>
+        <div class="note">
+          这个系统最应该服务的不是“某个页面好不好看”，而是让你每次打开时都知道：今天要处理什么、谁需要关注、哪里有风险、哪些资料能直接拿来用。
+        </div>
+      </section>
+
+      <section id="module-audit">
+        <h3>核心模块批注</h3>
+        <div class="screen">
+          <div class="screen-top">建议的信息架构：业务总控 + 教务管理 + 学员招生 + AI 知识</div>
+          <div class="screen-body">
+            <div class="screen-nav">
+              <div class="active">首页</div>
+              <div>统计报表</div>
+              <div>班级 / 考勤 / 收费</div>
+              <div>学员 / 成绩 / 沟通</div>
+              <div>意向学员</div>
+              <div>AI 对话 / 资料库</div>
+            </div>
+            <div class="screen-main">
+              <div class="mini-panel">
+                <strong>今日工作台</strong>
+                <div class="mini-line mid"></div>
+                <div class="mini-line"></div>
+                <div class="mini-line short"></div>
+              </div>
+              <div class="mini-panel">
+                <strong>班级概览</strong>
+                <div class="mini-line"></div>
+                <div class="mini-line"></div>
+                <div class="mini-line mid"></div>
+              </div>
+              <div class="mini-panel">
+                <strong>待办与风险</strong>
+                <div class="mini-line short"></div>
+                <div class="mini-line mid"></div>
+              </div>
+              <div class="mini-panel">
+                <strong>AI 问答</strong>
+                <div class="mini-line"></div>
+                <div class="mini-line short"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>模块</th><th>现状</th><th>优化判断</th><th>优先级</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>首页</td>
+              <td>已能显示核心数据、今日工作台、待办、班级概览。</td>
+              <td>继续强化“今天要处理什么”。欠费、课时不足、待续费、意向跟进应该作为行动入口，不只是统计。</td>
+              <td><span class="priority p1">P1</span></td>
+            </tr>
+            <tr>
+              <td>班级与考勤</td>
+              <td>支持班级、考勤、临时调课、课次进度。</td>
+              <td>功能相对成熟。后续应减少手工检查，加入结课、调课、漏考勤的周期提醒。</td>
+              <td><span class="priority p2">P2</span></td>
+            </tr>
+            <tr>
+              <td>学员管理</td>
+              <td>已承载学校记录、首次上课年级、升年级、课时、状态等核心字段。</td>
+              <td>学员详情应成为“单个学生小档案”：成绩、收费、考勤、沟通、续费风险聚合。</td>
+              <td><span class="priority p1">P1</span></td>
+            </tr>
+            <tr>
+              <td>统计报表</td>
+              <td>已有课消、学校分布、来源分布等。</td>
+              <td>适合从“看数据”升级为“经营复盘”：本月变化、异常原因、下一步动作。</td>
+              <td><span class="priority p2">P2</span></td>
+            </tr>
+            <tr>
+              <td>意向学员</td>
+              <td>已有来源、试课状态、跟进信息。</td>
+              <td>招生是痛点，应逐步变成轻量 CRM：来源、转化阶段、下次跟进时间、成交原因。</td>
+              <td><span class="priority p2">P2</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="ai-audit">
+        <h3>AI 对话批注</h3>
+        <div class="grid cols-2">
+          <div class="card">
+            <h4>已经变好的地方</h4>
+            <ul>
+              <li>AI 页面已回到单一对话，方向正确。</li>
+              <li>默认可选系统、资料库、联网来源。</li>
+              <li>支持模型切换，当前多模型配置可用。</li>
+              <li>后端事实查询已能处理常见精确问题。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4>仍会让人不信任的点</h4>
+            <ul>
+              <li>旧聊天记录没有明显标注“回答生成时的数据快照”，容易和当前数据混淆。</li>
+              <li>当问题命中规则查询时应该显示“系统事实”，而不是看起来像 AI 自己编的。</li>
+              <li>详细回答仍可能像文章，简洁模式要默认更短。</li>
+              <li>资料库开关开启后，系统数据和资料内容的边界还要更明确。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="note good">
+          实测结果：六年级在读人数、期中 100 分名单、上个月课消、单个学生学校、课时不足名单都能由后端事实查询直接返回。这是正确路线，后续应扩大规则覆盖，而不是把更多原始 JSON 塞给模型。
+        </div>
+        <div class="annotation">
+          <div class="label">产品建议</div>
+          <div>AI 回答区建议增加状态标签：<code>系统事实查询</code>、<code>AI 组织语言</code>、<code>包含资料库引用</code>、<code>历史回答</code>。这样你一眼知道这段话可靠到什么程度。</div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>问题类型</th><th>建议处理方式</th><th>理由</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>六年级有多少人、谁考 100 分、某学生学校</td><td>后端直接算事实，AI 只负责排版</td><td>这类问题必须准确，不需要模型发挥。</td></tr>
+            <tr><td>哪些学生需要关注</td><td>后端给风险清单，AI 分组解释</td><td>需要事实 + 判断，但判断要有依据。</td></tr>
+            <tr><td>家长会、课程介绍、招生内容</td><td>启用资料库 + AI 生成草稿</td><td>这是写作类任务，允许风格和表达发挥。</td></tr>
+            <tr><td>联网政策、最新升学信息</td><td>必须标注来源和日期</td><td>政策会变，不能只靠模型记忆。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="knowledge">
+        <h3>资料库与 Obsidian 批注</h3>
+        <div class="grid cols-3">
+          <div class="card metric"><span>资料总数</span><strong>19</strong></div>
+          <div class="card metric"><span>有摘要</span><strong>17</strong></div>
+          <div class="card metric"><span>有原文</span><strong>17</strong></div>
+        </div>
+        <div class="note">
+          资料库目前定位已经清楚：Obsidian 是资料原库，系统资料库是 AI 实际读取层。只保存路径不能让 AI 理解正文；需要摘要或原文进入系统。
+        </div>
+        <div class="note warn">
+          当前资料库分块数为 0。短资料影响不大，但当资料变长后，AI 很难像真正检索系统那样精准引用。建议下一阶段做“资料分块 + 引用片段 + 引用来源”。
+        </div>
+        <table>
+          <thead>
+            <tr><th>资料类型</th><th>建议放入 Obsidian</th><th>建议导入系统</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>个人业务设定</td><td>课程体系、班型、收费逻辑、教学原则</td><td>需要，用于 AI 生成更符合你的经营规则的回答。</td></tr>
+            <tr><td>家长沟通资料</td><td>家长会、续费沟通、学习反馈、典型问题</td><td>需要，优先级高。</td></tr>
+            <tr><td>招生营销资料</td><td>公众号、小红书、视频号、课程介绍</td><td>需要，但和系统问答分开，作为写作素材。</td></tr>
+            <tr><td>升学考试资料</td><td>深圳中考、小升初、校内考试信息</td><td>需要，但要保留更新时间和来源。</td></tr>
+            <tr><td>数学题库</td><td>可以保留说明和索引</td><td>不建议放入主资料库，细节交给题库专用系统。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="architecture">
+        <h3>后端与数据底座批注</h3>
+        <div class="grid cols-2">
+          <div class="card">
+            <h4>已经比较稳的部分</h4>
+            <ul>
+              <li>Mac mini 作为统一服务器和数据中心的方向正确。</li>
+              <li>SQLite 列读取、报表、首页、数据体检都有 runtime 检查。</li>
+              <li>AI 密钥在本地数据目录，不进入仓库，安全边界合理。</li>
+              <li>AI 输出保持只读，不直接写业务表。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4>建议继续补强</h4>
+            <ul>
+              <li>给每次 AI 回答保存数据快照摘要：时间、数据版本、来源范围。</li>
+              <li>重要操作建立 operation log：谁、何时、改了什么、能否回退。</li>
+              <li>资料库做 chunk 表和引用表，让 AI 引用可追溯。</li>
+              <li>对外设备访问考虑登录权限，不建议长期裸奔在局域网。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="note risk">
+          当前 git 工作区有较多未提交修改。这不是功能风险，但会影响协作边界。进入下一轮大改前，建议先把“当前可运行状态”打一次清晰提交或标签。
+        </div>
+      </section>
+
+      <section id="roadmap">
+        <h3>下一步路线建议</h3>
+        <table>
+          <thead>
+            <tr><th>阶段</th><th>目标</th><th>具体动作</th><th>验收标准</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="priority p0">立即</span></td>
+              <td>冻结当前可运行基线</td>
+              <td>确认现有未提交改动，提交或拆分；记录运行端口、数据目录、AI env 路径。</td>
+              <td>换设备或回滚时能恢复到当前状态。</td>
+            </tr>
+            <tr>
+              <td><span class="priority p1">第一批</span></td>
+              <td>AI 问答可信化</td>
+              <td>回答标注事实/AI/资料库；历史回答标注数据时间；扩大规则查询覆盖。</td>
+              <td>常见查询不答非所问，简洁模式不输出长篇。</td>
+            </tr>
+            <tr>
+              <td><span class="priority p1">第一批</span></td>
+              <td>学员详情聚合</td>
+              <td>在单个学员页聚合成绩、课时、收费、沟通、风险提醒。</td>
+              <td>查一个学生不用在多个模块来回跳。</td>
+            </tr>
+            <tr>
+              <td><span class="priority p2">第二批</span></td>
+              <td>资料库可引用</td>
+              <td>资料分块、引用来源、导入记录、Obsidian 路径切换。</td>
+              <td>AI 回答能显示引用了哪份资料的哪一段。</td>
+            </tr>
+            <tr>
+              <td><span class="priority p2">第二批</span></td>
+              <td>经营复盘</td>
+              <td>周报/月报：课消、欠费、招生、沟通、风险学生。</td>
+              <td>每周一键生成可读复盘，不直接修改数据。</td>
+            </tr>
+            <tr>
+              <td><span class="priority p3">后续</span></td>
+              <td>长期模块拆分</td>
+              <td>题库、招生 CRM、家长沟通自动化、学生错题入口分窗口/分模块推进。</td>
+              <td>主窗口保持总控，不被单模块细节拖重。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="claude">
+        <h3>可以交给 Claude Code 的下一批任务</h3>
+        <div class="note">
+          以下任务偏前端体验、文案、页面组织，可以让 MacBook / Claude Code 一次性处理；涉及后端事实查询、SQLite、数据结构和部署的仍建议交给 Codex。
+        </div>
+        <ol>
+          <li>AI 对话历史卡片显示“生成时间 / 数据来源范围 / 是否资料库引用”，旧回答增加“历史回答，可能不是当前数据”的轻提示。</li>
+          <li>AI 回答气泡增加紧凑样式：系统事实回答用更短列表；详细回答才显示表格和建议。</li>
+          <li>AI 对话侧栏把“可以这样问”按类别分组：学员、班级、收费课时、成绩、沟通、资料库。</li>
+          <li>资料库卡片增加“最近导入时间、来源路径、摘要/原文状态”的统一样式。</li>
+          <li>首页今日工作台把“待续费/欠费”和“数据体检异常”做成可点击的统一风险入口。</li>
+          <li>学员详情页视觉聚合：顶部基本信息，中间课时收费，底部成绩/沟通时间线。</li>
+        </ol>
+      </section>
+
+      <section>
+        <h3>最终建议</h3>
+        <div class="note good">
+          现在不要急着把 AI 工作台重新扩成很多 Agent。先把“系统问答助手”做成你每天敢问、问完敢信的东西。它稳定以后，公众号、小红书、招生、资料整理、题库联动都可以作为独立工作区逐步接上来。
+        </div>
+      </section>
+
+      <div class="footer">
+        本报告为本地项目批注页，只用于你和开发助手协商优化方向。生成时间：2026-06-18。
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -2,6 +2,99 @@
 
 最后更新：2026-06-09
 
+## 2026-06-09 V2 开发进展
+
+已完成第一轮 V2 闭环：
+
+- 新增后端 `server/question-import-service.js`
+- 新增导入批次表 `question_import_batches`
+- 新增候选题池表 `question_import_candidates`
+- 正式题库 `question_items` 补充 V2 字段：
+  - `sub_knowledge_point`
+  - `source_json`
+  - `answer_status`
+  - `quality_flags_json`
+  - `import_candidate_id`
+  - `internal_no`
+- 预留未来扩展表：
+  - `student_question_records`
+  - `curriculum_plans`
+  - `curriculum_units`
+  - `source_watch_rules`
+  - `source_candidates`
+  - `paper_drafts`
+  - `paper_items`
+- 新增 API：
+  - `POST /api/question-import/batches`
+  - `GET /api/question-import/batches`
+  - `GET /api/question-import/batches/:id`
+  - `GET /api/question-import/candidates`
+  - `GET /api/question-import/candidates/:id`
+  - `PATCH /api/question-import/candidates/:id`
+  - `POST /api/question-import/candidates/:id/accept`
+  - `POST /api/question-import/candidates/:id/ignore`
+- 前端 `question-bank.html` 新增：
+  - 导入中心
+  - 待确认题目池
+  - 候选题校对弹窗
+- 前端 `js/question-bank-system.js` 新增：
+  - OCR 文本批量导入
+  - 候选题加载/筛选
+  - 候选题保存
+  - 候选题忽略
+  - 逐题确认入库
+  - 正式题库显示来源、答案状态、质量标记
+
+当前支持程度：
+
+- OCR 文本粘贴：已完成并通过浏览器验证。
+- Word `.docx`：后端已保存原文件，并通过解包 `word/document.xml` 做基础文本提取。
+- PDF：后端已保存原文件，并尝试基础文本提取；若文本不足，会提示当前不支持扫描版 PDF，建议复制文字或 OCR 后粘贴。
+
+已验证：
+
+- `npm run check` 通过。
+- 临时数据库后端闭环通过：文本导入 -> 2 道候选题 -> 1 道确认入库 -> 正式题库生成题目。
+- Browser 临时服务验证通过：打开 `/question-bank.html` -> 粘贴两道题 -> 生成 2 道候选题 -> 打开候选题校对 -> 确认入库 -> 正式题库显示题目、来源和“人工已确认”答案状态。
+- 输出端已补齐格式入口：
+  - 复制
+  - 网页打印/PDF
+  - 下载 Word HTML（`.doc`，可用 Word/WPS 打开编辑）
+  - 下载 Markdown
+- 打印/PDF 和 Word HTML 已改为基于题篮结构化数据导出：
+  - 保留 `formulaLatex` 公式块
+  - 保留题干中的 `\\(...\\)` 行内公式样式
+  - 保留 `diagramSvg` SVG 图形
+  - `imageUrl` 会作为图片渲染；相对路径转为当前站点绝对 URL，本地 `/Users/...` 路径尽量转为 `file://`
+- 导出细节修正：
+  - 打印/PDF 版不再额外显示独立 `formulaLatex` 公式块，避免题干里已有公式时重复出现。
+  - Word/HTML 版会把常见 LaTeX 命令转成可读数学符号，例如 `\\div` -> `÷`、`\\times` -> `×`、`\\frac{a}{b}` -> `(a)/(b)`。
+  - Word/HTML 版会把 SVG 图形转换为 `data:image/svg+xml` 图片，提升下载后显示概率。
+  - 新增真正的 `.html` 下载入口，和 Word `.doc` 下载分开。
+- 输出新增显示选项：
+  - 可选择是否显示题目标签
+  - 可选择是否显示知识点标签
+  - 可选择是否显示试题来源
+  - 来源显示方式支持：不显示 / 简短 / 完整
+- 候选题池新增批量操作：
+  - 全选 / 取消
+  - 批量标记年级、体系、章节、知识点、来源
+  - 批量忽略
+  - 批量删除
+  - 单题删除
+- PDF 导入乱码防护：
+  - PDF 文本提取质量不足或疑似乱码时，不再生成乱码候选题。
+  - 系统保留原 PDF 文件和导入批次 warning。
+  - 若同时粘贴了可复制文本，则用粘贴文本继续拆题。
+
+下一步建议：
+
+- 增强候选题批量操作：批量忽略、批量标记来源、批量标记章节/知识点。
+- 做来源显示开关：学生版默认隐藏，教师版可选简短/完整来源。
+- 小测默认过滤未确认答案题。
+- 完善 Word/PDF 文件导入提示和解析质量 warnings。
+- 为导入 API 增加专门 runtime check 脚本。
+
 ## 窗口分工
 
 AI 教培工作台主窗口负责整体规划、阶段路线、模块边界和跨模块联动。数学题库系统已经拆到专用窗口继续沟通、开发和维护。
@@ -389,4 +482,3 @@ AI 校验一致
 
 开发前先检查当前分支、git status 和现有代码结构。实现后需要 node --check、npm run check，并用浏览器实际测试 question-bank.html。
 ```
-

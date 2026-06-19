@@ -14,7 +14,9 @@ const API_COLLECTION_NAMES = [
     'communicationTopics',
     'prospectSources',
     'classTypes',
-    'gradeOptions'
+    'gradeOptions',
+    'aiQuestionPrompts',
+    'aiConversations'
 ];
 
 // 全局数据对象
@@ -35,7 +37,17 @@ let data = {
     prospects: [], // 意向学员: { id, name, phone, source, intent, trialDate, trialStatus, dealStatus, remark, createDate }
     prospectSources: ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'], // 意向来源渠道
     classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'], // 班型可选项
-    gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '新初一'] // 年级可选项
+    gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '高一', '高二', '高三'], // 年级可选项
+    aiQuestionPrompts: [
+        { id: 'qa_prompt_school_student', text: '某个同学是哪个学校的？', category: '学生', sortOrder: 10, isDefault: true },
+        { id: 'qa_prompt_school_list', text: '某个学校有哪些学生？', category: '学生', sortOrder: 20, isDefault: true },
+        { id: 'qa_prompt_hours_risk', text: '哪些学生课时快不够了？', category: '课时', sortOrder: 30, isDefault: true },
+        { id: 'qa_prompt_grade_count', text: '六年级目前有多少在读学员？', category: '学生', sortOrder: 40, isDefault: true },
+        { id: 'qa_prompt_score_100', text: '期中考100分的有哪些？', category: '成绩', sortOrder: 50, isDefault: true },
+        { id: 'qa_prompt_fee_risk', text: '哪些学生有欠费或需要续费？', category: '收费', sortOrder: 60, isDefault: true },
+        { id: 'qa_prompt_focus_students', text: '帮我总结一下最近需要关注的学生', category: '经营', sortOrder: 70, isDefault: true }
+    ],
+    aiConversations: []
 };
 
 // 全局状态
@@ -1033,7 +1045,7 @@ function getSampleData() {
         ],
         prospectSources: ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'],
         classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'],
-        gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '新初一']
+        gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '高一', '高二', '高三']
     };
 }
 
