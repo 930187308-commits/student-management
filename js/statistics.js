@@ -2,6 +2,15 @@
 
 let currentReportClassId = '';
 let consumptionStatusFilter = 'all'; // all, normal, warning, insufficient, noRecord
+let reportAttendanceChart = null;
+let reportSourceChart = null;
+let reportSchoolChart = null;
+
+function destroyReportChart(chart) {
+    if (chart && typeof chart.destroy === 'function') {
+        chart.destroy();
+    }
+}
 
 function getReportGradeSchoolStage(grade = '') {
     if (['五年级', '六年级'].includes(grade)) return 'primary';
@@ -290,8 +299,10 @@ function renderReports() {
     // 绘制班级出勤率柱状图
     setTimeout(() => {
         const ctx = document.getElementById('attendanceChart');
+        destroyReportChart(reportAttendanceChart);
+        reportAttendanceChart = null;
         if (ctx && classAttendanceStats.length > 0) {
-            new Chart(ctx, {
+            reportAttendanceChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: classAttendanceStats.map(c => c.name.length > 8 ? c.name.substring(0, 8) + '...' : c.name),
@@ -333,9 +344,11 @@ function renderReports() {
     // 绘制来源分布饼图
     setTimeout(() => {
         const ctx = document.getElementById('sourceChart');
+        destroyReportChart(reportSourceChart);
+        reportSourceChart = null;
         if (ctx && sourceLabels.length > 0) {
             const colors = ['#3498db', '#27ae60', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c', '#e67e22', '#34495e'];
-            new Chart(ctx, {
+            reportSourceChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: sourceLabels,
@@ -358,9 +371,11 @@ function renderReports() {
     // 绘制学校分布饼图
     setTimeout(() => {
         const ctx = document.getElementById('schoolChart');
+        destroyReportChart(reportSchoolChart);
+        reportSchoolChart = null;
         if (ctx && schoolLabels.length > 0) {
             const colors = ['#3498db', '#27ae60', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c', '#e67e22', '#34495e'];
-            new Chart(ctx, {
+            reportSchoolChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: schoolLabels.map(s => escapeHtml(s)),

@@ -813,10 +813,13 @@ function buildSummaryFacts({ question, summary, gradeCounts }) {
     return null;
 }
 
-function buildBusinessReviewFacts({ question, summary, classRows, studentRows }) {
+function buildBusinessReviewFacts({ question, summary, classRows, studentRows, prospects = [], classesById = new Map(), privacyMode = 'masked' }) {
     const normalizedQuestion = normalizeComparableText(question);
-    if (!/(经营|复盘|周报|月报|本周|本月|运营|工作总结|总结一下)/.test(normalizedQuestion)) return null;
-    if (/(成绩|学校|哪个班|哪个学校|考|分数|课消|出勤|请假|收费多少|收了多少)/.test(normalizedQuestion)) return null;
+    const isReviewIntent = /(经营|复盘|周报|月报|运营|工作总结|总结一下)/.test(normalizedQuestion) ||
+        (/(本周|本月)/.test(normalizedQuestion) && /(先处理|关注|待办|动作|安排)/.test(normalizedQuestion));
+    if (!isReviewIntent) return null;
+    if (!/(经营|复盘|周报|月报|运营|工作总结|总结一下)/.test(normalizedQuestion) &&
+        /(成绩|学校|哪个班|哪个学校|考|分数|收费多少|收了多少)/.test(normalizedQuestion)) return null;
     const riskStudents = studentRows
         .filter(student => student.status === 'active')
         .filter(student => student.pendingFeeAmount > 0 || student.remainingHours <= 2 || student.totalHours === 0)
@@ -835,6 +838,18 @@ function buildBusinessReviewFacts({ question, summary, classRows, studentRows })
             remainingSessions: Number(cls.plannedSessions || 0) ? Number(cls.plannedSessions || 0) - Number(cls.recordedSessions || 0) : ''
         }))
         .sort((a, b) => Number(a.remainingSessions || 999) - Number(b.remainingSessions || 999));
+    const prospectFollowups = (prospects || [])
+        .filter(item => item.dealStatus !== 'deal')
+        .filter(item => ['pending', 'contacted', 'trial', 'forming', '待沟通', '已联系', '试课中', '组班中'].includes(String(item.trialStatus || '')) || !item.trialStatus)
+        .map(item => ({
+            name: displayName(item.name || '', privacyMode),
+            grade: item.grade || '',
+            source: item.source || '',
+            trialStatus: item.trialStatus || '',
+            className: classesById.get(item.classId)?.name || '',
+            remark: safeText(item.remark || item.intent, 100)
+        }))
+        .slice(0, 8);
     return {
         type: /(周报|本周)/.test(normalizedQuestion) ? 'weekly' : /(月报|本月)/.test(normalizedQuestion) ? 'monthly' : 'review',
         summary,
@@ -847,7 +862,9 @@ function buildBusinessReviewFacts({ question, summary, classRows, studentRows })
             pendingFeeAmount: student.pendingFeeAmount,
             totalHours: student.totalHours
         })),
-        classProgress: classProgress.slice(0, 10)
+        classProgress: classProgress.slice(0, 10),
+        prospectTotal: prospectFollowups.length,
+        prospectFollowups
     };
 }
 
@@ -985,7 +1002,7 @@ function buildSystemQAContext(data, payload, privacyMode) {
     if (capabilityMatches) queryFacts.capabilityMatches = capabilityMatches;
     const summaryMatches = buildSummaryFacts({ question: factQuestion, summary, gradeCounts });
     if (summaryMatches) queryFacts.summaryMatches = summaryMatches;
-    const businessReview = buildBusinessReviewFacts({ question: factQuestion, summary, classRows, studentRows });
+    const businessReview = buildBusinessReviewFacts({ question: factQuestion, summary, classRows, studentRows, prospects, classesById, privacyMode });
     if (businessReview) queryFacts.businessReview = businessReview;
 
     const recentCommunications = communications.slice(-20).map(item => ({
@@ -1112,13 +1129,6 @@ function buildSystemFactAnswer(context, options = {}) {
     const groupByClass = factQuestion.includes('按班级') || factQuestion.includes('分组');
     const tail = detailed ? '\n\n以上为系统数据辅助判断，重要操作请以原始记录为准。' : '';
 
-    if (facts.monthlyConsumption) {
-        const fact = facts.monthlyConsumption;
-        const list = formatShortList(fact.classes, item => `- ${item.className}：${item.sessions} 次课，出勤课消 ${item.present}，请假 ${item.absent}`, detailed ? 20 : 8);
-        const scope = fact.className ? `${fact.className} ` : '';
-        return `${fact.month} ${scope}课消概览：已登记 ${fact.sessionCount} 次课，出勤课消 ${fact.presentTotal}，请假 ${fact.absentTotal}。\n${list || '- 该月份暂无考勤课次'}${tail}`;
-    }
-
     if (facts.businessReview) {
         const fact = facts.businessReview;
         const s = fact.summary || {};
@@ -1130,13 +1140,25 @@ function buildSystemFactAnswer(context, options = {}) {
             `- ${item.name}：已登记 ${item.recordedSessions}/${item.plannedSessions || '-'} 次${item.remainingSessions !== '' ? `，剩余 ${item.remainingSessions} 次` : ''}`,
             detailed ? 10 : 5
         );
+        const prospectList = formatShortList(fact.prospectFollowups || [], item =>
+            `- ${item.name}：${item.grade || '-'}，${item.source || '-'}，${item.trialStatus || '待跟进'}${item.className ? `，${item.className}` : ''}`,
+            detailed ? 10 : 5
+        );
         return [
             `经营复盘摘要：在读 ${s.activeStudentCount || 0} 人，待续费 ${s.renewalPendingCount || 0} 人，意向 ${s.prospectCount || 0} 人，欠费 ¥${Number(s.pendingFeeAmount || 0).toLocaleString()}。`,
             `当前需关注 ${fact.riskTotal || 0} 名学员。`,
-            riskList ? `\n优先关注：\n${riskList}` : '',
-            classList ? `\n班级进度：\n${classList}` : '',
-            detailed ? '\n建议动作：先处理课时余额为负/欠费学员，再确认接近结课班级的续费沟通节奏，最后复盘意向学员来源。' : '\n需要详细行动清单可以切换“详细”模式再问。'
+            riskList ? `优先关注：\n${riskList}` : '',
+            classList ? `班级进度：\n${classList}` : '',
+            prospectList ? `意向跟进：\n${prospectList}` : '',
+            detailed ? '建议动作：先处理课时余额为负/欠费学员，再确认接近结课班级的续费沟通节奏，最后复盘意向学员来源。' : '需要详细行动清单可以切换“详细”模式再问。'
         ].filter(Boolean).join('\n');
+    }
+
+    if (facts.monthlyConsumption) {
+        const fact = facts.monthlyConsumption;
+        const list = formatShortList(fact.classes, item => `- ${item.className}：${item.sessions} 次课，出勤课消 ${item.present}，请假 ${item.absent}`, detailed ? 20 : 8);
+        const scope = fact.className ? `${fact.className} ` : '';
+        return `${fact.month} ${scope}课消概览：已登记 ${fact.sessionCount} 次课，出勤课消 ${fact.presentTotal}，请假 ${fact.absentTotal}。\n${list || '- 该月份暂无考勤课次'}${tail}`;
     }
 
     if (facts.scoreMatches) {

@@ -90,10 +90,13 @@ function loadAttendanceClass(classId) {
                             return `<th style="min-width:60px;">
                                 <span title="${sess?.sessionName || '第'+(i+1)+'次'}">${sess?.sessionName || '第'+(i+1)+'次'}</span><br>
                                 <small>${d}</small>
-                                <div style="margin-top: 4px;">
-                                    <button type="button" class="btn btn-xs btn-secondary" onclick="openEditAttendanceSession('${sess.id}')" title="编辑">✎</button>
-                                    <button type="button" class="btn btn-xs btn-danger" onclick="deleteAttendanceSession('${sess.id}')" title="删除">×</button>
-                                </div>
+                                <details class="attendance-session-menu">
+                                    <summary title="课次操作">⋯</summary>
+                                    <div class="attendance-session-actions">
+                                        <button type="button" onclick="openEditAttendanceSession('${sess.id}')">编辑</button>
+                                        <button type="button" class="danger" onclick="deleteAttendanceSession('${sess.id}')">删除</button>
+                                    </div>
+                                </details>
                             </th>`;
                         }).join('')}
                         <th style="min-width:50px;">出勤</th>

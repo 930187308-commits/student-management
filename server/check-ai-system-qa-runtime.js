@@ -99,6 +99,17 @@ const TEST_CASES = [
         expect: /经营复盘摘要[\s\S]*在读[\s\S]*欠费/
     },
     {
+        name: 'weekly business review detailed',
+        question: '帮我生成本周经营复盘，重点看课消、欠费、待续费、意向跟进和需要关注的学生。',
+        expect: /经营复盘摘要[\s\S]*(优先关注|建议动作)[\s\S]*意向/,
+        extra: { answerLength: 'detailed' }
+    },
+    {
+        name: 'teacher priority action list',
+        question: '本周我先处理谁？',
+        expect: /需要关注|优先关注|剩余课时|欠费/
+    },
+    {
         name: 'pending fees',
         question: '哪些学生有欠费？',
         expect: /待收款|欠费/
@@ -143,7 +154,7 @@ async function ask(question, extra = {}) {
 async function main() {
     const results = [];
     for (const test of TEST_CASES) {
-        const response = await ask(test.question);
+        const response = await ask(test.question, test.extra || {});
         const result = String(response.result || '');
         const ok = test.expect.test(result) && !(test.reject && test.reject.test(result));
         results.push({

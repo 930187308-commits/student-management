@@ -227,6 +227,24 @@ function switchStudentGradeTab(tab) {
 }
 
 let currentStudentGradeTab = 'all'; // all / school / external
+let currentStudentGradeChart = null;
+
+function openStudentAIQuestion(studentId, type) {
+    const student = data.students.find(s => s.id === studentId);
+    if (!student) return;
+    const name = student.name || '';
+    const question = type === 'renewal'
+        ? `请根据系统里${name}的课时、收费、考勤、成绩和沟通记录，帮我生成一段给家长的续费沟通话术。要求语气自然，不要太硬。`
+        : `请根据系统里${name}的成绩、考勤、课时和沟通记录，帮我生成一段给家长的学情反馈。要求先说结论，再说表现、问题和下一步建议。`;
+    switchTab('ai-workspace');
+    setTimeout(() => {
+        if (typeof fillSystemQAQuestion === 'function') fillSystemQAQuestion(question);
+        const lengthSelect = document.getElementById('systemQAAnswerLength');
+        if (typeof setSystemQAAnswerLength === 'function') setSystemQAAnswerLength('detailed');
+        if (lengthSelect) lengthSelect.value = 'detailed';
+        document.getElementById('agentInput')?.focus();
+    }, 100);
+}
 
 function renderStudentDetail() {
     if (!currentStudentId) return;
@@ -277,6 +295,34 @@ function renderStudentDetail() {
     const latestFeeText = latestFee
         ? `${escapeHtml(latestFee.paymentDate || '-')} · ${latestFee.status === 'paid' ? '已缴' : '欠费'} · ${Number(latestFee.hours || 0)} 课时`
         : '暂无收费记录';
+    const latestScore = latestGrade ? Number(latestGrade.score || 0) : null;
+    const fullScore = latestGrade ? Number(latestGrade.fullScore || 100) : 100;
+    const scoreRate = latestScore !== null && fullScore > 0 ? Math.round((latestScore / fullScore) * 100) : null;
+    const learningJudge = scoreRate === null
+        ? { text: '暂无成绩', tone: 'muted', note: '先补录一次基准成绩' }
+        : scoreRate >= 90
+            ? { text: '学习稳定', tone: 'good', note: latestGrade.weakPoints ? `关注：${latestGrade.weakPoints}` : '保持当前节奏' }
+            : scoreRate >= 70
+                ? { text: '需要巩固', tone: 'warn', note: latestGrade.weakPoints ? `薄弱：${latestGrade.weakPoints}` : '建议补充薄弱点' }
+                : { text: '重点关注', tone: 'risk', note: latestGrade.weakPoints ? `薄弱：${latestGrade.weakPoints}` : '建议尽快跟进' };
+    const hourJudge = pendingFeeAmount > 0 || remainingHours < 0
+        ? { text: '需处理', tone: 'risk', note: pendingFeeAmount > 0 ? `欠费 ¥${pendingFeeAmount.toLocaleString()}` : `余额 ${remainingHours}` }
+        : totalPaidHours > 0 && remainingHours <= 2
+            ? { text: '快不足', tone: 'warn', note: `剩余 ${remainingHours} 课时` }
+            : totalPaidHours === 0 && usedHours > 0
+                ? { text: '缺收费', tone: 'risk', note: '已上课但无已缴课时' }
+                : { text: '正常', tone: 'good', note: `剩余 ${remainingHours} 课时` };
+    const latestCommTime = latestComm?.contactDate
+        ? Date.parse(`${latestComm.contactDate}T00:00:00`)
+        : NaN;
+    const daysSinceComm = Number.isFinite(latestCommTime)
+        ? Math.floor((Date.now() - latestCommTime) / 86400000)
+        : null;
+    const commJudge = daysSinceComm === null
+        ? { text: '暂无沟通', tone: 'muted', note: '必要时补一条记录' }
+        : daysSinceComm > 30
+            ? { text: '久未沟通', tone: 'warn', note: `${daysSinceComm} 天前` }
+            : { text: '正常', tone: 'good', note: `${Math.max(daysSinceComm, 0)} 天前` };
     const schoolOptions = [
         { label: '小学', value: schoolHistory.primarySchool || '-' },
         { label: '初中', value: schoolHistory.middleSchool || '-' },
@@ -289,6 +335,11 @@ function renderStudentDetail() {
     const currentSchoolDisplay = `${currentSchool.stageText} · ${currentSchool.school || '-'}`;
 
     const detail = document.getElementById('studentDetail');
+    if (currentStudentGradeChart && typeof currentStudentGradeChart.destroy === 'function') {
+        currentStudentGradeChart.destroy();
+        currentStudentGradeChart = null;
+    }
+
     let chartHtml = '';
     if (displayGrades.length >= 2) {
         chartHtml = `
@@ -308,8 +359,8 @@ function renderStudentDetail() {
             <div class="student-detail-actions">
                 <button class="btn btn-secondary btn-sm" onclick="openStudentModal('${student.id}')">编辑</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteStudent('${student.id}')">删除</button>
-                <button class="btn btn-sm" style="background:#9b59b6;color:white;" onclick="jumpToAIAgent('learning-agent','student-feedback','student','${student.id}'); setTimeout(() => document.getElementById('agentInput').value = '${escapeHtml(student.name)}', 100)">AI 学情反馈</button>
-                <button class="btn btn-sm" style="background:#e67e22;color:white;" onclick="jumpToAIAgent('learning-agent','renewal-script','student','${student.id}'); setTimeout(() => document.getElementById('agentInput').value = '${escapeHtml(student.name)}', 100)">AI 续费话术</button>
+                <button class="btn btn-sm" style="background:#9b59b6;color:white;" onclick="openStudentAIQuestion('${student.id}', 'feedback')">AI 学情反馈</button>
+                <button class="btn btn-sm" style="background:#e67e22;color:white;" onclick="openStudentAIQuestion('${student.id}', 'renewal')">AI 续费话术</button>
             </div>
         </div>
 
@@ -350,6 +401,18 @@ function renderStudentDetail() {
                     <div class="student-detail-line">${escapeHtml(latestComm.contactDate || '-')} · ${escapeHtml(latestComm.status || '-')}</div>
                     <div class="student-detail-muted">${escapeHtml(latestComm.content || latestComm.followUp || '-')}</div>
                 ` : '<div class="student-detail-muted">暂无沟通记录</div>'}
+            </div>
+        </div>
+
+        <div class="student-judgement-strip">
+            <div class="student-judgement-item is-${learningJudge.tone}">
+                <span>学习</span><b>${escapeHtml(learningJudge.text)}</b><em>${escapeHtml(learningJudge.note)}</em>
+            </div>
+            <div class="student-judgement-item is-${hourJudge.tone}">
+                <span>课时</span><b>${escapeHtml(hourJudge.text)}</b><em>${escapeHtml(hourJudge.note)}</em>
+            </div>
+            <div class="student-judgement-item is-${commJudge.tone}">
+                <span>沟通</span><b>${escapeHtml(commJudge.text)}</b><em>${escapeHtml(commJudge.note)}</em>
             </div>
         </div>
 
@@ -432,7 +495,7 @@ function renderStudentDetail() {
         setTimeout(() => {
             const ctx = document.getElementById('gradeChart');
             if (ctx) {
-                new Chart(ctx, {
+                currentStudentGradeChart = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: displayGrades.map(g => g.testName),

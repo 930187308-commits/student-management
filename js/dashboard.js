@@ -292,6 +292,117 @@ function getTodayWorkData() {
     };
 }
 
+function getDashboardPriorityItems() {
+    const students = data.students || [];
+    const fees = data.fees || [];
+    const attendance = data.attendance || [];
+    const prospects = data.prospects || [];
+    const classesById = new Map((data.classes || []).map(c => [c.id, c]));
+
+    const items = [];
+    students.forEach(student => {
+        const studentFees = fees.filter(f => f.studentId === student.id);
+        const paidHours = studentFees.filter(f => f.status === 'paid').reduce((sum, f) => sum + Number(f.hours || 0), 0);
+        const pendingAmount = studentFees.filter(f => f.status === 'pending').reduce((sum, f) => sum + Number(f.amount || 0), 0);
+        let usedHours = 0;
+        attendance.forEach(session => {
+            if (session.records && session.records[student.id] === 1) usedHours++;
+        });
+        const remainingHours = paidHours - usedHours;
+        const className = classesById.get(student.classId)?.name || '未分班';
+
+        if (student.status === 'active' && pendingAmount > 0) {
+            items.push({
+                score: 100 + pendingAmount,
+                type: 'fee',
+                title: student.name || '未命名学员',
+                reason: `有欠费记录 ¥${Number(pendingAmount || 0).toLocaleString()}`,
+                action: '确认收费/沟通续费',
+                meta: className,
+                targetId: student.id
+            });
+        }
+        if (student.status === 'active' && usedHours > 0 && paidHours === 0) {
+            items.push({
+                score: 95,
+                type: 'fee',
+                title: student.name || '未命名学员',
+                reason: '已上课但没有已缴课时',
+                action: '补录收费或欠费记录',
+                meta: className,
+                targetId: student.id
+            });
+        }
+        if (student.status === 'active' && paidHours > 0 && remainingHours <= 2) {
+            items.push({
+                score: 80 - remainingHours,
+                type: 'student',
+                title: student.name || '未命名学员',
+                reason: `剩余课时 ${remainingHours}`,
+                action: '安排续费沟通',
+                meta: className,
+                targetId: student.id
+            });
+        }
+        if (student.status === 'renewalPending') {
+            items.push({
+                score: 70,
+                type: 'student',
+                title: student.name || '未命名学员',
+                reason: '当前状态为待续费',
+                action: '确认下期安排',
+                meta: className,
+                targetId: student.id
+            });
+        }
+    });
+
+    prospects
+        .filter(p => p.dealStatus !== 'deal')
+        .slice()
+        .sort((a, b) => String(b.createDate || '').localeCompare(String(a.createDate || '')))
+        .slice(0, 6)
+        .forEach(prospect => {
+            const isFollowup = ['pending', 'contacted', 'trial', 'forming', '待沟通', '已联系', '组班中'].includes(String(prospect.trialStatus || ''));
+            if (!isFollowup) return;
+            items.push({
+                score: 50,
+                type: 'prospect',
+                title: prospect.name || '未命名意向',
+                reason: `${prospect.grade || '-'} · ${prospect.source || '来源未填'}`,
+                action: '继续跟进意向',
+                meta: prospect.wechat || prospect.remark || '',
+                targetId: prospect.id
+            });
+        });
+
+    const seen = new Set();
+    return items
+        .sort((a, b) => b.score - a.score)
+        .filter(item => {
+            const key = `${item.type}-${item.targetId}-${item.action}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .slice(0, 3);
+}
+
+function openDashboardPriority(type, id) {
+    if (type === 'prospect') {
+        switchTab('prospects');
+        return;
+    }
+    if (type === 'fee') {
+        switchTab('fees');
+        return;
+    }
+    switchTab('students');
+    setTimeout(() => {
+        if (id && typeof selectStudent === 'function') selectStudent(id);
+    }, 80);
+}
+
 function renderDashboard() {
     const container = document.getElementById('tab-dashboard');
     if (!dashboardSummaryCache && !dashboardSummaryLoading) {
@@ -313,6 +424,7 @@ function renderDashboard() {
     const pendingFees = summary.pendingFees || [];
     const classStats = summary.classOverview || [];
     const work = getTodayWorkData();
+    const priorityItems = getDashboardPriorityItems();
 
     let html = '';
 
@@ -356,6 +468,21 @@ function renderDashboard() {
                 <button class="btn btn-secondary btn-sm" onclick="goToAttendanceToday()">考勤</button>
                 <button class="btn btn-secondary btn-sm" onclick="openDataHealthCheck()">体检</button>
             </div>
+        </div>
+        <div class="dashboard-priority-list">
+            <div class="dashboard-priority-head">
+                <span>优先处理</span>
+                <button class="btn btn-secondary btn-xs" onclick="openBusinessReviewFromDashboard()">AI 复盘</button>
+            </div>
+            ${priorityItems.length ? priorityItems.map(item => `
+                <button class="dashboard-priority-item" onclick="openDashboardPriority('${escapeHtml(item.type)}', '${escapeHtml(item.targetId)}')">
+                    <span class="dashboard-priority-name">${escapeHtml(item.title)}</span>
+                    <span class="dashboard-priority-reason">${escapeHtml(item.reason)}</span>
+                    <span class="dashboard-priority-action">${escapeHtml(item.action)}</span>
+                </button>
+            `).join('') : `
+                <div class="dashboard-priority-empty">暂无明显优先事项，可以先做经营复盘或补录最近考勤。</div>
+            `}
         </div>
     </div>
     `;
