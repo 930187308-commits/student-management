@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI 教培工作台原系统截图批注版 · 2026-06-19</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #1f2937;
+      --muted: #667085;
+      --line: #d7dee9;
+      --blue: #2563eb;
+      --blue-soft: #e9f1ff;
+      --green: #0f8a5f;
+      --green-soft: #e8f7ef;
+      --amber: #b7791f;
+      --amber-soft: #fff4dc;
+      --red: #c2410c;
+      --red-soft: #fff0e8;
+      --purple: #6d28d9;
+      --purple-soft: #f1e9ff;
+      --shadow: 0 14px 38px rgba(31, 41, 55, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 20px 16px;
+      background: #111827;
+      color: #dbeafe;
+    }
+
+    .sidebar h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .sidebar p {
+      margin: 0 0 16px;
+      color: #9fb3d1;
+      font-size: 12px;
+    }
+
+    .sidebar a {
+      display: block;
+      color: #cbd5e1;
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin: 3px 0;
+      font-size: 13px;
+    }
+
+    .sidebar a:hover {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+    }
+
+    main {
+      padding: 24px;
+      max-width: 1480px;
+      width: 100%;
+    }
+
+    .hero {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(135deg, #fff 0%, #edf5ff 100%);
+      box-shadow: var(--shadow);
+      padding: 26px;
+      margin-bottom: 18px;
+    }
+
+    .hero h2 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 980px;
+      color: var(--muted);
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #c8d9ff;
+      background: var(--blue-soft);
+      color: #174f9a;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 5px 16px rgba(31, 41, 55, 0.04);
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    h3 {
+      margin: 0 0 12px;
+      font-size: 21px;
+    }
+
+    h4 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    p { margin: 0 0 10px; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .summary-card {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 12px;
+      padding: 13px;
+    }
+
+    .summary-card strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .summary-card span {
+      display: inline-flex;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      margin-bottom: 7px;
+    }
+
+    .note {
+      border-left: 4px solid var(--blue);
+      background: var(--blue-soft);
+      border-radius: 10px;
+      padding: 11px 13px;
+      color: #254064;
+      margin-top: 12px;
+    }
+
+    .screen-section {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .screen-header h3 {
+      margin: 0 0 5px;
+    }
+
+    .screen-header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .phase {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .p1 { background: var(--green-soft); color: var(--green); }
+    .p2 { background: var(--blue-soft); color: var(--blue); }
+    .p3 { background: var(--purple-soft); color: var(--purple); }
+    .p0 { background: #edf2f7; color: #4b5563; }
+
+    .shot-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 0;
+      min-height: 640px;
+    }
+
+    .shot-frame {
+      padding: 18px;
+      background: #eef3f8;
+      overflow: auto;
+      border-right: 1px solid var(--line);
+    }
+
+    .shot-inner {
+      position: relative;
+      width: 100%;
+      min-width: 780px;
+      max-width: 1040px;
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 14px 34px rgba(31,41,55,0.18);
+      border: 1px solid #c7d2e2;
+      background: #fff;
+    }
+
+    .shot-inner img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .pin {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: #2563eb;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18), 0 8px 18px rgba(15, 23, 42, 0.25);
+      transform: translate(-50%, -50%);
+      z-index: 2;
+    }
+
+    .pin.warn { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2), 0 8px 18px rgba(15, 23, 42, 0.22); }
+    .pin.risk { background: #dc2626; box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2), 0 8px 18px rgba(15, 23, 42, 0.22); }
+    .pin.good { background: #059669; box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.2), 0 8px 18px rgba(15, 23, 42, 0.22); }
+
+    .annotation-panel {
+      background: #fff;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .anno {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #fff;
+    }
+
+    .anno-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .anno-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .anno-num.warn { background: #f59e0b; }
+    .anno-num.risk { background: #dc2626; }
+    .anno-num.good { background: #059669; }
+
+    .anno strong {
+      font-size: 14px;
+    }
+
+    .anno p {
+      color: #475467;
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .anno .do {
+      margin-top: 7px;
+      font-size: 12px;
+      color: #174f9a;
+      background: #f0f6ff;
+      border-radius: 8px;
+      padding: 7px 8px;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .table th,
+    .table td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .table th {
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .comment-box {
+      min-height: 140px;
+      border: 1px dashed #9fb3d1;
+      border-radius: 12px;
+      background: #fbfdff;
+      padding: 14px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1080px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      main { padding: 16px; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .shot-layout { grid-template-columns: 1fr; }
+      .shot-frame { border-right: none; border-bottom: 1px solid var(--line); }
+      .shot-inner { min-width: 720px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>原系统截图批注版</h1>
+      <p>保留现有可用工作台，一屏一屏指出怎么改。</p>
+      <a href="#overview">总体原则</a>
+      <a href="#dashboard">首页</a>
+      <a href="#students">学员管理</a>
+      <a href="#classes">班级管理</a>
+      <a href="#ai">AI 对话</a>
+      <a href="#knowledge">资料库</a>
+      <a href="#reports">统计报表</a>
+      <a href="#phase">执行顺序</a>
+      <a href="#comment">批注区</a>
+    </aside>
+
+    <main>
+      <div class="hero">
+        <h2>AI 教培工作台原系统优化批注</h2>
+        <p>
+          这版不是重新设计一套系统，而是在当前已经可用的 AI 教培工作台基础上，一张截图一张截图地标注：哪些地方保留，哪些地方微调，哪些地方后续增强。目标是让系统更像一个数学老师每天会打开的工作台，而不是推翻重做。
+        </p>
+        <div class="tags">
+          <span class="tag">基于当前真实页面截图</span>
+          <span class="tag">不改正式系统代码</span>
+          <span class="tag">适合你直接批注</span>
+        </div>
+      </div>
+
+      <section id="overview">
+        <h3>总体原则</h3>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <span>保留</span>
+            <strong>左侧导航和现有模块</strong>
+            <p>当前系统已经可用，不建议换成全新信息架构。只做“重点更突出、路径更短”。</p>
+          </div>
+          <div class="summary-card">
+            <span>优化</span>
+            <strong>首页变成行动台</strong>
+            <p>首页不只是统计数字，要直接告诉老师今天/本周要处理什么。</p>
+          </div>
+          <div class="summary-card">
+            <span>强化</span>
+            <strong>学员和班级的上下文</strong>
+            <p>数学老师判断学生状态，需要同时看成绩、课时、考勤、收费、沟通。</p>
+          </div>
+          <div class="summary-card">
+            <span>收敛</span>
+            <strong>AI 只做准和短</strong>
+            <p>AI 对话先查准系统事实，资料库只负责可引用资料，不再堆花哨入口。</p>
+          </div>
+        </div>
+        <div class="note">
+          第一轮执行建议：先改首页行动队列、学员详情聚合、AI 引用依据和资料库状态提示。不要先做大规模重构。
+        </div>
+      </section>
+
+      <section class="screen-section" id="dashboard">
+        <div class="screen-header">
+          <div>
+            <h3>截图 1：首页</h3>
+            <p>当前首页已经有统计、今日工作台、待办日历。建议保留结构，把“待处理动作”再前置。</p>
+          </div>
+          <span class="phase p1">第一阶段优先</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/01-dashboard.png" alt="首页截图">
+              <span class="pin good" style="left:34%;top:18%;">1</span>
+              <span class="pin" style="left:46%;top:43%;">2</span>
+              <span class="pin warn" style="left:82%;top:43%;">3</span>
+              <span class="pin risk" style="left:52%;top:75%;">4</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num good">1</span><strong>顶部统计保留，但要能点进去</strong></div>
+              <p>统计数字有价值，但目前更像展示。建议每个数字点击后进入对应筛选结果。</p>
+              <div class="do">改法：欠费金额点击进入收费记录欠费筛选；在读学员点击进入学员管理在读筛选。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num">2</span><strong>今日工作台要从“指标”变成“动作”</strong></div>
+              <p>“待续费/欠费 1/15”很好，但老师还要知道点进去先处理谁。</p>
+              <div class="do">改法：下面增加 3 条优先处理事项：学生、原因、建议动作。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num warn">3</span><strong>右侧快捷按钮可保留，但要分组</strong></div>
+              <p>现在按钮竖排紧凑，但含义混在一起。新增、记录、查看可以分层。</p>
+              <div class="do">改法：记录类：考勤/成绩/缴费；新增类：学员/意向；工具类：AI/体检。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num risk">4</span><strong>待办区空时价值偏低</strong></div>
+              <p>空状态没问题，但首页下半屏应该仍然给老师工作提示。</p>
+              <div class="do">改法：空待办时显示“建议建立的待办”：续费沟通、资料整理、周报复盘。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section" id="students">
+        <div class="screen-header">
+          <div>
+            <h3>截图 2：学员管理</h3>
+            <p>学员管理是老师最常打开的页面。建议重点优化“一个学生的完整状态”。</p>
+          </div>
+          <span class="phase p1">第一阶段优先</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/02-students.png" alt="学员管理截图">
+              <span class="pin" style="left:21%;top:32%;">1</span>
+              <span class="pin good" style="left:48%;top:27%;">2</span>
+              <span class="pin warn" style="left:61%;top:58%;">3</span>
+              <span class="pin risk" style="left:78%;top:78%;">4</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num">1</span><strong>左侧列表要显示筛选数量和风险标记</strong></div>
+              <p>名单是入口，应该直接看出谁欠费、谁课时不足、谁待续费。</p>
+              <div class="do">改法：姓名下方保留班级，右侧加小标识：欠费/课时低/待沟通。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num good">2</span><strong>详情页聚合方向正确</strong></div>
+              <p>一个学员页应该是“学生画像”，不是只显示基础资料。</p>
+              <div class="do">改法：顶部固定显示当前班级、学校、课时余额、最近成绩、最近沟通。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num warn">3</span><strong>成绩/收费/沟通要做成时间线</strong></div>
+              <p>数学老师看学生主要看趋势：最近一次成绩、最近一次沟通、最近一次收费。</p>
+              <div class="do">改法：右侧增加“最近动态”：成绩、考勤、收费、沟通按时间倒序混排。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num risk">4</span><strong>AI 按钮不要泛泛生成</strong></div>
+              <p>AI 应基于该学生数据回答，例如“为什么要关注这个学生”。</p>
+              <div class="do">改法：按钮改为：生成关注理由、生成家长沟通草稿、查看数据依据。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section" id="classes">
+        <div class="screen-header">
+          <div>
+            <h3>截图 3：班级管理</h3>
+            <p>班级管理应该围绕一个学期周期：组班、上课、接近结课、待续费、归档。</p>
+          </div>
+          <span class="phase p1">第一阶段优先</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/03-classes.png" alt="班级管理截图">
+              <span class="pin" style="left:28%;top:28%;">1</span>
+              <span class="pin warn" style="left:53%;top:31%;">2</span>
+              <span class="pin good" style="left:76%;top:33%;">3</span>
+              <span class="pin risk" style="left:57%;top:70%;">4</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num">1</span><strong>班级卡片要突出课次周期</strong></div>
+              <p>对老师来说，班级最重要的是上到第几次、还有几次、什么时候续费。</p>
+              <div class="do">改法：班级卡片顶部显示 12/17、剩余 5 次、是否接近续费节点。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num warn">2</span><strong>人数不是唯一风险</strong></div>
+              <p>班级人数正常，不代表班级健康。还要看欠费、缺勤、课时不足。</p>
+              <div class="do">改法：卡片增加风险徽标：欠费人数、课时不足人数、上次请假人数。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num good">3</span><strong>成员管理保留</strong></div>
+              <p>已有拉入拉出逻辑可用，不建议重做成复杂批量系统。</p>
+              <div class="do">改法：只加搜索和同年级优先；其他复杂批量操作暂缓。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num risk">4</span><strong>归档班级要保留历史快照</strong></div>
+              <p>学生续费后状态变化，不应该影响归档班级里当期历史名单。</p>
+              <div class="do">改法：归档时保存班级成员快照、课次快照、课消摘要。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section" id="ai">
+        <div class="screen-header">
+          <div>
+            <h3>截图 4：AI 对话</h3>
+            <p>AI 对话已经回到正确方向：像 ChatGPT 一样问系统。但还要继续强化“准、短、有依据”。</p>
+          </div>
+          <span class="phase p1">第一阶段优先</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/04-ai-chat.png" alt="AI 对话截图">
+              <span class="pin good" style="left:20%;top:42%;">1</span>
+              <span class="pin" style="left:50%;top:72%;">2</span>
+              <span class="pin warn" style="left:80%;top:33%;">3</span>
+              <span class="pin risk" style="left:38%;top:23%;">4</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num good">1</span><strong>对话结构保留</strong></div>
+              <p>现在的方向是对的：左侧历史，右侧聊天，不再堆任务卡片。</p>
+              <div class="do">改法：继续沿用，不恢复旧 AI 工作台复杂卡片。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num">2</span><strong>输入区要更像“老师提问”</strong></div>
+              <p>问题分两类：查数据、要建议。二者读取范围应该不同。</p>
+              <div class="do">改法：保留“简洁/详细、系统/资料库”选择，但默认简洁 + 系统事实。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num warn">3</span><strong>引用依据放右侧是对的，但要收纳</strong></div>
+              <p>有依据时显示，没依据时不要占太多空间。</p>
+              <div class="do">改法：右侧默认显示“本次依据”；无依据时显示“未读取资料库”。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num risk">4</span><strong>建议类问题不能误触发名单</strong></div>
+              <p>例如“小升初家长会怎么开”不应该列学生名单。</p>
+              <div class="do">改法：继续维护 AI 问答回归测试，把典型问题作为固定测试集。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section" id="knowledge">
+        <div class="screen-header">
+          <div>
+            <h3>截图 5：资料库</h3>
+            <p>资料库不应该再像后台大仓库，而是服务 AI 对话：哪些资料能被引用、有没有摘要、有没有原文。</p>
+          </div>
+          <span class="phase p2">第二阶段</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/05-knowledge.png" alt="资料库截图">
+              <span class="pin good" style="left:39%;top:21%;">1</span>
+              <span class="pin" style="left:41%;top:44%;">2</span>
+              <span class="pin warn" style="left:81%;top:38%;">3</span>
+              <span class="pin risk" style="left:50%;top:71%;">4</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num good">1</span><strong>统计要突出“可引用程度”</strong></div>
+              <p>资料总数不够，关键是有摘要、有原文、有引用片段。</p>
+              <div class="do">改法：统计保留：资料数、Obsidian、摘要、原文、引用片段。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num">2</span><strong>导入入口保留四类即可</strong></div>
+              <p>粘贴原文、网页、本地文件、Obsidian/文件夹已经够用。</p>
+              <div class="do">改法：Word/PDF 不要先混进资料库，题库系统单独处理。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num warn">3</span><strong>右侧说明要变成状态面板</strong></div>
+              <p>现在说明有用，但更应该告诉你“当前默认 Obsidian 路径、最近导入、引用片段是否正常”。</p>
+              <div class="do">改法：保留路径；增加最近导入时间、导入数量、重建引用片段按钮。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num risk">4</span><strong>资料列表要提示“不可被 AI 理解”的资料</strong></div>
+              <p>只有路径没有原文/摘要的资料，AI 实际读不到正文。</p>
+              <div class="do">改法：卡片显示状态：可引用 / 只有路径 / 待补摘要。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-section" id="reports">
+        <div class="screen-header">
+          <div>
+            <h3>截图 6：统计报表</h3>
+            <p>报表现在能看数据，但老师更需要“解释”和“下一步动作”。</p>
+          </div>
+          <span class="phase p2">第二阶段</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/06-reports.png" alt="统计报表截图">
+              <span class="pin good" style="left:37%;top:25%;">1</span>
+              <span class="pin" style="left:52%;top:50%;">2</span>
+              <span class="pin warn" style="left:77%;top:54%;">3</span>
+              <span class="pin risk" style="left:54%;top:80%;">4</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num good">1</span><strong>统计卡片保留</strong></div>
+              <p>经营数据对于个人教培很重要，尤其课消、欠费、来源、学校分布。</p>
+              <div class="do">改法：卡片点击后进入明细筛选，避免只看数字。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num">2</span><strong>课消明细要可解释</strong></div>
+              <p>课消不是只看已消课时，还要看“为什么低/为什么异常”。</p>
+              <div class="do">改法：增加状态筛选：正常、课时不足、无收费、欠费。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num warn">3</span><strong>图表区域要减少空图</strong></div>
+              <p>空图或弱信息图会降低使用意愿。</p>
+              <div class="do">改法：无数据时显示原因和下一步，比如“先录入意向来源”。</div>
+            </div>
+            <div class="anno">
+              <div class="anno-head"><span class="anno-num risk">4</span><strong>增加一键经营复盘</strong></div>
+              <p>老师月底需要的是可读复盘，而不是自己拼数据。</p>
+              <div class="do">改法：导出旁增加“生成本月经营复盘”，只读生成，不改数据。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="phase">
+        <h3>执行顺序建议</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:120px;">顺序</th>
+              <th>要做什么</th>
+              <th>为什么先做</th>
+              <th>验收标准</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="phase p1">第一批</span></td>
+              <td>首页行动队列、学员详情聚合、AI 问答继续回归测试</td>
+              <td>这是老师每天最常用的入口，改完马上能感受到效率提升。</td>
+              <td>打开首页 1 分钟内知道今天要处理谁；问 AI 不再答非所问。</td>
+            </tr>
+            <tr>
+              <td><span class="phase p1">第一批</span></td>
+              <td>班级周期视图：课次进度、风险徽标、结课/归档快照</td>
+              <td>数学班课管理天然按学期和课次推进，这个要比普通 CRM 更重要。</td>
+              <td>每个班一眼看到上到第几次、还剩几次、谁有风险。</td>
+            </tr>
+            <tr>
+              <td><span class="phase p2">第二批</span></td>
+              <td>资料库可引用状态、AI 右侧依据、经营复盘</td>
+              <td>AI 要真正可用，必须知道用了哪些资料和哪些系统数据。</td>
+              <td>AI 回答能显示依据；资料库能看出哪些资料可引用。</td>
+            </tr>
+            <tr>
+              <td><span class="phase p3">后续</span></td>
+              <td>题库、招生 CRM、家长端、学生错题端</td>
+              <td>这些是长期模块，应该拆为子工作台，不挤压主系统。</td>
+              <td>主系统保持总控，子模块各自演进。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="comment">
+        <h3>批注区</h3>
+        <div class="comment-box">
+          建议你直接在这份截图批注页上标：哪些编号认可、哪些不做、哪些要先做。  
+          我建议优先批注：首页 2/4、学员 2/3、班级 1/4、AI 3/4、资料库 3/4。
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

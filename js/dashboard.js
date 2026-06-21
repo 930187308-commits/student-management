@@ -44,6 +44,11 @@ function deleteTodo(id) {
     renderTodoCalendarArea();
 }
 
+function addSuggestedTodo(text, category) {
+    addTodo(text, category || '教务', '');
+    showToast('已加入待办');
+}
+
 function getTodosByDate(dateStr) {
     return getTodos().filter(t => t.dateStr === dateStr);
 }
@@ -119,7 +124,24 @@ function renderTodoCalendarArea() {
     // 左侧：待办列表
     let todoListHtml = '';
     if (activeTodos.length === 0 && doneTodos.length === 0) {
-        todoListHtml = '<div class="tc-empty">暂无待办，点击右侧日期添加</div>';
+        const suggestions = [
+            { text: '检查待续费和欠费学生，确定本周沟通顺序', category: '续费' },
+            { text: '补录本周已上课程的考勤记录', category: '教务' },
+            { text: '筛选意向学员，安排下一次跟进', category: '招生' }
+        ];
+        todoListHtml = `
+            <div class="tc-empty tc-empty-with-suggestions">
+                <div class="tc-empty-title">暂无待办，可以先从这些开始</div>
+                <div class="tc-suggestion-list">
+                    ${suggestions.map(item => `
+                        <button class="tc-suggestion" onclick="addSuggestedTodo('${escapeHtml(item.text)}', '${escapeHtml(item.category)}')">
+                            <span>${escapeHtml(item.text)}</span>
+                            <em>${escapeHtml(item.category)}</em>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
     } else {
         if (activeTodos.length > 0) {
             todoListHtml += activeTodos.slice(0, 8).map(t => `
@@ -303,10 +325,10 @@ function renderDashboard() {
         <div class="workspace-body">
             <div class="workspace-reminders">
                 <div class="reminder-grid">
-                    <div class="reminder-item" onclick="goToAttendanceToday()">
-                        <div class="reminder-icon">📋</div>
-                        <div class="reminder-num">${getPrivacyVal(work.todaySessionCount)}</div>
-                        <div class="reminder-label">今日课次</div>
+                    <div class="reminder-item" onclick="openBusinessReviewFromDashboard()">
+                        <div class="reminder-icon">📊</div>
+                        <div class="reminder-num">AI</div>
+                        <div class="reminder-label">经营复盘</div>
                     </div>
                     <div class="reminder-item" onclick="switchTab('fees')">
                         <div class="reminder-icon">💰</div>
@@ -321,7 +343,7 @@ function renderDashboard() {
                     <div class="reminder-item" onclick="switchTab('ai-workspace')">
                         <div class="reminder-icon">🤖</div>
                         <div class="reminder-num">本地</div>
-                        <div class="reminder-label">AI 工作台</div>
+                        <div class="reminder-label">AI 对话</div>
                     </div>
                 </div>
             </div>
@@ -329,7 +351,10 @@ function renderDashboard() {
                 <button class="btn btn-primary btn-sm" onclick="switchTab('students'); setTimeout(() => openStudentModal(), 100)">+ 学员</button>
                 <button class="btn btn-success btn-sm" onclick="switchTab('fees'); setTimeout(() => openFeeModal(), 100)">+ 缴费</button>
                 <button class="btn btn-primary btn-sm" onclick="switchTab('grades'); setTimeout(() => openGradeModal(), 100)">+ 成绩</button>
+                <button class="btn btn-secondary btn-sm" onclick="switchTab('communications'); setTimeout(() => openCommModal(), 100)">+ 沟通</button>
+                <button class="btn btn-warning btn-sm" onclick="switchTab('prospects'); setTimeout(() => openProspectModal(), 100)">+ 意向</button>
                 <button class="btn btn-secondary btn-sm" onclick="goToAttendanceToday()">考勤</button>
+                <button class="btn btn-secondary btn-sm" onclick="openDataHealthCheck()">体检</button>
             </div>
         </div>
     </div>

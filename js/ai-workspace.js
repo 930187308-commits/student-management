@@ -2463,6 +2463,20 @@ function fillSystemQAQuestion(text) {
     input.focus();
 }
 
+function openBusinessReviewFromDashboard() {
+    const reviewQuestion = '帮我生成本周经营复盘，重点看课消、欠费、待续费、意向跟进和需要关注的学生。';
+    switchTab('ai-workspace');
+    setTimeout(() => {
+        if (!document.getElementById('agentInput')) renderAIWorkspace();
+        startSystemQAConversation();
+        setSystemQAAnswerLength('detailed');
+        const lengthSelect = document.getElementById('systemQAAnswerLength');
+        if (lengthSelect) lengthSelect.value = 'detailed';
+        fillSystemQAQuestion(reviewQuestion);
+        runAgentTask();
+    }, 80);
+}
+
 function toggleSystemQANameMode() {
     const checked = document.getElementById('systemQANameToggle')?.checked;
     aiPrivacyMode = checked ? 'named' : 'masked';
@@ -2792,6 +2806,7 @@ window.openStyleSettings = openStyleSettings;
 window.toggleSnapshot = toggleSnapshot;
 window.switchRightTab = switchRightTab;
 window.fillSystemQAQuestion = fillSystemQAQuestion;
+window.openBusinessReviewFromDashboard = openBusinessReviewFromDashboard;
 window.startSystemQAConversation = startSystemQAConversation;
 window.refreshSystemQAData = refreshSystemQAData;
 window.clearSystemQAInput = clearSystemQAInput;

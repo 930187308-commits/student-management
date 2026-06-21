@@ -816,7 +816,7 @@ function buildSummaryFacts({ question, summary, gradeCounts }) {
 function buildBusinessReviewFacts({ question, summary, classRows, studentRows }) {
     const normalizedQuestion = normalizeComparableText(question);
     if (!/(经营|复盘|周报|月报|本周|本月|运营|工作总结|总结一下)/.test(normalizedQuestion)) return null;
-    if (/(成绩|学校|哪个班|哪个学校|考|分数)/.test(normalizedQuestion)) return null;
+    if (/(成绩|学校|哪个班|哪个学校|考|分数|课消|出勤|请假|收费多少|收了多少)/.test(normalizedQuestion)) return null;
     const riskStudents = studentRows
         .filter(student => student.status === 'active')
         .filter(student => student.pendingFeeAmount > 0 || student.remainingHours <= 2 || student.totalHours === 0)
@@ -1112,6 +1112,33 @@ function buildSystemFactAnswer(context, options = {}) {
     const groupByClass = factQuestion.includes('按班级') || factQuestion.includes('分组');
     const tail = detailed ? '\n\n以上为系统数据辅助判断，重要操作请以原始记录为准。' : '';
 
+    if (facts.monthlyConsumption) {
+        const fact = facts.monthlyConsumption;
+        const list = formatShortList(fact.classes, item => `- ${item.className}：${item.sessions} 次课，出勤课消 ${item.present}，请假 ${item.absent}`, detailed ? 20 : 8);
+        const scope = fact.className ? `${fact.className} ` : '';
+        return `${fact.month} ${scope}课消概览：已登记 ${fact.sessionCount} 次课，出勤课消 ${fact.presentTotal}，请假 ${fact.absentTotal}。\n${list || '- 该月份暂无考勤课次'}${tail}`;
+    }
+
+    if (facts.businessReview) {
+        const fact = facts.businessReview;
+        const s = fact.summary || {};
+        const riskList = formatShortList(fact.riskStudents || [], item =>
+            `- ${item.name}：${item.className || '未分班'}，剩余课时 ${item.remainingHours}，欠费 ${item.pendingFeeAmount} 元`,
+            detailed ? 12 : 6
+        );
+        const classList = formatShortList(fact.classProgress || [], item =>
+            `- ${item.name}：已登记 ${item.recordedSessions}/${item.plannedSessions || '-'} 次${item.remainingSessions !== '' ? `，剩余 ${item.remainingSessions} 次` : ''}`,
+            detailed ? 10 : 5
+        );
+        return [
+            `经营复盘摘要：在读 ${s.activeStudentCount || 0} 人，待续费 ${s.renewalPendingCount || 0} 人，意向 ${s.prospectCount || 0} 人，欠费 ¥${Number(s.pendingFeeAmount || 0).toLocaleString()}。`,
+            `当前需关注 ${fact.riskTotal || 0} 名学员。`,
+            riskList ? `\n优先关注：\n${riskList}` : '',
+            classList ? `\n班级进度：\n${classList}` : '',
+            detailed ? '\n建议动作：先处理课时余额为负/欠费学员，再确认接近结课班级的续费沟通节奏，最后复盘意向学员来源。' : '\n需要详细行动清单可以切换“详细”模式再问。'
+        ].filter(Boolean).join('\n');
+    }
+
     if (facts.scoreMatches) {
         const fact = facts.scoreMatches;
         const formatter = item => {
@@ -1163,13 +1190,6 @@ function buildSystemFactAnswer(context, options = {}) {
             : `- ${item.studentName}：${item.amount} 元 / ${item.hours} 课时（${item.paymentDate || '-'}）`,
         detailed ? 30 : 8);
         return `${prefix}共 ${fact.totalAmount} 元，${fact.totalHours} 课时，涉及 ${fact.total} 条记录。\n${list || '- 暂无已缴收费记录'}${tail}`;
-    }
-
-    if (facts.monthlyConsumption) {
-        const fact = facts.monthlyConsumption;
-        const list = formatShortList(fact.classes, item => `- ${item.className}：${item.sessions} 次课，出勤课消 ${item.present}，请假 ${item.absent}`, detailed ? 20 : 8);
-        const scope = fact.className ? `${fact.className} ` : '';
-        return `${fact.month} ${scope}课消概览：已登记 ${fact.sessionCount} 次课，出勤课消 ${fact.presentTotal}，请假 ${fact.absentTotal}。\n${list || '- 该月份暂无考勤课次'}${tail}`;
     }
 
     if (facts.studentFeeMatches) {
@@ -1272,26 +1292,6 @@ function buildSystemFactAnswer(context, options = {}) {
         const list = fact.groups.map(group => `- ${group.name}：${group.fields.join('、')}`).join('\n');
         const unsupported = (fact.unsupported || []).map(item => `- ${item}`).join('\n');
         return `目前 AI 系统问答主要能查 ${fact.total} 类信息：\n${list}\n\n目前不能可靠查询：\n${unsupported || '- 暂无'}${tail}`;
-    }
-
-    if (facts.businessReview) {
-        const fact = facts.businessReview;
-        const s = fact.summary || {};
-        const riskList = formatShortList(fact.riskStudents || [], item =>
-            `- ${item.name}：${item.className || '未分班'}，剩余课时 ${item.remainingHours}，欠费 ${item.pendingFeeAmount} 元`,
-            detailed ? 12 : 6
-        );
-        const classList = formatShortList(fact.classProgress || [], item =>
-            `- ${item.name}：已登记 ${item.recordedSessions}/${item.plannedSessions || '-'} 次${item.remainingSessions !== '' ? `，剩余 ${item.remainingSessions} 次` : ''}`,
-            detailed ? 10 : 5
-        );
-        return [
-            `经营复盘摘要：在读 ${s.activeStudentCount || 0} 人，待续费 ${s.renewalPendingCount || 0} 人，意向 ${s.prospectCount || 0} 人，欠费 ¥${Number(s.pendingFeeAmount || 0).toLocaleString()}。`,
-            `当前需关注 ${fact.riskTotal || 0} 名学员。`,
-            riskList ? `\n优先关注：\n${riskList}` : '',
-            classList ? `\n班级进度：\n${classList}` : '',
-            detailed ? '\n建议动作：先处理课时余额为负/欠费学员，再确认接近结课班级的续费沟通节奏，最后复盘意向学员来源。' : '\n需要详细行动清单可以切换“详细”模式再问。'
-        ].filter(Boolean).join('\n');
     }
 
     if (facts.summaryMatches) {

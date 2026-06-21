@@ -79,9 +79,10 @@
             color: #185bc7;
             font-weight: 850;
         }
-        .save-state {
+        .mode-label {
             color: var(--muted);
             font-size: 12px;
+            font-weight: 850;
             white-space: nowrap;
         }
         .workspace {
@@ -355,7 +356,8 @@
             font-size: 13px;
         }
         body.teacher .answer-block,
-        body.answer-only .answer-block {
+        body.answer-only .answer-block,
+        body.answer-editing .answer-block {
             display: block;
         }
         body.answer-only .q-source,
@@ -374,6 +376,35 @@
             padding: 0;
             border-left: 0;
             background: transparent;
+        }
+        .answer-edit-note {
+            display: none;
+            border: 1px solid #cfe0ff;
+            background: #f8fbff;
+            border-radius: 7px;
+            padding: 7px 9px;
+            margin: 7px 0 10px;
+            color: #35507a;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+        body.answer-editing .answer-edit-note {
+            display: block;
+        }
+        body.answer-editing .teach-block,
+        body.answer-editing .figure-card,
+        body.answer-editing .option-grid {
+            display: none;
+        }
+        body.answer-editing .question {
+            border-color: #d7e5ff;
+            background: #fbfdff;
+            padding-top: 7px;
+            padding-bottom: 7px;
+        }
+        body.answer-editing .answer-block {
+            background: #fff;
+            border-left-color: var(--blue);
         }
         .q-toolbar {
             display: none;
@@ -419,7 +450,7 @@
         }
         .tabs {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             border-bottom: 1px solid var(--line);
         }
         .tab {
@@ -502,6 +533,127 @@
             color: #195cc7;
             font-weight: 900;
         }
+        .finder-panel {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 9px;
+            margin-bottom: 10px;
+            background: #fff;
+        }
+        .finder-panel.collapsed .finder-extra {
+            display: none;
+        }
+        .finder-head {
+            display: grid;
+            grid-template-columns: 58px minmax(0, 1fr);
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .finder-head label,
+        .finder-label {
+            color: #344054;
+            font-size: 12px;
+            font-weight: 900;
+        }
+        .finder-head input {
+            padding: 7px 8px;
+            font-size: 13px;
+        }
+        .finder-row {
+            display: grid;
+            grid-template-columns: 58px minmax(0, 1fr);
+            gap: 8px;
+            align-items: center;
+            min-height: 30px;
+            margin-bottom: 5px;
+        }
+        .finder-options {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .finder-chip {
+            border: 0;
+            border-radius: 6px;
+            padding: 4px 8px;
+            background: transparent;
+            color: #344054;
+            font-size: 12px;
+        }
+        .finder-chip.active {
+            background: var(--blue-2);
+            color: var(--blue);
+            font-weight: 850;
+        }
+        .finder-check {
+            display: inline-flex;
+            gap: 5px;
+            align-items: center;
+            font-size: 12px;
+            color: #344054;
+        }
+        .finder-check input {
+            width: auto;
+        }
+        .sort-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 7px 0 8px;
+            position: relative;
+        }
+        .sort-trigger {
+            color: var(--blue);
+            font-weight: 850;
+            border: 0;
+            background: transparent;
+            padding: 0;
+        }
+        .sort-menu {
+            position: absolute;
+            right: 0;
+            top: 24px;
+            width: 158px;
+            padding: 6px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 14px 30px rgba(15,23,42,.14);
+            display: none;
+            z-index: 12;
+        }
+        .sort-menu.show {
+            display: grid;
+            gap: 4px;
+        }
+        .sort-menu button {
+            border: 0;
+            background: transparent;
+            text-align: left;
+            padding: 7px 8px;
+            font-size: 13px;
+        }
+        .sort-menu button.active {
+            color: var(--blue);
+            background: var(--blue-2);
+            font-weight: 850;
+        }
+        .result-count {
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .result-count strong {
+            color: #344054;
+            font-size: 15px;
+        }
+        .data-hint {
+            color: var(--muted);
+            font-size: 11px;
+            margin-left: 4px;
+        }
         .card {
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -512,6 +664,17 @@
         .card.selected {
             border-color: #9fc0ff;
             background: #f8fbff;
+        }
+        .card.compact {
+            padding: 8px;
+        }
+        .card.compact .card-title {
+            font-size: 13px;
+            line-height: 1.38;
+            margin-bottom: 3px;
+        }
+        .card.compact .card-meta {
+            font-size: 11px;
         }
         .card-title {
             font-weight: 900;
@@ -531,29 +694,28 @@
             margin-top: 8px;
             flex-wrap: wrap;
         }
-        .paper-question-list {
-            border: 1px solid #c9dcff;
-            background: #f7fbff;
-            border-radius: 8px;
-            padding: 9px;
-            margin: -2px 0 10px;
-        }
-        .paper-question {
-            display: grid;
-            grid-template-columns: 22px minmax(0, 1fr) auto;
-            gap: 7px;
-            align-items: start;
-            padding: 7px 0;
-            border-bottom: 1px solid #e4ecfb;
-        }
-        .paper-question:last-child { border-bottom: 0; }
-        .paper-question input {
-            width: auto;
-            margin-top: 4px;
-        }
         .ai-card {
             border-color: #cfe0ff;
             background: linear-gradient(180deg, #f8fbff, #fff);
+        }
+        .ai-outline {
+            display: grid;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .ai-outline-row {
+            display: grid;
+            grid-template-columns: 54px minmax(0, 1fr) auto;
+            gap: 6px;
+            align-items: center;
+            border: 1px solid #e1e9f7;
+            border-radius: 7px;
+            padding: 6px;
+            background: #fff;
+        }
+        .ai-outline-row strong {
+            color: #1d4fb8;
+            font-size: 12px;
         }
         .check {
             display: flex;
@@ -565,12 +727,6 @@
             font-size: 13px;
         }
         .check input { width: auto; }
-        .ref-img {
-            width: 100%;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            display: block;
-        }
         .rail {
             border-left: 1px solid var(--line);
             background: #f8fafc;
@@ -590,6 +746,17 @@
             justify-content: center;
             color: #1f5fc9;
             font-weight: 900;
+        }
+        .rail-button {
+            width: 42px;
+            min-height: 42px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #1f5fc9;
+            font-weight: 900;
+            background: #fff;
         }
         .basket-count {
             position: absolute;
@@ -641,6 +808,30 @@
             padding: 12px;
             overflow: auto;
         }
+        .help-list {
+            display: grid;
+            gap: 10px;
+        }
+        .help-item {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 9px;
+            background: #fff;
+        }
+        .help-item strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+        .export-note {
+            border: 1px solid #cfe0ff;
+            background: #f8fbff;
+            border-radius: 8px;
+            padding: 8px 9px;
+            margin-top: 8px;
+            color: #35507a;
+            font-size: 12px;
+            line-height: 1.55;
+        }
         .toast {
             position: fixed;
             left: 50%;
@@ -665,15 +856,15 @@
                 <button class="doc-type" data-type="paper">正式试卷</button>
                 <button class="doc-type" data-type="handout">专题讲义</button>
                 <button class="doc-type" data-type="homework">作业</button>
-                <button class="doc-type" data-type="answer">答案解析单</button>
+                <button class="doc-type" data-type="answer-edit">答案编辑</button>
             </div>
             <div class="top-actions">
                 <div class="mode-tabs">
+                    <span class="mode-label">导出模式</span>
                     <button class="active" data-mode="student">学生版</button>
                     <button data-mode="teacher">教师版</button>
                     <button data-mode="answer-only">答案版</button>
                 </div>
-                <span class="save-state">本卷草稿不回写正式题库</span>
                 <button>打印/PDF</button>
                 <button class="primary">导出 Word</button>
             </div>
@@ -713,10 +904,6 @@
                     <div class="outline-section">
                         <button class="outline-item" data-jump="answers"><span class="outline-dot">答</span>答案解析</button>
                     </div>
-                    <div class="outline-section">
-                        <p class="outline-title">输出逻辑</p>
-                        <div class="tiny">试卷库整卷：按原题号排序。<br>自由组卷：按本卷结构排序。<br>讲义：允许插入知识、例题、变式、表格和图片。</div>
-                    </div>
                 </div>
             </aside>
 
@@ -741,6 +928,7 @@
                     <div class="paper-theme" id="title"></div>
                     <h1 class="paper-title" contenteditable="true">多边形面积专题讲义 20260617<span class="editable-chip">可改标题</span></h1>
                     <p class="paper-subtitle" contenteditable="true">姓名：__________　班级：__________　得分：__________<span class="editable-chip">可改抬头</span></p>
+                    <div class="answer-edit-note">答案编辑：这里同步当前本卷题目。没有改题时只需核对答案；如果临时改了题干或选项，就在对应题号下同步修改答案和解析。</div>
 
                     <h2 class="section-title" id="teach-1" contenteditable="true">一、知识梳理<span class="editable-chip">讲义模块</span></h2>
                     <div class="teach-block" id="method-note" contenteditable="true">
@@ -826,30 +1014,90 @@
                 <div class="tabs">
                     <button class="tab active" data-tab="questions">试题</button>
                     <button class="tab" data-tab="papers">试卷</button>
+                    <button class="tab" data-tab="history">历史</button>
                     <button class="tab" data-tab="ai">AI</button>
                     <button class="tab" data-tab="settings">设置</button>
                 </div>
                 <div class="side-body">
                     <section class="tab-panel" id="tab-questions">
-                        <div class="side-section">
-                            <p class="side-title">找题</p>
-                            <div class="field"><label>关键词</label><input value="多边形面积"></div>
-                            <div class="field">
-                                <label>搜索范围</label>
-                                <div class="search-scope">
-                                    <button class="active">正式题库</button>
-                                    <button>试卷库题目</button>
-                                    <button>待确认题池</button>
-                                    <button>AI 相似题</button>
+                        <div class="finder-panel collapsed" id="questionFinder">
+                            <div class="finder-head">
+                                <label>关键词</label>
+                                <input value="多边形面积">
+                            </div>
+                            <div class="finder-extra">
+                            <div class="finder-row">
+                                <div class="finder-label">范围</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">正式题库</button>
+                                    <button class="finder-chip">试卷题目</button>
+                                    <button class="finder-chip">待确认</button>
+                                    <button class="finder-chip">AI 相似</button>
                                 </div>
                             </div>
-                            <div class="filter-grid">
-                                <div class="field"><label>年级</label><select><option>六年级</option><option>五年级</option></select></div>
-                                <div class="field"><label>年份</label><select><option>2024-2026</option><option>2026</option><option>2025</option><option>2024</option></select></div>
-                                <div class="field"><label>题型</label><select><option>选择题</option><option>填空题</option><option>解答题</option></select></div>
-                                <div class="field"><label>用途</label><select><option>例题</option><option>变式</option><option>练习</option></select></div>
+                            <div class="finder-row">
+                                <div class="finder-label">学年</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">全部</button>
+                                    <button class="finder-chip">2025~2026</button>
+                                    <button class="finder-chip">2024~2025</button>
+                                </div>
                             </div>
-                            <div class="card-actions"><button class="small primary">搜索</button><button class="small ai-action">AI 扩展关键词</button></div>
+                            <div class="finder-row">
+                                <div class="finder-label">年级</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">全部</button>
+                                    <button class="finder-chip">四年级</button>
+                                    <button class="finder-chip">五年级</button>
+                                    <button class="finder-chip">六年级</button>
+                                    <span class="data-hint">按题库数据生成</span>
+                                </div>
+                            </div>
+                            <div class="finder-row">
+                                <div class="finder-label">题型</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">选择题</button>
+                                    <button class="finder-chip">填空题</button>
+                                    <button class="finder-chip">解答题</button>
+                                </div>
+                            </div>
+                            <div class="finder-row">
+                                <div class="finder-label">难度</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">全部</button>
+                                    <button class="finder-chip">基础</button>
+                                    <button class="finder-chip">中等</button>
+                                    <button class="finder-chip">提高</button>
+                                </div>
+                            </div>
+                            <div class="finder-row">
+                                <div class="finder-label">用途</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">例题</button>
+                                    <button class="finder-chip">变式</button>
+                                    <button class="finder-chip">练习</button>
+                                </div>
+                            </div>
+                            <div class="finder-row">
+                                <div class="finder-label">更多</div>
+                                <div class="finder-options">
+                                    <label class="finder-check"><input type="checkbox"> 含图</label>
+                                    <label class="finder-check"><input type="checkbox"> 含公式</label>
+                                    <label class="finder-check"><input type="checkbox"> 本月热题</label>
+                                </div>
+                            </div>
+                            </div>
+                            <div class="card-actions"><button class="small primary">搜索</button><button class="small finder-toggle" data-target="questionFinder">展开筛选</button><button class="small ai-action">AI 扩展关键词</button></div>
+                        </div>
+                        <div class="sort-row">
+                            <span class="result-count">共 <strong>70000+</strong> 道题</span>
+                            <button class="sort-trigger" id="sortTrigger">综合排序 ↑</button>
+                            <div class="sort-menu" id="sortMenu">
+                                <button class="active">综合排序</button>
+                                <button>使用次数 ↑</button>
+                                <button>难度 ↑</button>
+                                <button>时间 ↓</button>
+                            </div>
                         </div>
                         <div class="card">
                             <div class="card-title">面积与其它图形不相等的是（　）。</div>
@@ -864,38 +1112,133 @@
                     </section>
 
                     <section class="tab-panel" id="tab-papers" hidden>
-                        <div class="field"><label>搜索试卷库</label><input value="2024 深圳 小升初"></div>
-                        <div class="card selected">
+                        <div class="finder-panel collapsed" id="paperFinder">
+                            <div class="finder-head">
+                                <label>关键词</label>
+                                <input value="2024 深圳 小升初">
+                            </div>
+                            <div class="finder-extra">
+                            <div class="finder-row">
+                                <div class="finder-label">学年</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">全部</button>
+                                    <button class="finder-chip">2025~2026</button>
+                                    <button class="finder-chip">2024~2025</button>
+                                </div>
+                            </div>
+                            <div class="finder-row">
+                                <div class="finder-label">地区</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">深圳</button>
+                                    <button class="finder-chip">广州</button>
+                                    <button class="finder-chip">广东</button>
+                                </div>
+                            </div>
+                            <div class="finder-row">
+                                <div class="finder-label">类型</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">真题</button>
+                                    <button class="finder-chip">模拟</button>
+                                    <button class="finder-chip">专题卷</button>
+                                </div>
+                            </div>
+                            <div class="finder-row">
+                                <div class="finder-label">更多</div>
+                                <div class="finder-options">
+                                    <label class="finder-check"><input type="checkbox"> 已入库</label>
+                                    <label class="finder-check"><input type="checkbox"> 可整卷打印</label>
+                                </div>
+                            </div>
+                            </div>
+                            <div class="card-actions"><button class="small primary">搜索试卷</button><button class="small finder-toggle" data-target="paperFinder">展开筛选</button><button class="small">清空筛选</button></div>
+                        </div>
+                        <div class="card selected compact">
                             <div class="card-title">2024年广东深圳宝安区六年级小升初数学试卷</div>
                             <div class="card-meta"><span>18题</span><span>已入库</span><span>可整卷打印</span></div>
-                            <div class="card-actions"><button class="small primary">查看题目</button><button class="small">整卷打印</button><button class="small">删除记录</button></div>
+                            <div class="card-actions"><button class="small primary">查看题目</button><button class="small">整卷加入</button><button class="small">删除记录</button></div>
                         </div>
-                        <div class="paper-question-list">
-                            <p class="side-title"><span>原卷题目</span><span class="pill">按原题号</span></p>
-                            <div class="paper-question">
-                                <input type="checkbox" checked>
-                                <div><strong>1. 面积比较图形题</strong><div class="tiny">选择题 · 含题干图 · 原第 1 题</div></div>
-                                <button class="small primary">加入讲义</button>
+                        <div class="card compact">
+                            <div class="card-title">2025年广东深圳福田区六年级小升初模拟卷</div>
+                            <div class="card-meta"><span>20题</span><span>部分待确认</span><span>可选题加入</span></div>
+                            <div class="card-actions"><button class="small primary">查看题目</button><button class="small">整卷加入</button><button class="small">删除记录</button></div>
+                        </div>
+                    </section>
+
+                    <section class="tab-panel" id="tab-history" hidden>
+                        <div class="finder-panel collapsed" id="historyFinder">
+                            <div class="finder-head">
+                                <label>关键词</label>
+                                <input value="多边形 面积 讲义">
                             </div>
-                            <div class="paper-question">
-                                <input type="checkbox" checked>
-                                <div><strong>2. 多边形面积计算</strong><div class="tiny">选择题 · 选项图 · 原第 2 题</div></div>
-                                <button class="small primary">加入讲义</button>
+                            <div class="finder-extra">
+                            <div class="finder-row">
+                                <div class="finder-label">日期</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">最近</button>
+                                    <button class="finder-chip">本周</button>
+                                    <button class="finder-chip">本月</button>
+                                    <button class="finder-chip">更早</button>
+                                </div>
                             </div>
-                            <div class="paper-question">
-                                <input type="checkbox">
-                                <div><strong>3. 平行线间面积</strong><div class="tiny">选择题 · 提高 · 原第 3 题</div></div>
-                                <button class="small primary">加入讲义</button>
+                            <div class="finder-row">
+                                <div class="finder-label">年级</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">全部</button>
+                                    <button class="finder-chip">三年级</button>
+                                    <button class="finder-chip">五年级</button>
+                                    <button class="finder-chip">六年级</button>
+                                    <span class="data-hint">按历史记录生成</span>
+                                </div>
                             </div>
-                            <div class="card-actions"><button class="small primary">勾选题加入本卷</button><button class="small">严格按原卷生成</button></div>
+                            <div class="finder-row">
+                                <div class="finder-label">类别</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">全部</button>
+                                    <button class="finder-chip">小测卷</button>
+                                    <button class="finder-chip">正式试卷</button>
+                                    <button class="finder-chip">专题讲义</button>
+                                    <button class="finder-chip">作业</button>
+                                </div>
+                            </div>
+                            <div class="finder-row">
+                                <div class="finder-label">排序</div>
+                                <div class="finder-options">
+                                    <button class="finder-chip active">最近编辑 ↓</button>
+                                    <button class="finder-chip">名称</button>
+                                    <button class="finder-chip">题量</button>
+                                </div>
+                            </div>
+                            </div>
+                            <div class="card-actions"><button class="small primary">搜索历史</button><button class="small finder-toggle" data-target="historyFinder">展开筛选</button><button class="small">清空筛选</button></div>
+                        </div>
+                        <div class="card selected compact">
+                            <div class="card-title">多边形面积专题讲义 20260617</div>
+                            <div class="card-meta"><span>最近编辑</span><span>专题讲义</span><span>6题</span><span>2026-06-17</span></div>
+                            <div class="card-actions"><button class="small primary">打开继续编辑</button><button class="small">复制为新讲义</button><button class="small">删除记录</button></div>
+                        </div>
+                        <div class="card compact">
+                            <div class="card-title">六年级面积比较小测卷</div>
+                            <div class="card-meta"><span>小测卷</span><span>10题</span><span>2026-06-12</span></div>
+                            <div class="card-actions"><button class="small primary">打开</button><button class="small">复制</button><button class="small">导出</button></div>
+                        </div>
+                        <div class="card compact">
+                            <div class="card-title">小升初几何图形作业</div>
+                            <div class="card-meta"><span>作业</span><span>12题</span><span>2026-06-05</span></div>
+                            <div class="card-actions"><button class="small primary">打开</button><button class="small">复制</button><button class="small">导出</button></div>
                         </div>
                     </section>
 
                     <section class="tab-panel" id="tab-ai" hidden>
                         <div class="card ai-card">
-                            <div class="card-title">把题篮整理成讲义结构</div>
-                            <div class="card-meta"><span>知识梳理</span><span>例题</span><span>变式</span><span>练习</span></div>
-                            <div class="card-actions"><button class="small primary ai-action">生成结构建议</button></div>
+                            <div class="card-title">题篮生成讲义大纲</div>
+                            <div class="card-meta"><span>先分析题篮</span><span>再按块加入本卷</span></div>
+                            <div class="card-actions"><button class="small primary ai-action">生成大纲</button><button class="small ai-action">一键加入本卷</button></div>
+                            <div class="ai-outline">
+                                <div class="ai-outline-row"><strong>知识梳理</strong><span class="tiny">平行线间面积比较方法</span><button class="small">加入</button></div>
+                                <div class="ai-outline-row"><strong>例题</strong><span class="tiny">题 1：面积比较图形题</span><button class="small">加入</button></div>
+                                <div class="ai-outline-row"><strong>变式</strong><span class="tiny">题 2：多边形面积计算</span><button class="small">加入</button></div>
+                                <div class="ai-outline-row"><strong>练习</strong><span class="tiny">题 3：平行线间面积</span><button class="small">加入</button></div>
+                            </div>
                         </div>
                         <div class="card ai-card">
                             <div class="card-title">检查本卷质量</div>
@@ -917,6 +1260,7 @@
                                 <label class="check"><input type="checkbox" checked> 分值</label>
                                 <label class="check"><input type="checkbox" checked> 来源</label>
                                 <label class="check"><input type="checkbox" checked> 知识点</label>
+                                <label class="check"><input type="checkbox" checked> 难度</label>
                                 <label class="check"><input type="checkbox"> 答题区</label>
                             </div>
                         </div>
@@ -928,17 +1272,27 @@
                             </div>
                             <label class="check"><input type="checkbox" checked> 一道题不跨页</label>
                             <label class="check"><input type="checkbox" checked> Word 按分页预览输出</label>
+                            <label class="check"><input type="checkbox" checked> PDF 按同一分页生成</label>
+                            <div class="export-note">PDF 直接使用当前预览分页和图片公式渲染结果；适合最终打印。Word 保留可编辑结构，但复杂公式和图片需要用可兼容格式导出。</div>
                         </div>
                         <div class="side-section">
-                            <p class="side-title">参考图</p>
-                            <img class="ref-img" src="assets/question-bank-compose-reference-paper.png" alt="试卷库参考截图">
+                            <p class="side-title">答题区设置</p>
+                            <div class="setting-grid">
+                                <label class="check"><input type="radio" name="answerArea" checked> 按题型自动</label>
+                                <label class="check"><input type="radio" name="answerArea"> 统一行数</label>
+                            </div>
+                            <div class="filter-grid" style="margin-top:8px;">
+                                <div class="field"><label>填空题</label><select><option>横线</option><option>空白</option></select></div>
+                                <div class="field"><label>解答题</label><select><option>6 行</option><option>8 行</option><option>自定义</option></select></div>
+                            </div>
                         </div>
                     </section>
                 </div>
             </aside>
 
             <aside class="rail">
-                <button class="basket-button" id="basketToggle">题<span class="basket-count">3</span></button>
+                <button class="basket-button" id="basketToggle">题篮<span class="basket-count">3</span></button>
+                <button class="rail-button" id="helpToggle">说明</button>
                 <div class="rail-label">全局题篮</div>
             </aside>
         </main>
@@ -970,12 +1324,41 @@
         </div>
     </section>
 
+    <section class="drawer" id="helpDrawer">
+        <div class="drawer-head">
+            <span>使用说明</span>
+            <button class="small" id="closeHelp">收起</button>
+        </div>
+        <div class="drawer-body">
+            <div class="help-list">
+                <div class="help-item">
+                    <strong>本卷草稿</strong>
+                    <div class="tiny">本卷编辑只影响本次 Word/PDF/HTML 输出，不自动回写正式题库。</div>
+                </div>
+                <div class="help-item">
+                    <strong>题目顺序</strong>
+                    <div class="tiny">试卷库整卷按原题号排序；自由组卷按本卷结构和题篮顺序排序。</div>
+                </div>
+                <div class="help-item">
+                    <strong>讲义编辑</strong>
+                    <div class="tiny">专题讲义允许插入知识梳理、例题、变式、表格、图片和分页。</div>
+                </div>
+                <div class="help-item">
+                    <strong>答案编辑</strong>
+                    <div class="tiny">如果临时改过题干或选项，需要在答案编辑里同步修改对应答案解析。</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <div class="toast" id="toast">已更新</div>
 
     <script>
         const body = document.body;
         const toast = document.getElementById('toast');
         const drawer = document.getElementById('basketDrawer');
+        const helpDrawer = document.getElementById('helpDrawer');
+        const sortMenu = document.getElementById('sortMenu');
         let selectedQuestion = document.getElementById('q1');
 
         function showToast(text) {
@@ -1009,7 +1392,8 @@
             button.addEventListener('click', () => {
                 document.querySelectorAll('.doc-type').forEach(item => item.classList.remove('active'));
                 button.classList.add('active');
-                showToast(`已切换输出类型：${button.textContent.trim()}`);
+                body.classList.toggle('answer-editing', button.dataset.type === 'answer-edit');
+                showToast(button.dataset.type === 'answer-edit' ? '已进入答案编辑：可同步修改本卷答案解析' : `已切换输出类型：${button.textContent.trim()}`);
             });
         });
 
@@ -1079,8 +1463,37 @@
             });
         });
 
+        document.querySelectorAll('.finder-chip').forEach(button => {
+            button.addEventListener('click', () => {
+                const row = button.closest('.finder-row');
+                row.querySelectorAll('.finder-chip').forEach(item => item.classList.remove('active'));
+                button.classList.add('active');
+                showToast(`筛选：${button.textContent.trim()}`);
+            });
+        });
+
+        document.querySelectorAll('.finder-toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                const panel = document.getElementById(button.dataset.target);
+                panel.classList.toggle('collapsed');
+                button.textContent = panel.classList.contains('collapsed') ? '展开筛选' : '收起筛选';
+            });
+        });
+
         document.getElementById('basketToggle').addEventListener('click', () => drawer.classList.toggle('show'));
         document.getElementById('closeBasket').addEventListener('click', () => drawer.classList.remove('show'));
+        document.getElementById('helpToggle').addEventListener('click', () => helpDrawer.classList.toggle('show'));
+        document.getElementById('closeHelp').addEventListener('click', () => helpDrawer.classList.remove('show'));
+        document.getElementById('sortTrigger').addEventListener('click', () => sortMenu.classList.toggle('show'));
+        document.querySelectorAll('#sortMenu button').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('#sortMenu button').forEach(item => item.classList.remove('active'));
+                button.classList.add('active');
+                document.getElementById('sortTrigger').textContent = `${button.textContent.trim()}`;
+                sortMenu.classList.remove('show');
+                showToast(`排序：${button.textContent.trim()}`);
+            });
+        });
     </script>
 </body>
 </html>

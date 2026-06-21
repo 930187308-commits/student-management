@@ -254,6 +254,9 @@ function renderStudentDetail() {
     const pendingFeeAmount = pendingFees.reduce((sum, f) => sum + Number(f.amount || 0), 0);
     const latestGrade = displayStudentGrades[0];
     const latestComm = studentComms[0];
+    const latestFee = studentFees[0];
+    const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业', forming: '组班中（旧）' };
+    const statusText = statusMap[student.status] || student.status || '-';
 
     // 计算已消课时和请假课时
     let usedHours = 0, absentHours = 0;
@@ -270,6 +273,20 @@ function renderStudentDetail() {
         pendingFeeAmount > 0 ? `有欠费记录：¥${pendingFeeAmount.toLocaleString()}` : '',
         student.status === 'renewalPending' ? '当前状态为待续费' : ''
     ].filter(Boolean);
+    const hoursHeadline = totalPaidHours === 0 && usedHours === 0 ? '暂无收费记录' : `剩余 ${remainingHours} 课时`;
+    const latestFeeText = latestFee
+        ? `${escapeHtml(latestFee.paymentDate || '-')} · ${latestFee.status === 'paid' ? '已缴' : '欠费'} · ${Number(latestFee.hours || 0)} 课时`
+        : '暂无收费记录';
+    const schoolOptions = [
+        { label: '小学', value: schoolHistory.primarySchool || '-' },
+        { label: '初中', value: schoolHistory.middleSchool || '-' },
+        { label: '高中', value: schoolHistory.highSchool || '-' }
+    ];
+    const schoolOptionsHtml = schoolOptions.map(item => {
+        const display = `${item.label} · ${item.value || '-'}`;
+        return `<button type="button" data-school="${escapeHtml(display)}" onclick="setStudentDetailSchoolDisplay(this)">${escapeHtml(display)}</button>`;
+    }).join('');
+    const currentSchoolDisplay = `${currentSchool.stageText} · ${currentSchool.school || '-'}`;
 
     const detail = document.getElementById('studentDetail');
     let chartHtml = '';
@@ -283,12 +300,12 @@ function renderStudentDetail() {
     }
 
     detail.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+        <div class="student-detail-header">
             <div>
-                <h3 style="font-size: 20px; color: #2c3e50;">${escapeHtml(student.name)}</h3>
-                <p style="color: #888; font-size: 13px; margin-top: 4px;">${escapeHtml(student.grade)} · ${escapeHtml(cls?.name) || '未分班'}</p>
+                <h3>${escapeHtml(student.name)} <span class="badge ${student.status === 'renewalPending' ? 'badge-renewal' : student.status === 'active' ? 'badge-active' : 'badge-normal'}">${escapeHtml(statusText)}</span></h3>
+                <p>${escapeHtml(student.grade)} · ${escapeHtml(cls?.name) || '未分班'} · ${escapeHtml(student.teacher || '白老师')}</p>
             </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <div class="student-detail-actions">
                 <button class="btn btn-secondary btn-sm" onclick="openStudentModal('${student.id}')">编辑</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteStudent('${student.id}')">删除</button>
                 <button class="btn btn-sm" style="background:#9b59b6;color:white;" onclick="jumpToAIAgent('learning-agent','student-feedback','student','${student.id}'); setTimeout(() => document.getElementById('agentInput').value = '${escapeHtml(student.name)}', 100)">AI 学情反馈</button>
@@ -296,62 +313,39 @@ function renderStudentDetail() {
             </div>
         </div>
 
-        <!-- 课时进度条 -->
-        <div style="margin-bottom: 20px; padding: 16px; background: var(--hover-bg); border-radius: 12px;">
-            ${totalPaidHours === 0 ? '<div class="empty-state" style="padding:12px;text-align:center;">暂无收费记录</div>' : `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span style="font-size: 13px; color: #888;">课时消耗进度</span>
-                <span style="font-size: 13px; font-weight: 600;">${usageRate}%</span>
-            </div>
-            <div style="height: 12px; background: #eee; border-radius: 6px; overflow: hidden;">
-                <div style="height: 100%; width: ${usageRate}%; background: linear-gradient(90deg, #27ae60, #2ecc71); border-radius: 6px; transition: width 0.3s;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px;">
-                <span>已消 <strong style="color:#27ae60">${usedHours}</strong> 课时</span>
-                <span>请假 <strong style="color:#f39c12">${absentHours}</strong> 课时</span>
-                <span>剩余 <strong style="color:${remainingHours < 0 ? '#e74c3c' : remainingHours <= 2 ? '#f39c12' : '#3498db'}">${remainingHours}</strong> 课时</span>
-            </div>`}
-        </div>
-
-        <div class="detail-grid">
-            <div class="detail-item"><div class="label">已缴课时</div><div class="value">${totalPaidHours > 0 ? totalPaidHours + ' 课时 <span style="font-size:12px;color:#888;">¥' + totalPaidAmount.toLocaleString() : '---暂无收费记录'}</div></div>
-            <div class="detail-item"><div class="label">性别</div><div class="value">${escapeHtml(student.gender)}</div></div>
-            <div class="detail-item"><div class="label">授课老师</div><div class="value">${escapeHtml(student.teacher)}</div></div>
-            <div class="detail-item"><div class="label">当前就读阶段学校</div><div class="value">${currentSchool.stageText} · ${escapeHtml(currentSchool.school) || '-'}</div></div>
-            <div class="detail-item"><div class="label">入班时间</div><div class="value">${student.enrollDate}</div></div>
-            <div class="detail-item"><div class="label">首次入学</div><div class="value">${student.firstEnrollDate || '-'}</div></div>
-            <div class="detail-item"><div class="label">首次上课年级</div><div class="value">${escapeHtml(student.firstEnrollGrade) || '-'}</div></div>
-            <div class="detail-item"><div class="label">联系电话</div><div class="value">${escapeHtml(student.phone) || '-'}</div></div>
-            <div class="detail-item"><div class="label">小学学校</div><div class="value">${escapeHtml(schoolHistory.primarySchool) || '-'}</div></div>
-            <div class="detail-item"><div class="label">初中学校</div><div class="value">${escapeHtml(schoolHistory.middleSchool) || '-'}</div></div>
-            <div class="detail-item"><div class="label">高中学校</div><div class="value">${escapeHtml(schoolHistory.highSchool) || '-'}</div></div>
-        </div>
-
-        ${student.remark ? `<div style="margin-top: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px;"><div class="label">备注</div><div class="value">${escapeHtml(student.remark)}</div></div>` : ''}
-
         <div class="student-detail-summary-grid">
             <div class="student-detail-card ${riskNotes.length ? 'is-risk' : ''}">
-                <div class="student-detail-card-title">关注提醒</div>
-                ${riskNotes.length ? riskNotes.map(note => `<div class="student-detail-line">${escapeHtml(note)}</div>`).join('') : '<div class="student-detail-muted">暂无明显课时/收费风险</div>'}
+                <div class="student-detail-card-title">
+                    <span>课时与收费</span>
+                    ${riskNotes.length ? '<span class="badge badge-pending">需处理</span>' : '<span class="badge badge-active">正常</span>'}
+                </div>
+                <div class="student-detail-big">${escapeHtml(hoursHeadline)}</div>
+                <div class="student-detail-metrics">
+                    <div><span>已缴</span><b>${totalPaidHours}</b></div>
+                    <div><span>已消</span><b>${usedHours}</b></div>
+                    <div><span>请假</span><b>${absentHours}</b></div>
+                    <div><span>欠费</span><b>¥${pendingFeeAmount.toLocaleString()}</b></div>
+                </div>
+                <div class="student-detail-muted">最近收费：${latestFeeText}</div>
             </div>
+
             <div class="student-detail-card">
-                <div class="student-detail-card-title">最近成绩</div>
+                <div class="student-detail-card-title">
+                    <span>最近成绩</span>
+                    ${latestGrade ? `<span class="badge badge-normal">${escapeHtml(latestGrade.testName || '测试')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                </div>
                 ${latestGrade ? `
-                    <div class="student-detail-line">${escapeHtml(latestGrade.testName || '未命名测试')} · ${escapeHtml(latestGrade.testDate || '-')}</div>
                     <div class="student-detail-big">${escapeHtml(latestGrade.score ?? '-')}/${escapeHtml(latestGrade.fullScore ?? '-')}</div>
-                    <div class="student-detail-muted">薄弱点：${escapeHtml(latestGrade.weakPoints || '-')}</div>
+                    <div class="student-detail-line">日期：${escapeHtml(latestGrade.testDate || '-')}</div>
+                    <div class="student-detail-muted">薄弱点：${escapeHtml(latestGrade.weakPoints || '暂无')}</div>
                 ` : '<div class="student-detail-muted">暂无成绩记录</div>'}
             </div>
+
             <div class="student-detail-card">
-                <div class="student-detail-card-title">最近收费</div>
-                ${studentFees[0] ? `
-                    <div class="student-detail-line">${escapeHtml(studentFees[0].paymentDate || '-')} · ${studentFees[0].status === 'paid' ? '已缴' : '欠费'}</div>
-                    <div class="student-detail-big">¥${Number(studentFees[0].amount || 0).toLocaleString()}</div>
-                    <div class="student-detail-muted">${Number(studentFees[0].hours || 0)} 课时 · ${escapeHtml(studentFees[0].package || '-')}</div>
-                ` : '<div class="student-detail-muted">暂无收费记录</div>'}
-            </div>
-            <div class="student-detail-card">
-                <div class="student-detail-card-title">最近沟通</div>
+                <div class="student-detail-card-title">
+                    <span>最近沟通</span>
+                    ${latestComm ? `<span class="badge badge-normal">${escapeHtml(latestComm.status || '已记录')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                </div>
                 ${latestComm ? `
                     <div class="student-detail-line">${escapeHtml(latestComm.contactDate || '-')} · ${escapeHtml(latestComm.status || '-')}</div>
                     <div class="student-detail-muted">${escapeHtml(latestComm.content || latestComm.followUp || '-')}</div>
@@ -359,9 +353,58 @@ function renderStudentDetail() {
             </div>
         </div>
 
+        <div class="student-detail-info-row">
+            <div class="student-detail-info-card">
+                <div class="student-detail-card-title">基础信息</div>
+                <div class="student-detail-info-grid">
+                    <div class="student-detail-info-item"><span>性别</span><b>${escapeHtml(student.gender || '-')}</b></div>
+                    <div class="student-detail-info-item"><span>授课老师</span><b>${escapeHtml(student.teacher || '白老师')}</b></div>
+                    <div class="student-detail-info-item"><span>联系电话</span><b>${escapeHtml(student.phone || '-')}</b></div>
+                    <details class="student-detail-info-item student-school-picker">
+                        <summary>
+                            <span><span>当前就读</span><b id="studentDetailCurrentSchool">${escapeHtml(currentSchoolDisplay)}</b></span>
+                            <em>切换</em>
+                        </summary>
+                        <div class="student-school-popover">${schoolOptionsHtml}</div>
+                    </details>
+                </div>
+            </div>
+
+            <div class="student-detail-info-card">
+                <div class="student-detail-card-title">入班记录</div>
+                <div class="student-detail-info-grid">
+                    <div class="student-detail-info-item"><span>入班时间</span><b>${escapeHtml(student.enrollDate || '-')}</b></div>
+                    <div class="student-detail-info-item"><span>首次上课年级</span><b>${escapeHtml(student.firstEnrollGrade || '-')}</b></div>
+                    <div class="student-detail-info-item"><span>当前状态</span><b>${escapeHtml(statusText)}</b></div>
+                    <div class="student-detail-info-item"><span>备注</span><b>${escapeHtml(student.remark || '-')}</b></div>
+                </div>
+            </div>
+        </div>
+
+        ${riskNotes.length ? `<div class="student-detail-risk-line">${riskNotes.map(note => `<span>${escapeHtml(note)}</span>`).join('')}</div>` : ''}
+
+        <!-- 沟通记录 -->
+        <details class="student-comm-collapse">
+            <summary class="student-record-title">
+                <span>沟通记录 (${studentComms.length})</span>
+                <em>⌄</em>
+            </summary>
+            ${studentComms.length === 0 ? '<div class="student-detail-muted student-comm-empty">暂无沟通记录</div>' : `
+                <div class="student-detail-timeline">
+                    ${studentComms.slice(0, 8).map(c => `
+                        <div class="student-detail-timeline-item">
+                            <div class="student-detail-timeline-date">${escapeHtml(c.contactDate || '-')} · ${escapeHtml(c.status || '-')}</div>
+                            <div>${escapeHtml(c.content || '-')}</div>
+                            ${c.followUp ? `<div class="student-detail-muted">跟进：${escapeHtml(c.followUp)}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `}
+        </details>
+
         <!-- 成绩记录 -->
-        <div style="margin-top: 24px;">
-            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="student-grade-records">
+            <div class="student-record-title student-grade-record-title">
                 <span>成绩记录 (${studentGrades.length})</span>
                 <div style="display: flex; gap: 4px;">
                     <button class="btn btn-xs ${currentStudentGradeTab === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentGradeTab('all')">全部</button>
@@ -377,21 +420,6 @@ function renderStudentDetail() {
                             ${[...displayGrades].sort((a, b) => String(b.testDate || '').localeCompare(String(a.testDate || ''))).map(g => `<tr><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td></tr>`).join('')}
                         </tbody>
                     </table>
-                </div>
-            `}
-        </div>
-
-        <div style="margin-top: 24px;">
-            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 12px;">沟通记录 (${studentComms.length})</div>
-            ${studentComms.length === 0 ? '<div class="empty-state" style="padding: 20px;">暂无记录</div>' : `
-                <div class="student-detail-timeline">
-                    ${studentComms.slice(0, 8).map(c => `
-                        <div class="student-detail-timeline-item">
-                            <div class="student-detail-timeline-date">${escapeHtml(c.contactDate || '-')} · ${escapeHtml(c.status || '-')}</div>
-                            <div>${escapeHtml(c.content || '-')}</div>
-                            ${c.followUp ? `<div class="student-detail-muted">跟进：${escapeHtml(c.followUp)}</div>` : ''}
-                        </div>
-                    `).join('')}
                 </div>
             `}
         </div>
@@ -427,6 +455,14 @@ function renderStudentDetail() {
             }
         }, 50);
     }
+}
+
+function setStudentDetailSchoolDisplay(button) {
+    const text = button?.dataset?.school || '-';
+    const target = document.getElementById('studentDetailCurrentSchool');
+    if (target) target.textContent = text;
+    const picker = button.closest('.student-school-picker');
+    if (picker) picker.removeAttribute('open');
 }
 
 function openStudentModal(id = null) {

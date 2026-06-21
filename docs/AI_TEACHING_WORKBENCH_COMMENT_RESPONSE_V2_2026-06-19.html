@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI 教培工作台 · 批注回应 V2</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --ink: #1f2937;
+      --muted: #64748b;
+      --line: #d7dee9;
+      --blue: #2563eb;
+      --blue-soft: #eaf2ff;
+      --green: #0f8a5f;
+      --green-soft: #e8f7ef;
+      --amber: #b7791f;
+      --amber-soft: #fff4dc;
+      --red: #c2410c;
+      --red-soft: #fff0e8;
+      --gray-soft: #f8fafc;
+      --shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 22px 16px;
+      background: #111827;
+      color: #dbeafe;
+    }
+
+    .sidebar h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .sidebar p {
+      margin: 0 0 18px;
+      color: #9fb3d1;
+      font-size: 12px;
+    }
+
+    .sidebar a {
+      display: block;
+      padding: 8px 10px;
+      margin: 4px 0;
+      color: #cbd5e1;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .sidebar a:hover {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+    }
+
+    main {
+      width: 100%;
+      max-width: 1520px;
+      padding: 24px;
+    }
+
+    .hero, section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .hero {
+      padding: 26px;
+      background: linear-gradient(135deg, #ffffff 0%, #edf5ff 100%);
+    }
+
+    .hero h2 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 980px;
+      color: var(--muted);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #c8d9ff;
+      background: var(--blue-soft);
+      color: #174f9a;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    section {
+      padding: 20px;
+    }
+
+    h3 {
+      margin: 0 0 12px;
+      font-size: 21px;
+    }
+
+    h4 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    p { margin: 0 0 10px; }
+
+    .note {
+      border-left: 4px solid var(--blue);
+      background: var(--blue-soft);
+      border-radius: 10px;
+      padding: 11px 13px;
+      color: #254064;
+      margin-top: 12px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .decision-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 13px;
+      background: #fff;
+    }
+
+    .decision-card strong {
+      display: block;
+      margin-bottom: 7px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .b-do { background: var(--green-soft); color: var(--green); }
+    .b-adjust { background: var(--blue-soft); color: var(--blue); }
+    .b-hold { background: var(--amber-soft); color: var(--amber); }
+    .b-done { background: #eef2ff; color: #4f46e5; }
+    .b-no { background: var(--red-soft); color: var(--red); }
+
+    .screen-section {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .screen-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .screen-head h3 {
+      margin: 0 0 5px;
+    }
+
+    .screen-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .phase {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .shot-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.65fr);
+      gap: 0;
+      border-top: 1px solid transparent;
+    }
+
+    .shot-frame {
+      padding: 20px;
+      border-right: 1px solid var(--line);
+      background: #f8fbff;
+    }
+
+    .shot-inner {
+      position: relative;
+      background: #fff;
+      border: 1px solid #cfd9e8;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    .shot-inner img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .pin {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      border: 3px solid #fff;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
+      transform: translate(-50%, -50%);
+    }
+
+    .annotation-panel {
+      padding: 18px;
+      background: #fff;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .anno {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .anno.accept { border-color: #b7e0c6; background: var(--green-soft); }
+    .anno.adjust { border-color: #bdd3ff; background: var(--blue-soft); }
+    .anno.hold { border-color: #f0d38e; background: var(--amber-soft); }
+    .anno.no { border-color: #f7bda7; background: var(--red-soft); }
+
+    .anno-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-weight: 800;
+    }
+
+    .num {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .anno p {
+      color: #344054;
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+
+    .do {
+      border-top: 1px dashed rgba(30, 64, 175, 0.25);
+      padding-top: 8px;
+      color: #1e3a8a;
+      font-size: 13px;
+    }
+
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 11px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #475569;
+    }
+
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .plan-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .plan-card ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: #475569;
+      font-size: 13px;
+    }
+
+    .prototype {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f8fbff;
+      padding: 16px;
+    }
+
+    .mini-app {
+      border: 1px solid #cfd9e8;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      aspect-ratio: 16 / 8.7;
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+    }
+
+    .mini-side {
+      background: #eef2f7;
+      padding: 12px;
+      border-right: 1px solid #d9e2ef;
+      display: grid;
+      align-content: start;
+      gap: 7px;
+    }
+
+    .mini-side div {
+      padding: 7px 8px;
+      border-radius: 8px;
+      color: #475569;
+      font-size: 12px;
+    }
+
+    .mini-side .active {
+      background: #5a9adf;
+      color: #fff;
+      font-weight: 750;
+    }
+
+    .mini-main {
+      padding: 13px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 10px;
+      background: #f7f9fc;
+    }
+
+    .mini-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .mini-card {
+      background: #fff;
+      border: 1px solid #e1e8f2;
+      border-radius: 10px;
+      padding: 9px;
+      min-height: 54px;
+    }
+
+    .mini-card b {
+      display: block;
+      font-size: 17px;
+    }
+
+    .mini-card span {
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    .mini-work {
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      gap: 10px;
+    }
+
+    .mini-actions {
+      display: grid;
+      gap: 7px;
+    }
+
+    .mini-action {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid #d9e6ff;
+      background: #fff;
+      border-radius: 9px;
+      padding: 8px;
+      font-size: 12px;
+    }
+
+    .mini-action em {
+      font-style: normal;
+      color: #2563eb;
+      font-weight: 800;
+    }
+
+    .mini-buttons {
+      background: #fff;
+      border: 1px solid #e1e8f2;
+      border-radius: 10px;
+      padding: 9px;
+      display: grid;
+      gap: 7px;
+      align-content: start;
+    }
+
+    .mini-buttons h4 { margin-bottom: 2px; }
+
+    .btn-mock {
+      padding: 7px 8px;
+      border-radius: 7px;
+      background: #f1f5f9;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    .mini-class {
+      background: #fff;
+      border: 1px solid #e1e8f2;
+      border-radius: 10px;
+      padding: 9px;
+    }
+
+    .mini-class-row {
+      display: grid;
+      grid-template-columns: 1.2fr 0.6fr 0.8fr 0.6fr;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #edf2f7;
+      font-size: 12px;
+    }
+
+    .muted { color: var(--muted); }
+
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .shot-layout { grid-template-columns: 1fr; }
+      .shot-frame { border-right: 0; border-bottom: 1px solid var(--line); }
+      .grid-4, .plan-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      main { padding: 14px; }
+      .grid-4, .plan-grid { grid-template-columns: 1fr; }
+      .screen-head { flex-direction: column; }
+      .mini-app { grid-template-columns: 1fr; aspect-ratio: auto; }
+      .mini-work { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>批注回应 V2</h1>
+      <p>基于原可用系统截图，只回应你批注的点。</p>
+      <a href="#principle">处理原则</a>
+      <a href="#summary">批注处理总表</a>
+      <a href="#dashboard">首页上半屏</a>
+      <a href="#dashboard-class">首页班级概览</a>
+      <a href="#student">学员详情</a>
+      <a href="#class">班级管理</a>
+      <a href="#ai">AI 对话</a>
+      <a href="#report">经营复盘</a>
+      <a href="#prototype">优化后首页沙盘</a>
+      <a href="#tasks">实施任务</a>
+    </aside>
+
+    <main>
+      <div class="hero">
+        <h2>AI 教培工作台：基于原系统的优化方案</h2>
+        <p>这一版不推翻现有可用系统，只把你批注过的入口重新整理：首页更像“今天先处理什么”，学员详情更像“单个学生复盘”，班级概览只做上课前摘要，AI 从查数据继续走向经营复盘和行动建议。</p>
+        <div class="chips">
+          <span class="chip">只处理批注项</span>
+          <span class="chip">保留原系统结构</span>
+          <span class="chip">减少重复风险标签</span>
+          <span class="chip">第一批可直接实现</span>
+        </div>
+      </div>
+
+      <section id="principle">
+        <h3>处理原则</h3>
+        <div class="grid-4">
+          <div class="decision-card">
+            <span class="badge b-do">采纳</span>
+            <strong>能点进去的入口保留</strong>
+            <p>首页统计和今日工作台都可以点，但主处理入口放在今日工作台，避免同一件事出现两个强入口。</p>
+          </div>
+          <div class="decision-card">
+            <span class="badge b-adjust">收敛</span>
+            <strong>风险提醒不重复铺开</strong>
+            <p>欠费、缺勤、课时不足不在每个列表都打标，优先由首页动作卡和数据体检统一承接。</p>
+          </div>
+          <div class="decision-card">
+            <span class="badge b-hold">暂不动</span>
+            <strong>老师提问输入区先不改</strong>
+            <p>AI 输入区的风格可以后续继续优化，本轮先把依据、复盘和准确性做好。</p>
+          </div>
+          <div class="decision-card">
+            <span class="badge b-done">已验证</span>
+            <strong>归档班级快照已存在</strong>
+            <p>代码里已有归档快照、归档搜索、放回列表、彻底删除和后端动作接口，本轮只验收不重做。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="summary">
+        <h3>15 条批注处理总表</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>批注</th><th>处理决定</th><th>修订方案</th><th>优先级</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1 顶部统计可点击</td><td>采纳</td><td>统计卡可点到对应模块；欠费金额只作为总览，不和今日工作台抢主入口。</td><td>第一批</td></tr>
+              <tr><td>2 今日工作台变动作</td><td>采纳并强化</td><td>待续费/欠费卡点击后展示优先处理 3 人：学生、原因、建议动作。</td><td>第一批</td></tr>
+              <tr><td>3 快捷按钮分组</td><td>采纳但轻量</td><td>分为记录、新增、工具三组，仍保持一屏可扫，不做复杂菜单。</td><td>第一批</td></tr>
+              <tr><td>4 待办空状态</td><td>采纳</td><td>空时显示“今天可做”：补考勤、查欠费、写沟通、经营复盘。</td><td>第一批</td></tr>
+              <tr><td>5 班级概览遗漏</td><td>补充</td><td>保留首页班级概览，但定位为“上课前摘要”，不替代班级管理。</td><td>第一批</td></tr>
+              <tr><td>6 学员列表风险标记</td><td>不做</td><td>你已确认冗余，首页直接点进去处理即可。</td><td>不做</td></tr>
+              <tr><td>7 学员详情截图不足</td><td>已补截图</td><td>基于真实详情页，只建议压缩摘要，不再凭空加一堆字段。</td><td>第一批规划</td></tr>
+              <tr><td>8 最近动态</td><td>收敛</td><td>学员详情只放“最近摘要”，完整成绩/沟通/收费仍去原模块。</td><td>第二批</td></tr>
+              <tr><td>9 班级续费节点</td><td>删减</td><td>只保留计划/已进行/剩余课次，不额外写续费节点。</td><td>第一批</td></tr>
+              <tr><td>10 班级健康风险</td><td>不重复</td><td>不在班级卡片叠加欠费/缺勤/课时不足，避免和首页、体检重复。</td><td>不做</td></tr>
+              <tr><td>11 归档快照</td><td>已验证</td><td>代码已有 archivedStudentSnapshot 和归档班级管理，本轮只做验收。</td><td>验收</td></tr>
+              <tr><td>12 老师提问输入区</td><td>暂不动</td><td>本轮先保留，避免 AI 页面又进入大改。</td><td>后续</td></tr>
+              <tr><td>13 右侧依据</td><td>采纳但压缩</td><td>右侧做窄栏/折叠“本次依据”，无依据显示未读取资料库。</td><td>第一批</td></tr>
+              <tr><td>14 AI 回归测试</td><td>采纳并升级</td><td>固定测试集不只查信息，也测“复盘、判断、建议动作”。</td><td>第一批</td></tr>
+              <tr><td>15 一键经营复盘</td><td>采纳</td><td>新增入口：周报/月报、欠费、课消、招生、风险学生，先只读生成。</td><td>第一批</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="dashboard" class="screen-section">
+        <div class="screen-head">
+          <div>
+            <h3>截图 1：首页上半屏</h3>
+            <p>保持当前首页结构，但把“指标”调整成“动作入口”。</p>
+          </div>
+          <span class="phase">第一批优先</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/01-dashboard.png" alt="首页上半屏截图" />
+              <span class="pin" style="left:45%;top:18%;">1</span>
+              <span class="pin" style="left:46%;top:39%;">2</span>
+              <span class="pin" style="left:83%;top:39%;">3</span>
+              <span class="pin" style="left:44%;top:72%;">4</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno accept">
+              <div class="anno-head"><span class="num">1</span><strong>顶部统计保留，但不抢主入口</strong></div>
+              <p>统计卡可以点击跳转到对应模块，例如在读、班级、收费。欠费金额也可以点，但视觉上弱一点。</p>
+              <div class="do">理由：真正要处理“谁欠费/谁待续费”，放在今日工作台更顺手。</div>
+            </div>
+            <div class="anno accept">
+              <div class="anno-head"><span class="num">2</span><strong>今日工作台从数字变成动作</strong></div>
+              <p>“待续费/欠费 1/15”点击后直接进入处理列表，下面露出前 3 个优先对象。</p>
+              <div class="do">显示格式：学生名 · 原因 · 建议动作，例如“李某 · 课时余额为负 · 补录收费/沟通续费”。</div>
+            </div>
+            <div class="anno adjust">
+              <div class="anno-head"><span class="num">3</span><strong>快捷按钮轻分组</strong></div>
+              <p>不做复杂大菜单，只分成三组：记录、招生、工具。</p>
+              <div class="do">建议按钮：记录考勤/新增成绩/新增收费；新增学员/新增意向；AI 对话/数据体检。</div>
+            </div>
+            <div class="anno accept">
+              <div class="anno-head"><span class="num">4</span><strong>待办空状态给行动建议</strong></div>
+              <p>没有待办时，不只显示空白，而是给 3 个轻建议。</p>
+              <div class="do">例如：补本周考勤、查看欠费、生成本周经营复盘。点击可跳转。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboard-class" class="screen-section">
+        <div class="screen-head">
+          <div>
+            <h3>截图 2：首页班级概览</h3>
+            <p>这是你指出我漏看的区域。它有必要保留，但功能要和班级管理分开。</p>
+          </div>
+          <span class="phase">第一批优先</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/07-dashboard-class-overview.png" alt="首页班级概览截图" />
+              <span class="pin" style="left:48%;top:49%;">5</span>
+              <span class="pin" style="left:75%;top:49%;">6</span>
+              <span class="pin" style="left:89%;top:49%;">7</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno adjust">
+              <div class="anno-head"><span class="num">5</span><strong>定位：上课前摘要，不是班级管理</strong></div>
+              <p>首页班级概览保留，因为老师打开首页常常想知道“最近哪些班上到哪里了”。</p>
+              <div class="do">不要放复杂编辑、成员管理、归档等操作，这些仍留在班级管理。</div>
+            </div>
+            <div class="anno accept">
+              <div class="anno-head"><span class="num">6</span><strong>显示课次进度即可</strong></div>
+              <p>显示“12/17、剩余 5 次”就够，不再额外标“续费节点”。</p>
+              <div class="do">你的判断是对的：学期课次很清楚，不需要系统反复提醒。</div>
+            </div>
+            <div class="anno no">
+              <div class="anno-head"><span class="num">7</span><strong>不叠加班级风险标签</strong></div>
+              <p>欠费、缺勤、课时不足在首页动作卡和数据体检已经有入口。</p>
+              <div class="do">班级概览只保留“学员 / 考勤”两个快捷入口，避免重复。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="student" class="screen-section">
+        <div class="screen-head">
+          <div>
+            <h3>截图 3：学员详情</h3>
+            <p>这次补了点击学员后的真实详情截图。这里不再建议左侧列表加风险标记。</p>
+          </div>
+          <span class="phase">第二批优化</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/08-student-detail.png" alt="学员详情截图" />
+              <span class="pin" style="left:63%;top:31%;">8</span>
+              <span class="pin" style="left:72%;top:67%;">9</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno no">
+              <div class="anno-head"><span class="num">8</span><strong>左侧列表不加风险标记</strong></div>
+              <p>你说得对，欠费/课时风险从首页入口点进来即可，左侧列表再加会乱。</p>
+              <div class="do">保留现有筛选数量即可，不额外叠加红点、黄色标识。</div>
+            </div>
+            <div class="anno adjust">
+              <div class="anno-head"><span class="num">9</span><strong>学员详情只做“单人摘要”</strong></div>
+              <p>右侧已经有收费、成绩、沟通摘要。后续只建议再压缩排版，不做一条巨大的混合动态流。</p>
+              <div class="do">最佳入口：单个学生看详情；批量成绩/沟通仍去对应模块。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="class" class="screen-section">
+        <div class="screen-head">
+          <div>
+            <h3>截图 4：班级管理</h3>
+            <p>班级管理保持业务维护属性，不承担首页提醒和数据体检功能。</p>
+          </div>
+          <span class="phase">验收为主</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/03-classes.png" alt="班级管理截图" />
+              <span class="pin" style="left:57%;top:35%;">10</span>
+              <span class="pin" style="left:82%;top:46%;">11</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno no">
+              <div class="anno-head"><span class="num">10</span><strong>不加班级健康风险</strong></div>
+              <p>班级人数、课次进度是班级管理该看的；欠费、缺勤、课时不足不在这里重复铺开。</p>
+              <div class="do">原因：这些已经能从首页动作卡、数据体检和单个学员详情进入。</div>
+            </div>
+            <div class="anno accept">
+              <div class="anno-head"><span class="num">11</span><strong>归档班级快照已做，后续只验收</strong></div>
+              <p>代码里已有 <strong>archivedStudentSnapshot</strong>，归档班级管理支持搜索、展开、放回列表、彻底删除。</p>
+              <div class="do">验收点：归档后学员状态变化，不应影响归档班级里历史学员显示。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="ai" class="screen-section">
+        <div class="screen-head">
+          <div>
+            <h3>截图 5：AI 对话</h3>
+            <p>AI 不是只查数据。真正价值应转向复盘、判断和行动建议。</p>
+          </div>
+          <span class="phase">第一批优先</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/04-ai-chat.png" alt="AI 对话截图" />
+              <span class="pin" style="left:79%;top:21%;">12</span>
+              <span class="pin" style="left:84%;top:48%;">13</span>
+              <span class="pin" style="left:55%;top:82%;">14</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno hold">
+              <div class="anno-head"><span class="num">12</span><strong>输入区本轮先不动</strong></div>
+              <p>你已确认“老师提问”的输入区可以先按现状来。AI 页面不继续大改外观。</p>
+              <div class="do">本轮重点放在回答准、依据清楚、能做复盘。</div>
+            </div>
+            <div class="anno adjust">
+              <div class="anno-head"><span class="num">13</span><strong>右侧依据要小而清楚</strong></div>
+              <p>右侧可以保留“本次依据”，但默认压缩，不占太多空间。</p>
+              <div class="do">有依据显示引用资料；无依据显示“未读取资料库”；可折叠，给后续功能留位置。</div>
+            </div>
+            <div class="anno accept">
+              <div class="anno-head"><span class="num">14</span><strong>AI 回归测试升级</strong></div>
+              <p>固定测试集不仅测“能不能查到信息”，还要测是否答非所问、是否能给行动建议。</p>
+              <div class="do">例：家长会怎么开，不应返回学员名单；上月课消，应按月份统计。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="report" class="screen-section">
+        <div class="screen-head">
+          <div>
+            <h3>截图 6：统计报表与一键经营复盘</h3>
+            <p>这是一项新增能力：它比“问 AI 查一个数字”更有价值。</p>
+          </div>
+          <span class="phase">第一批优先</span>
+        </div>
+        <div class="shot-layout">
+          <div class="shot-frame">
+            <div class="shot-inner">
+              <img src="assets/workbench-optimization-2026-06-19/06-reports.png" alt="统计报表截图" />
+              <span class="pin" style="left:83%;top:14%;">15</span>
+            </div>
+          </div>
+          <div class="annotation-panel">
+            <div class="anno accept">
+              <div class="anno-head"><span class="num">15</span><strong>增加一键经营复盘</strong></div>
+              <p>入口可以放在首页今日工作台，也可以放在统计报表顶部。</p>
+              <div class="do">第一版只读生成：本周/本月课消、欠费、待续费、招生、沟通提醒、异常数据，不直接改数据。</div>
+            </div>
+            <div class="anno adjust">
+              <div class="anno-head"><span class="num">16</span><strong>复盘比查数更重要</strong></div>
+              <p>你自己点一下能查到数字，所以 AI 的价值应是“帮你整合、判断、排序、给下一步动作”。</p>
+              <div class="do">输出格式：结论 3 条 + 优先处理名单 + 本周动作清单。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="prototype">
+        <h3>优化后首页沙盘</h3>
+        <p class="muted">这是基于原首页结构做的缩小演示，不是新系统。重点展示：顶部统计保留、今日工作台变动作、快捷按钮轻分组、班级概览降级为摘要。</p>
+        <div class="prototype">
+          <div class="mini-app">
+            <div class="mini-side">
+              <div class="active">首页</div>
+              <div>统计报表</div>
+              <div>班级管理</div>
+              <div>考勤记录</div>
+              <div>收费记录</div>
+              <div>学员管理</div>
+              <div>AI 对话</div>
+              <div>资料库</div>
+            </div>
+            <div class="mini-main">
+              <div class="mini-stats">
+                <div class="mini-card"><b>69</b><span>在读学员 · 可点击</span></div>
+                <div class="mini-card"><b>8</b><span>班级数量 · 可点击</span></div>
+                <div class="mini-card"><b>¥66,600</b><span>欠费金额 · 总览</span></div>
+                <div class="mini-card"><b>84%</b><span>课消率 · 可点击</span></div>
+              </div>
+              <div class="mini-work">
+                <div class="mini-actions">
+                  <div class="mini-action"><span>待续费 / 欠费</span><em>1 / 15</em></div>
+                  <div class="mini-action"><span>优先处理：李远森 · 课时余额为负</span><em>去处理</em></div>
+                  <div class="mini-action"><span>优先处理：张同学 · 欠费未跟进</span><em>去沟通</em></div>
+                  <div class="mini-action"><span>一键经营复盘：生成本周工作摘要</span><em>生成</em></div>
+                </div>
+                <div class="mini-buttons">
+                  <h4>快捷操作</h4>
+                  <div class="btn-mock">记录：考勤 / 成绩 / 收费</div>
+                  <div class="btn-mock">新增：学员 / 意向</div>
+                  <div class="btn-mock">工具：AI / 数据体检</div>
+                </div>
+              </div>
+              <div class="mini-class">
+                <h4>班级概览：只做上课前摘要</h4>
+                <div class="mini-class-row"><b>六创-周六上午9点</b><span>正常</span><span>12 / 17</span><span>学员 / 考勤</span></div>
+                <div class="mini-class-row"><b>初一培-周日下午4点</b><span>正常</span><span>12 / 17</span><span>学员 / 考勤</span></div>
+                <div class="mini-class-row"><b>六培-周日下午1点半</b><span>正常</span><span>13 / 17</span><span>学员 / 考勤</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tasks">
+        <h3>可执行修改任务</h3>
+        <div class="plan-grid">
+          <div class="plan-card">
+            <span class="badge b-do">立即 / 第一批</span>
+            <h4>首页动作化</h4>
+            <ul>
+              <li>统计卡补跳转，但欠费金额不做强入口。</li>
+              <li>今日工作台卡片点击后显示优先处理名单。</li>
+              <li>快捷按钮轻分组：记录、新增、工具。</li>
+              <li>待办空状态显示 3 个建议动作。</li>
+              <li>首页班级概览保留为“上课前摘要”。</li>
+            </ul>
+          </div>
+          <div class="plan-card">
+            <span class="badge b-do">立即 / 第一批</span>
+            <h4>AI 可用性</h4>
+            <ul>
+              <li>右侧依据栏压缩，可折叠。</li>
+              <li>维护 AI 问答回归测试集。</li>
+              <li>增加一键经营复盘入口。</li>
+              <li>复盘输出：结论、优先名单、建议动作。</li>
+              <li>避免“家长会怎么开”返回学生清单。</li>
+            </ul>
+          </div>
+          <div class="plan-card">
+            <span class="badge b-done">验收 / 不重做</span>
+            <h4>班级与学员</h4>
+            <ul>
+              <li>归档班级快照已存在，只验证。</li>
+              <li>不做左侧学员风险标记。</li>
+              <li>不在班级卡片叠加欠费/缺勤风险。</li>
+              <li>学员详情后续只做紧凑摘要优化。</li>
+              <li>班级课次不显示“续费节点”文字。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="note">
+          <strong>边界：</strong>其他没有批注的页面暂时不动。这一轮不是重构系统，而是把原可用系统的关键入口改得更顺手。
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
