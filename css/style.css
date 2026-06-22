@@ -545,9 +545,9 @@ tr:hover { background: var(--hover-bg); }
 tr.edited { background: #fff9e6; }
 tr.row-warning { background: #fff3cd; }
 
-/* 表格第一列居中 */
+/* 普通表格左对齐，考勤表单独居中 */
 table td:first-child,
-table th:first-child,
+table th:first-child { text-align: left; }
 .attendance-table td:first-child,
 .attendance-table th:first-child { text-align: center; }
 
@@ -676,7 +676,27 @@ body.dark-mode .attendance-input.absent {
 }
 
 /* 按钮 */
-.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+.btn {
+    padding: 7px 14px;
+    min-height: 32px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.2;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-secondary):not(.btn-warning):not(.privacy-toggle) {
+    background: #eef3f8;
+    color: #2c3e50;
+}
+.btn:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-secondary):not(.btn-warning):not(.privacy-toggle):hover {
+    background: #dfe8f1;
+}
 .btn-primary { background: #3498db; color: white; }
 .btn-primary:hover { background: #2980b9; }
 .btn-success { background: #27ae60; color: white; }
@@ -685,16 +705,45 @@ body.dark-mode .attendance-input.absent {
 .btn-danger:hover { background: #c0392b; }
 .btn-secondary { background: #95a5a6; color: white; }
 .btn-secondary:hover { background: #7f8c8d; }
-.btn-sm { padding: 5px 10px; font-size: 12px; }
-.btn-xs { padding: 3px 8px; font-size: 11px; }
+.btn-sm { min-height: 28px; padding: 5px 10px; font-size: 12px; }
+.btn-xs { min-height: 22px; padding: 3px 8px; border-radius: 7px; font-size: 11px; }
 .btn-warning { background: #f39c12; color: white; }
 .btn-warning:hover { background: #d68910; }
+body.dark-mode .btn:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-secondary):not(.btn-warning):not(.privacy-toggle) {
+    background: #26324d;
+    color: #e5edf7;
+}
+body.dark-mode .btn:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-secondary):not(.btn-warning):not(.privacy-toggle):hover {
+    background: #31405f;
+}
 body.dark-mode .btn-secondary {
     background: #374151;
     color: #f3f4f6;
 }
 body.dark-mode .btn-secondary:hover {
     background: #4b5563;
+}
+
+/* 旧内联浅色样式的夜间模式兜底 */
+body.dark-mode [style*="color:#888"],
+body.dark-mode [style*="color: #888"] {
+    color: var(--text-muted) !important;
+}
+
+body.dark-mode [style*="color:#666"],
+body.dark-mode [style*="color: #666"] {
+    color: var(--text-secondary) !important;
+}
+
+body.dark-mode [style*="background:#fff3cd"],
+body.dark-mode [style*="background: #fff3cd"],
+body.dark-mode [style*="background:#fff7e6"],
+body.dark-mode [style*="background: #fff7e6"],
+body.dark-mode [style*="background:#fff8e6"],
+body.dark-mode [style*="background: #fff8e6"],
+body.dark-mode tr[style*="background:#fff8e6"] {
+    background: #2f2b1f !important;
+    color: #fde68a !important;
 }
 
 /* 表单 */
@@ -1850,6 +1899,26 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
 .system-qa-full-tip {
     color: var(--text-muted);
     font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+    .system-qa-shell {
+        grid-template-columns: 240px minmax(0, 1fr);
+    }
+    .system-qa-sidebar {
+        padding: 12px;
+    }
+    .system-qa-reference-panel {
+        display: none;
+    }
+    .system-qa-conversation {
+        padding-left: max(16px, calc((100% - 680px) / 2));
+        padding-right: max(16px, calc((100% - 680px) / 2));
+    }
+    .system-qa-input-area {
+        padding-left: max(16px, calc((100% - 680px) / 2));
+        padding-right: max(16px, calc((100% - 680px) / 2));
+    }
 }
 
 @media (max-width: 700px) {
