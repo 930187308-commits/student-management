@@ -246,6 +246,75 @@ function openStudentAIQuestion(studentId, type) {
     }, 100);
 }
 
+function openStudentDetailFromRecord(studentId = '', studentName = '') {
+    let targetId = studentId;
+    if (!targetId && studentName) {
+        const normalizedName = normalizeNameForMatch(studentName);
+        const matched = (data.students || []).find(s => normalizeNameForMatch(s.name) === normalizedName);
+        targetId = matched?.id || '';
+    }
+    if (!targetId) {
+        showToast('未找到对应学员');
+        return;
+    }
+    switchTab('students');
+    setTimeout(() => selectStudent(targetId), 80);
+}
+
+function openStudentFeeQuick(studentId) {
+    const student = data.students.find(s => s.id === studentId);
+    if (!student) return;
+    const pendingFee = (data.fees || [])
+        .filter(f => f.studentId === studentId && f.status === 'pending')
+        .sort((a, b) => String(b.paymentDate || '').localeCompare(String(a.paymentDate || '')))[0];
+    const latestFee = (data.fees || [])
+        .filter(f => f.studentId === studentId)
+        .sort((a, b) => String(b.paymentDate || '').localeCompare(String(a.paymentDate || '')))[0];
+    switchTab('fees');
+    setTimeout(() => {
+        if (pendingFee && typeof openFeeModal === 'function') {
+            openFeeModal(pendingFee.id);
+            return;
+        }
+        if (latestFee && typeof openFeeModal === 'function') {
+            openFeeModal(latestFee.id);
+            return;
+        }
+        if (typeof openFeeModal === 'function') {
+            openFeeModal(null, { studentId, status: 'pending' });
+        }
+    }, 100);
+}
+
+function openStudentGradeQuick(studentId) {
+    const latestGrade = (data.grades || [])
+        .filter(g => g.studentId === studentId)
+        .sort((a, b) => String(b.testDate || '').localeCompare(String(a.testDate || '')))[0];
+    switchTab('grades');
+    setTimeout(() => {
+        if (typeof openGradeModal === 'function') {
+            openGradeModal(latestGrade?.id || null, { studentId });
+        }
+    }, 100);
+}
+
+function openStudentCommQuick(studentId) {
+    const latestComm = (data.communications || [])
+        .filter(c => c.studentId === studentId)
+        .sort((a, b) => {
+            const pendingRank = (item) => item.status === 'pending' ? 0 : 1;
+            const rankDiff = pendingRank(a) - pendingRank(b);
+            if (rankDiff !== 0) return rankDiff;
+            return String(b.contactDate || '').localeCompare(String(a.contactDate || ''));
+        })[0];
+    switchTab('communications');
+    setTimeout(() => {
+        if (typeof openCommModal === 'function') {
+            openCommModal(latestComm?.id || null, { studentId });
+        }
+    }, 100);
+}
+
 function renderStudentDetail() {
     if (!currentStudentId) return;
     const student = data.students.find(s => s.id === currentStudentId);
@@ -365,7 +434,7 @@ function renderStudentDetail() {
         </div>
 
         <div class="student-detail-summary-grid">
-            <div class="student-detail-card ${riskNotes.length ? 'is-risk' : ''}">
+            <div class="student-detail-card clickable-card ${riskNotes.length ? 'is-risk' : ''}" role="button" tabindex="0" title="点击处理该学员收费/欠费" onclick="openStudentFeeQuick('${student.id}')" onkeydown="if(event.key==='Enter')openStudentFeeQuick('${student.id}')">
                 <div class="student-detail-card-title">
                     <span>课时与收费</span>
                     ${riskNotes.length ? '<span class="badge badge-pending">需处理</span>' : '<span class="badge badge-active">正常</span>'}
@@ -380,7 +449,7 @@ function renderStudentDetail() {
                 <div class="student-detail-muted">最近收费：${latestFeeText}</div>
             </div>
 
-            <div class="student-detail-card">
+            <div class="student-detail-card clickable-card" role="button" tabindex="0" title="点击查看或新增该学员成绩" onclick="openStudentGradeQuick('${student.id}')" onkeydown="if(event.key==='Enter')openStudentGradeQuick('${student.id}')">
                 <div class="student-detail-card-title">
                     <span>最近成绩</span>
                     ${latestGrade ? `<span class="badge badge-normal">${escapeHtml(latestGrade.testName || '测试')}</span>` : '<span class="badge badge-normal">暂无</span>'}
@@ -392,7 +461,7 @@ function renderStudentDetail() {
                 ` : '<div class="student-detail-muted">暂无成绩记录</div>'}
             </div>
 
-            <div class="student-detail-card">
+            <div class="student-detail-card clickable-card" role="button" tabindex="0" title="点击查看或补充该学员沟通记录" onclick="openStudentCommQuick('${student.id}')" onkeydown="if(event.key==='Enter')openStudentCommQuick('${student.id}')">
                 <div class="student-detail-card-title">
                     <span>最近沟通</span>
                     ${latestComm ? `<span class="badge badge-normal">${escapeHtml(latestComm.status || '已记录')}</span>` : '<span class="badge badge-normal">暂无</span>'}

@@ -1886,70 +1886,6 @@ body.dark-mode .reminder-item:hover {
     color: var(--text-muted);
     margin-top: 2px;
 }
-.dashboard-priority-list {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-color);
-}
-.dashboard-priority-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    color: var(--text-primary);
-    font-size: 13px;
-    font-weight: 700;
-}
-.dashboard-priority-item {
-    display: grid;
-    grid-template-columns: minmax(88px, 0.8fr) minmax(160px, 1.4fr) minmax(100px, 0.8fr);
-    gap: 10px;
-    align-items: center;
-    width: 100%;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 8px 10px;
-    background: var(--bg-card);
-    color: var(--text-primary);
-    text-align: left;
-    cursor: pointer;
-}
-.dashboard-priority-item + .dashboard-priority-item {
-    margin-top: 6px;
-}
-.dashboard-priority-item:hover {
-    background: var(--hover-bg);
-}
-.dashboard-priority-name {
-    font-weight: 700;
-}
-.dashboard-priority-reason {
-    color: var(--text-secondary);
-    font-size: 12px;
-}
-.dashboard-priority-action {
-    justify-self: end;
-    border: 0;
-    border-radius: 999px;
-    padding: 3px 8px;
-    background: #fff3cd;
-    color: #856404;
-    font-size: 11px;
-    white-space: nowrap;
-    cursor: pointer;
-}
-.dashboard-priority-action:hover {
-    filter: brightness(0.97);
-}
-.dashboard-priority-empty {
-    padding: 10px;
-    border-radius: 8px;
-    background: var(--hover-bg);
-    color: var(--text-muted);
-    font-size: 13px;
-    text-align: center;
-}
-
 /* 待办 */
 .dashboard-todo {}
 #todoList { display: flex; flex-direction: column; gap: 6px; }
@@ -2029,6 +1965,15 @@ body.dark-mode .reminder-item:hover {
     border: 1px solid var(--border-color);
     border-radius: 10px;
     background: var(--bg-card);
+}
+.student-detail-card.clickable-card {
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.student-detail-card.clickable-card:hover {
+    border-color: #3498db;
+    box-shadow: 0 8px 20px rgba(52, 152, 219, 0.12);
+    transform: translateY(-1px);
 }
 .student-detail-card.is-risk {
     border-color: #f5b7a4;
@@ -2320,6 +2265,24 @@ body.dark-mode .student-judgement-item.is-risk {
     justify-content: space-between;
     margin-bottom: 12px;
 }
+.record-link-btn {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #3498db;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.record-link-btn:hover {
+    text-decoration: underline;
+}
+.class-member-chip {
+    cursor: pointer;
+}
+.class-member-chip:hover {
+    box-shadow: inset 0 0 0 1px #3498db;
+}
 
 /* 移动端首页 */
 @media (max-width: 700px) {
@@ -2332,13 +2295,6 @@ body.dark-mode .student-judgement-item.is-risk {
     }
     .reminder-grid {
         grid-template-columns: repeat(2, 1fr);
-    }
-    .dashboard-priority-item {
-        grid-template-columns: 1fr;
-        gap: 4px;
-    }
-    .dashboard-priority-action {
-        justify-self: start;
     }
     .student-detail-summary-grid {
         grid-template-columns: 1fr;

@@ -441,6 +441,15 @@ function openDashboardFirstPriority() {
     openDashboardPriority(first.type, first.targetId);
 }
 
+function openPendingFeeRecordsFromDashboard() {
+    switchTab('fees');
+    setTimeout(() => {
+        const statusFilter = document.getElementById('feeStatusFilter');
+        if (statusFilter) statusFilter.value = 'pending';
+        if (typeof renderFeeTable === 'function') renderFeeTable();
+    }, 80);
+}
+
 function renderDashboard() {
     const container = document.getElementById('tab-dashboard');
     if (!dashboardSummaryCache && !dashboardSummaryLoading) {
@@ -462,7 +471,6 @@ function renderDashboard() {
     const pendingFees = summary.pendingFees || [];
     const classStats = summary.classOverview || [];
     const work = getTodayWorkData();
-    const priorityItems = getDashboardPriorityItems();
 
     let html = '';
 
@@ -480,7 +488,7 @@ function renderDashboard() {
                         <div class="reminder-num">AI</div>
                         <div class="reminder-label">经营复盘</div>
                     </div>
-                    <div class="reminder-item" onclick="openDashboardFirstPriority()">
+                    <div class="reminder-item" onclick="openPendingFeeRecordsFromDashboard()">
                         <div class="reminder-icon">💰</div>
                         <div class="reminder-num">${getPrivacyVal(work.pendingRenewal)} / ${getPrivacyVal(work.unpaidCount)}</div>
                         <div class="reminder-label">待续费 / 欠费</div>
@@ -506,21 +514,6 @@ function renderDashboard() {
                 <button class="btn btn-secondary btn-sm" onclick="goToAttendanceToday()">考勤</button>
                 <button class="btn btn-secondary btn-sm" onclick="openDataHealthCheck()">体检</button>
             </div>
-        </div>
-        <div class="dashboard-priority-list">
-            <div class="dashboard-priority-head">
-                <span>优先处理</span>
-                <button class="btn btn-secondary btn-xs" onclick="openBusinessReviewFromDashboard()">AI 复盘</button>
-            </div>
-            ${priorityItems.length ? priorityItems.map(item => `
-                <div class="dashboard-priority-item" role="button" tabindex="0" onclick="openDashboardPriority('${escapeHtml(item.type)}', '${escapeHtml(item.targetId)}')" onkeydown="if(event.key==='Enter')openDashboardPriority('${escapeHtml(item.type)}', '${escapeHtml(item.targetId)}')">
-                    <span class="dashboard-priority-name">${escapeHtml(item.title)}</span>
-                    <span class="dashboard-priority-reason">${escapeHtml(item.meta ? `${item.meta} · ${item.reason}` : item.reason)}</span>
-                    <button class="dashboard-priority-action" type="button" onclick="openDashboardPriorityAction(event, '${escapeHtml(item.type)}', '${escapeHtml(item.targetId)}')">${escapeHtml(item.action)}</button>
-                </div>
-            `).join('') : `
-                <div class="dashboard-priority-empty">暂无明显优先事项，可以先做经营复盘或补录最近考勤。</div>
-            `}
         </div>
     </div>
     `;

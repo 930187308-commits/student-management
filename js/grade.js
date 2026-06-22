@@ -71,7 +71,11 @@ function renderGradeTable() {
 
     const tbody = document.getElementById('gradeTableBody');
     tbody.innerHTML = filtered.length > 0
-        ? filtered.map(g => `<tr>${gradeBatchMode ? `<td><input type="checkbox" class="grade-select" value="${g.id}" onchange="updateGradeSelectionCount()"></td>` : ''}<td>${escapeHtml(g.studentName)}</td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.remark || '-')}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`).join('')
+        ? filtered.map(g => {
+            const student = getGradeRecordStudent(g);
+            const studentId = student?.id || g.studentId || '';
+            return `<tr>${gradeBatchMode ? `<td><input type="checkbox" class="grade-select" value="${g.id}" onchange="updateGradeSelectionCount()"></td>` : ''}<td><button type="button" class="record-link-btn" onclick="openStudentDetailFromRecord('${escapeHtml(studentId)}', '${escapeHtml(g.studentName)}')">${escapeHtml(g.studentName)}</button></td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.remark || '-')}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-primary btn-xs" onclick="openStudentAIQuestion('${escapeHtml(studentId)}', 'feedback')">反馈</button><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`;
+        }).join('')
         : `<tr><td colspan="${gradeBatchMode ? 10 : 9}" style="text-align:center;color:#888;padding:24px;">暂无成绩记录</td></tr>`;
 }
 
@@ -85,10 +89,12 @@ function toggleGradeBatchMode() {
     renderGrades();
 }
 
-function openGradeModal(id = null) {
+function openGradeModal(id = null, defaults = {}) {
     currentEditId = id;
     const grade = id ? data.grades.find(g => g.id === id) : null;
-    const existingStudent = grade ? data.students.find(s => s.id === grade.studentId) : null;
+    const selectedStudentId = grade?.studentId || defaults.studentId || '';
+    const existingStudent = selectedStudentId ? data.students.find(s => s.id === selectedStudentId) : null;
+    const defaultExamType = grade?.examType || defaults.examType || 'external';
 
     document.getElementById('modalTitle').textContent = id ? '编辑成绩' : '新增成绩';
     document.getElementById('modalBody').innerHTML = `
@@ -98,27 +104,27 @@ function openGradeModal(id = null) {
                     <label>学员 *</label>
                     <input type="text" id="gradeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterGradeStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
                     <select id="gradeStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectGradeStudent(this)"></select>
-                    <input type="hidden" name="studentId" id="gradeStudentId" value="${grade?.studentId || ''}">
+                    <input type="hidden" name="studentId" id="gradeStudentId" value="${selectedStudentId}">
                 </div>
-                <div class="form-group"><label>测试名称 *</label><input type="text" name="testName" value="${escapeHtml(grade?.testName || '')}" required></div>
-                <div class="form-group"><label>测试日期</label><input type="date" name="testDate" value="${grade?.testDate || new Date().toISOString().split('T')[0]}"></div>
+                <div class="form-group"><label>测试名称 *</label><input type="text" name="testName" value="${escapeHtml(grade?.testName ?? defaults.testName ?? '')}" required></div>
+                <div class="form-group"><label>测试日期</label><input type="date" name="testDate" value="${grade?.testDate ?? defaults.testDate ?? new Date().toISOString().split('T')[0]}"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>得分 *</label><input type="number" name="score" value="${grade?.score || ''}" required min="0"></div>
-                <div class="form-group"><label>满分</label><input type="number" name="fullScore" value="${grade?.fullScore || 100}" min="0"></div>
-                <div class="form-group"><label>班级排名</label><input type="number" name="ranking" value="${grade?.ranking || ''}" min="1"></div>
+                <div class="form-group"><label>得分 *</label><input type="number" name="score" value="${grade?.score ?? defaults.score ?? ''}" required min="0"></div>
+                <div class="form-group"><label>满分</label><input type="number" name="fullScore" value="${grade?.fullScore ?? defaults.fullScore ?? 100}" min="0"></div>
+                <div class="form-group"><label>班级排名</label><input type="number" name="ranking" value="${grade?.ranking ?? defaults.ranking ?? ''}" min="1"></div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label>成绩类型</label>
                     <select name="examType">
-                        <option value="external" ${(!grade || grade?.examType === 'external') ? 'selected' : ''}>校外成绩</option>
-                        <option value="school" ${grade?.examType === 'school' ? 'selected' : ''}>校内成绩</option>
+                        <option value="external" ${defaultExamType === 'external' ? 'selected' : ''}>校外成绩</option>
+                        <option value="school" ${defaultExamType === 'school' ? 'selected' : ''}>校内成绩</option>
                     </select>
                 </div>
-                <div class="form-group" style="flex:2;"><label>薄弱点</label><input type="text" name="weakPoints" value="${escapeHtml(grade?.weakPoints || '')}" placeholder="如：计算准确性、几何证明题"></div>
+                <div class="form-group" style="flex:2;"><label>薄弱点</label><input type="text" name="weakPoints" value="${escapeHtml(grade?.weakPoints ?? defaults.weakPoints ?? '')}" placeholder="如：计算准确性、几何证明题"></div>
             </div>
-            <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${escapeHtml(grade?.remark || '')}</textarea></div>
+            <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${escapeHtml(grade?.remark ?? defaults.remark ?? '')}</textarea></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
         </form>
     `;

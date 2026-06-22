@@ -52,7 +52,12 @@ function renderFeeTable() {
     const search = document.getElementById('feeSearch')?.value?.toLowerCase() || '';
     const status = document.getElementById('feeStatusFilter')?.value || '';
     const allData = data.fees || [];
-    const filtered = allData.filter(f => (!search || f.studentName.toLowerCase().includes(search)) && (!status || f.status === status)).sort((a, b) => (b.paymentDate || '').localeCompare(a.paymentDate || ''));
+    const filtered = allData.filter(f => (!search || f.studentName.toLowerCase().includes(search)) && (!status || f.status === status)).sort((a, b) => {
+        const statusRank = (item) => item.status === 'pending' ? 0 : 1;
+        const rankDiff = statusRank(a) - statusRank(b);
+        if (rankDiff !== 0) return rankDiff;
+        return String(b.paymentDate || '').localeCompare(String(a.paymentDate || ''));
+    });
     const total = allData.length;
     const current = filtered.length;
     const countBar = document.getElementById('feeCountBar');
@@ -60,7 +65,7 @@ function renderFeeTable() {
     if (feeBatchMode) updateFeeSelectionCount();
     const tbody = document.getElementById('feeTableBody');
     tbody.innerHTML = filtered.length > 0
-        ? filtered.map(f => `<tr>${feeBatchMode ? `<td><input type="checkbox" class="fee-select" value="${f.id}" onchange="updateFeeSelectionCount()"></td>` : ''}<td>${escapeHtml(f.studentName)}</td><td>¥${f.amount.toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('')
+        ? filtered.map(f => `<tr>${feeBatchMode ? `<td><input type="checkbox" class="fee-select" value="${f.id}" onchange="updateFeeSelectionCount()"></td>` : ''}<td><button type="button" class="record-link-btn" onclick="openStudentDetailFromRecord('${escapeHtml(f.studentId || '')}', '${escapeHtml(f.studentName)}')">${escapeHtml(f.studentName)}</button></td><td>¥${Number(f.amount || 0).toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button>${f.status === 'pending' ? `<button class="btn btn-success btn-xs" onclick="markFeePaid('${f.id}')">转已缴</button><button class="btn btn-primary btn-xs" onclick="openStudentAIQuestion('${escapeHtml(f.studentId || '')}', 'renewal')">话术</button>` : ''}<button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('')
         : `<tr><td colspan="${feeBatchMode ? 9 : 8}" style="text-align:center;color:#888;padding:24px;">暂无收费记录</td></tr>`;
 }
 
@@ -170,6 +175,25 @@ async function deleteFee(id) {
         return;
     }
     showToast('删除成功');
+    render();
+}
+
+async function markFeePaid(id) {
+    const fee = (data.fees || []).find(f => f.id === id);
+    if (!fee) return;
+    if (!confirm(`确定将“${fee.studentName || '该学员'}”这条欠费记录标记为已缴吗？`)) return;
+    const updatedFee = {
+        ...fee,
+        status: 'paid',
+        paymentDate: fee.paymentDate || new Date().toISOString().split('T')[0]
+    };
+    try {
+        await saveCollectionItemToApi('fees', updatedFee);
+    } catch (error) {
+        showToast('更新失败：' + error.message);
+        return;
+    }
+    showToast('已转为已缴');
     render();
 }
 

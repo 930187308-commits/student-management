@@ -70,6 +70,7 @@ function renderClasses() {
                                     <td><span class="badge ${c.status === 'active' ? 'badge-active' : c.status === 'forming' ? 'badge-trial' : 'badge-pending'}">${c.status === 'active' ? '正常' : c.status === 'forming' ? '组班中' : '已结课'}</span></td>
                                     <td>
                                         <button class="btn btn-secondary btn-xs" onclick="openClassModal('${c.id}')">编辑</button>
+                                        <button class="btn btn-primary btn-xs" onclick="openClassAttendance('${c.id}')">考勤</button>
                                         <button class="btn btn-danger btn-xs" onclick="archiveClass('${c.id}')">归档</button>
                                     </td>
                                 </tr>
@@ -81,6 +82,8 @@ function renderClasses() {
                                                 <div style="display: flex; gap: 8px;">
                                                     <button class="btn btn-success btn-sm" onclick="openClassMemberManager('${c.id}')">管理成员</button>
                                                     ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="switchToStudentTab(); setTimeout(() => { const s = document.getElementById('studentClassFilter'); if(s) s.value='${c.id}'; renderStudentList(); }, 100)">查看全部学员</button>` : ''}
+                                                    ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="openClassGrades('${c.id}')">本班成绩</button>` : ''}
+                                                    ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="openClassBusinessReminder('${c.id}')">AI 续费提醒</button>` : ''}
                                                     ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="exportClassStudents('${c.id}')">导出学员</button>` : ''}
                                                 </div>
                                             </div>
@@ -88,7 +91,7 @@ function renderClasses() {
                                             ${c.status !== 'forming' && data.students.filter(s => s.classId === c.id && isCurrentClassStudent(s)).length > 0 ? `
                                                 <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                                     ${data.students.filter(s => s.classId === c.id && isCurrentClassStudent(s)).map(s => `
-                                                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                                        <span class="class-member-chip" onclick="openStudentDetailFromRecord('${s.id}')" style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                                             <span style="width: 8px; height: 8px; border-radius: 50%; background: ${s.status === 'renewalPending' ? '#f39c12' : '#27ae60'};"></span>
                                                             ${escapeHtml(s.name)}
                                                             ${s.status === 'renewalPending' ? '<span style="font-size: 11px; color: #f39c12;">待续费</span>' : ''}
@@ -147,6 +150,38 @@ function exportClassStudents(classId) {
 
 function switchToStudentTab() {
     document.querySelector('[data-tab="students"]').click();
+}
+
+function openClassAttendance(classId) {
+    switchTab('attendance');
+    setTimeout(() => {
+        const select = document.getElementById('attendanceClassSelect');
+        if (select) select.value = classId;
+        if (typeof loadAttendanceClass === 'function') loadAttendanceClass(classId);
+    }, 100);
+}
+
+function openClassGrades(classId) {
+    switchTab('grades');
+    setTimeout(() => {
+        const classFilter = document.getElementById('gradeClassFilter');
+        if (classFilter) classFilter.value = classId;
+        if (typeof renderGradeTable === 'function') renderGradeTable();
+    }, 100);
+}
+
+function openClassBusinessReminder(classId) {
+    const cls = (data.classes || []).find(c => c.id === classId);
+    if (!cls) return;
+    const question = `请根据系统里“${cls.name}”这个班的学员、课时、收费、成绩和沟通记录，生成本班经营与续费提醒。请按：优先处理学生、原因、建议动作输出。`;
+    switchTab('ai-workspace');
+    setTimeout(() => {
+        if (typeof fillSystemQAQuestion === 'function') fillSystemQAQuestion(question);
+        if (typeof setSystemQAAnswerLength === 'function') setSystemQAAnswerLength('detailed');
+        const lengthSelect = document.getElementById('systemQAAnswerLength');
+        if (lengthSelect) lengthSelect.value = 'detailed';
+        document.getElementById('agentInput')?.focus();
+    }, 100);
 }
 
 function openClassTypeManager() {

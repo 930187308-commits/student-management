@@ -59,12 +59,12 @@ function renderCommTable() {
         return `<tr>
             ${communicationBatchMode ? `<td><input type="checkbox" class="communication-select" value="${c.id}" onchange="updateCommunicationSelectionCount()"></td>` : ''}
             <td>${topic ? `<span class="badge" style="background:${escapeHtml(topic.color)};color:white;">${escapeHtml(topic.name)}</span>` : '-'}</td>
-            <td>${escapeHtml(c.studentName)}</td>
+            <td><button type="button" class="record-link-btn" onclick="openStudentDetailFromRecord('${escapeHtml(c.studentId || '')}', '${escapeHtml(c.studentName)}')">${escapeHtml(c.studentName)}</button></td>
             <td>${c.contactDate || '-'}</td>
             <td>${escapeHtml(c.contactType)}</td>
             <td><span class="badge ${statusBadge}">${statusText}</span></td>
             <td>${escapeHtml(c.contactPerson)}</td>
-            <td><button class="btn btn-secondary btn-xs" onclick="openCommModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
+            <td>${c.status === 'pending' ? `<button class="btn btn-success btn-xs" onclick="markCommDone('${c.id}')">完成</button><button class="btn btn-primary btn-xs" onclick="addCommFollowupTodo('${c.id}')">待办</button>` : ''}<button class="btn btn-secondary btn-xs" onclick="openCommModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
         </tr>`;
     }).join('') || `<tr><td colspan="${communicationBatchMode ? 8 : 7}" style="text-align:center;color:#888;padding:24px;">暂无沟通记录</td></tr>`;
 }
@@ -196,11 +196,14 @@ async function deleteTopic(id) {
     showToast('主题已删除');
 }
 
-function openCommModal(id = null) {
+function openCommModal(id = null, defaults = {}) {
     currentEditId = id;
     const comm = id ? data.communications.find(c => c.id === id) : null;
     const topicOptions = (data.communicationTopics || []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    const existingStudent = comm ? data.students.find(s => s.id === comm.studentId) : null;
+    const selectedStudentId = comm?.studentId || defaults.studentId || '';
+    const existingStudent = selectedStudentId ? data.students.find(s => s.id === selectedStudentId) : null;
+    const defaultStatus = comm?.status || defaults.status || 'pending';
+    const defaultContactType = comm?.contactType || defaults.contactType || '微信';
 
     document.getElementById('modalTitle').textContent = id ? '编辑沟通' : '新增沟通';
     document.getElementById('modalBody').innerHTML = `
@@ -210,21 +213,21 @@ function openCommModal(id = null) {
                     <label>学员 *</label>
                     <input type="text" id="commStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterCommStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
                     <select id="commStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectCommStudent(this)"></select>
-                    <input type="hidden" name="studentId" id="commStudentId" value="${comm?.studentId || ''}">
+                    <input type="hidden" name="studentId" id="commStudentId" value="${selectedStudentId}">
                 </div>
                 <div class="form-group"><label>沟通主题</label><select name="topicId"><option value="">无</option>${topicOptions}</select></div>
-                <div class="form-group"><label>沟通日期</label><input type="date" name="contactDate" value="${comm?.contactDate || new Date().toISOString().split('T')[0]}"></div>
+                <div class="form-group"><label>沟通日期</label><input type="date" name="contactDate" value="${comm?.contactDate ?? defaults.contactDate ?? new Date().toISOString().split('T')[0]}"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>沟通方式</label><select name="contactType"><option value="电话" ${comm?.contactType === '电话' ? 'selected' : ''}>电话</option><option value="微信" ${comm?.contactType === '微信' ? 'selected' : ''}>微信</option><option value="面谈" ${comm?.contactType === '面谈' ? 'selected' : ''}>面谈</option><option value="家长会" ${comm?.contactType === '家长会' ? 'selected' : ''}>家长会</option></select></div>
-                <div class="form-group"><label>沟通对象</label><input type="text" name="contactPerson" value="${escapeHtml(comm?.contactPerson || '')}" placeholder="如：张三妈妈"></div>
-                <div class="form-group"><label>状态</label><select name="status"><option value="pending" ${(!comm || comm?.status === 'pending') ? 'selected' : ''}>待沟通</option><option value="done" ${comm?.status === 'done' ? 'selected' : ''}>已完成</option></select></div>
+                <div class="form-group"><label>沟通方式</label><select name="contactType"><option value="电话" ${defaultContactType === '电话' ? 'selected' : ''}>电话</option><option value="微信" ${defaultContactType === '微信' ? 'selected' : ''}>微信</option><option value="面谈" ${defaultContactType === '面谈' ? 'selected' : ''}>面谈</option><option value="家长会" ${defaultContactType === '家长会' ? 'selected' : ''}>家长会</option></select></div>
+                <div class="form-group"><label>沟通对象</label><input type="text" name="contactPerson" value="${escapeHtml(comm?.contactPerson ?? defaults.contactPerson ?? '')}" placeholder="如：张三妈妈"></div>
+                <div class="form-group"><label>状态</label><select name="status"><option value="pending" ${defaultStatus === 'pending' ? 'selected' : ''}>待沟通</option><option value="done" ${defaultStatus === 'done' ? 'selected' : ''}>已完成</option></select></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="${comm?.teacher || '白老师'}"></div>
+                <div class="form-group"><label>授课老师</label><input type="text" name="teacher" value="${escapeHtml(comm?.teacher ?? defaults.teacher ?? '白老师')}"></div>
             </div>
-            <div class="form-group"><label>沟通内容</label><textarea name="content" rows="4">${escapeHtml(comm?.content || '')}</textarea></div>
-            <div class="form-group"><label>后续跟进</label><textarea name="followUp" rows="2">${escapeHtml(comm?.followUp || '')}</textarea></div>
+            <div class="form-group"><label>沟通内容</label><textarea name="content" rows="4">${escapeHtml(comm?.content ?? defaults.content ?? '')}</textarea></div>
+            <div class="form-group"><label>后续跟进</label><textarea name="followUp" rows="2">${escapeHtml(comm?.followUp ?? defaults.followUp ?? '')}</textarea></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
         </form>
     `;
@@ -286,6 +289,32 @@ async function saveComm(e) {
     closeModal();
     showToast('保存成功');
     render();
+}
+
+async function markCommDone(id) {
+    const comm = (data.communications || []).find(c => c.id === id);
+    if (!comm) return;
+    const updatedComm = { ...comm, status: 'done' };
+    try {
+        await saveCollectionItemToApi('communications', updatedComm);
+    } catch (error) {
+        showToast('更新失败：' + error.message);
+        return;
+    }
+    showToast('已标记为已完成');
+    renderCommunications();
+}
+
+function addCommFollowupTodo(id) {
+    const comm = (data.communications || []).find(c => c.id === id);
+    if (!comm) return;
+    const todoText = `${comm.studentName || '学员'}：${comm.followUp || comm.content || '沟通跟进'}`;
+    if (typeof addTodo === 'function') {
+        addTodo(todoText, '沟通', '');
+        showToast('已加入待办');
+        return;
+    }
+    showToast('待办功能未加载');
 }
 
 function openCommDetail(id) {
