@@ -291,6 +291,25 @@ function openStudentGradeQuick(studentId, mode = 'edit') {
     openGradeModal(mode === 'new' ? null : latestGrade?.id || null, { studentId });
 }
 
+function openStudentGradeManager(studentId) {
+    const student = (data.students || []).find(s => s.id === studentId);
+    if (!student) {
+        showToast('未找到对应学员');
+        return;
+    }
+    switchTab('grades');
+    setTimeout(() => {
+        const search = document.getElementById('gradeSearch');
+        const gradeFilter = document.getElementById('gradeGradeFilter');
+        const classFilter = document.getElementById('gradeClassFilter');
+        if (search) search.value = student.name || '';
+        if (gradeFilter) gradeFilter.value = '';
+        if (classFilter) classFilter.value = '';
+        if (typeof renderGradeTable === 'function') renderGradeTable();
+        search?.focus();
+    }, 80);
+}
+
 function openStudentCommQuick(studentId, mode = 'edit') {
     const latestComm = (data.communications || [])
         .filter(c => c.studentId === studentId)
@@ -302,6 +321,23 @@ function openStudentCommQuick(studentId, mode = 'edit') {
         })[0];
     if (typeof openCommModal !== 'function') return;
     openCommModal(mode === 'new' ? null : latestComm?.id || null, { studentId });
+}
+
+function openStudentCommManager(studentId) {
+    const student = (data.students || []).find(s => s.id === studentId);
+    if (!student) {
+        showToast('未找到对应学员');
+        return;
+    }
+    switchTab('communications');
+    setTimeout(() => {
+        const search = document.getElementById('commSearch');
+        const statusFilter = document.getElementById('commStatusFilter');
+        if (search) search.value = student.name || '';
+        if (statusFilter) statusFilter.value = '';
+        if (typeof renderCommTable === 'function') renderCommTable();
+        search?.focus();
+    }, 80);
 }
 
 function getStudentTimelineEvents(student) {
@@ -542,6 +578,7 @@ function renderStudentDetail() {
                     <span>最近成绩</span>
                     <span class="student-detail-card-title-actions">
                         ${latestGrade ? `<span class="badge badge-normal">${escapeHtml(latestGrade.testName || '测试')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                        <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentGradeManager('${student.id}')">管理</button>
                         <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentGradeQuick('${student.id}', 'new')">+ 新增</button>
                     </span>
                 </div>
@@ -561,6 +598,7 @@ function renderStudentDetail() {
                     <span>最近沟通</span>
                     <span class="student-detail-card-title-actions">
                         ${latestComm ? `<span class="badge badge-normal">${escapeHtml(latestComm.status || '已记录')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                        <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentCommManager('${student.id}')">管理</button>
                         <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentCommQuick('${student.id}', 'new')">+ 新增</button>
                     </span>
                 </div>
