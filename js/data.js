@@ -120,7 +120,10 @@ function togglePrivacy() {
 
 function updatePrivacyBtnLabel() {
     const btn = document.getElementById('privacyToggleBtn');
-    if (btn) btn.textContent = privacyHidden ? '🔒' : '👁';
+    if (!btn) return;
+    btn.textContent = privacyHidden ? '隐私开' : '隐私关';
+    btn.title = privacyHidden ? '当前已隐藏敏感数据，点击显示' : '当前正常显示数据，点击隐藏';
+    btn.classList.toggle('is-on', privacyHidden);
 }
 
 // ========== 姓名规范化（用于匹配） ==========
