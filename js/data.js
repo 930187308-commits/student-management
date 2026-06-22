@@ -1654,11 +1654,40 @@ function showToast(msg) {
 }
 
 // 夜间模式切换
+function getThemeToggleIcon(isDark) {
+    return isDark ? `
+        <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2"></path>
+            <path d="M12 20v2"></path>
+            <path d="M4.93 4.93l1.41 1.41"></path>
+            <path d="M17.66 17.66l1.41 1.41"></path>
+            <path d="M2 12h2"></path>
+            <path d="M20 12h2"></path>
+            <path d="M4.93 19.07l1.41-1.41"></path>
+            <path d="M17.66 6.34l1.41-1.41"></path>
+        </svg>
+    ` : `
+        <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 7 7 0 1 0 20.5 15.5Z"></path>
+        </svg>
+    `;
+}
+
+function updateThemeToggleIcon() {
+    const btn = document.querySelector('.theme-toggle');
+    if (!btn) return;
+    const isDark = document.body.classList.contains('dark-mode');
+    btn.innerHTML = getThemeToggleIcon(isDark);
+    btn.title = isDark ? '切换白天模式' : '切换夜间模式';
+    btn.setAttribute('aria-label', btn.title);
+}
+
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
     localStorage.setItem('darkMode', isDark ? 'true' : 'false');
-    document.querySelector('.theme-toggle').textContent = isDark ? '☀️' : '🌙';
+    updateThemeToggleIcon();
 }
 
 // 初始化夜间模式
@@ -1666,8 +1695,8 @@ function initDarkMode() {
     const isDark = localStorage.getItem('darkMode') === 'true';
     if (isDark) {
         document.body.classList.add('dark-mode');
-        document.querySelector('.theme-toggle').textContent = '☀️';
     }
+    updateThemeToggleIcon();
 }
 
 // 通用

@@ -16,7 +16,11 @@
                 <p id="headerStatus">Mac mini 本地服务器 · SQLite 数据库 · 多设备同步</p>
             </div>
             <div class="toolbar">
-                <button class="theme-toggle" onclick="toggleDarkMode()" title="切换夜间模式">🌙</button>
+                <button class="theme-toggle" onclick="toggleDarkMode()" title="切换夜间模式" aria-label="切换夜间模式">
+                    <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 7 7 0 1 0 20.5 15.5Z"></path>
+                    </svg>
+                </button>
                 <button class="btn btn-secondary btn-sm privacy-toggle" id="privacyToggleBtn" onclick="togglePrivacy()" title="当前正常显示数据，点击隐藏" aria-label="当前正常显示数据，点击隐藏" aria-pressed="false">
                     <svg class="privacy-icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
