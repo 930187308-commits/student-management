@@ -113,6 +113,11 @@ function renderStudents() {
     `;
     container.innerHTML = html;
     onGradeFilterChange();
+    if (currentStudentId && data.students.some(s => s.id === currentStudentId)) {
+        renderStudentDetail();
+    } else {
+        currentStudentId = null;
+    }
 }
 
 function switchStudentTab(tab) {
@@ -467,11 +472,11 @@ function renderStudentDetail() {
         </div>
 
         <div class="student-judgement-strip">
-            <div class="student-judgement-item is-${learningJudge.tone}">
-                <span>学习</span><b>${escapeHtml(learningJudge.text)}</b><em>${escapeHtml(learningJudge.note)}</em>
-            </div>
             <div class="student-judgement-item is-${hourJudge.tone}">
                 <span>课时</span><b>${escapeHtml(hourJudge.text)}</b><em>${escapeHtml(hourJudge.note)}</em>
+            </div>
+            <div class="student-judgement-item is-${learningJudge.tone}">
+                <span>学习</span><b>${escapeHtml(learningJudge.text)}</b><em>${escapeHtml(learningJudge.note)}</em>
             </div>
             <div class="student-judgement-item is-${commJudge.tone}">
                 <span>沟通</span><b>${escapeHtml(commJudge.text)}</b><em>${escapeHtml(commJudge.note)}</em>
