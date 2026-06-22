@@ -317,7 +317,7 @@ function getDashboardPriorityItems() {
                 type: 'fee',
                 title: student.name || '未命名学员',
                 reason: `有欠费记录 ¥${Number(pendingAmount || 0).toLocaleString()}`,
-                action: '确认收费/沟通续费',
+                action: '处理收费',
                 meta: className,
                 targetId: student.id
             });
@@ -328,7 +328,7 @@ function getDashboardPriorityItems() {
                 type: 'fee',
                 title: student.name || '未命名学员',
                 reason: '已上课但没有已缴课时',
-                action: '补录收费或欠费记录',
+                action: '补录收费',
                 meta: className,
                 targetId: student.id
             });
@@ -339,7 +339,7 @@ function getDashboardPriorityItems() {
                 type: 'student',
                 title: student.name || '未命名学员',
                 reason: `剩余课时 ${remainingHours}`,
-                action: '安排续费沟通',
+                action: '看学员',
                 meta: className,
                 targetId: student.id
             });
@@ -350,7 +350,7 @@ function getDashboardPriorityItems() {
                 type: 'student',
                 title: student.name || '未命名学员',
                 reason: '当前状态为待续费',
-                action: '确认下期安排',
+                action: '看学员',
                 meta: className,
                 targetId: student.id
             });
@@ -370,7 +370,7 @@ function getDashboardPriorityItems() {
                 type: 'prospect',
                 title: prospect.name || '未命名意向',
                 reason: `${prospect.grade || '-'} · ${prospect.source || '来源未填'}`,
-                action: '继续跟进意向',
+                action: '编辑意向',
                 meta: prospect.wechat || prospect.remark || '',
                 targetId: prospect.id
             });
@@ -391,16 +391,54 @@ function getDashboardPriorityItems() {
 function openDashboardPriority(type, id) {
     if (type === 'prospect') {
         switchTab('prospects');
-        return;
-    }
-    if (type === 'fee') {
-        switchTab('fees');
+        setTimeout(() => {
+            if (id && typeof openProspectModal === 'function') openProspectModal(id);
+        }, 120);
         return;
     }
     switchTab('students');
     setTimeout(() => {
         if (id && typeof selectStudent === 'function') selectStudent(id);
     }, 80);
+}
+
+function openDashboardPriorityAction(event, type, id) {
+    if (event) event.stopPropagation();
+    if (type === 'prospect') {
+        switchTab('prospects');
+        setTimeout(() => {
+            if (id && typeof openProspectModal === 'function') openProspectModal(id);
+        }, 120);
+        return;
+    }
+    if (type === 'fee') {
+        const existingPendingFee = (data.fees || []).find(f => f.studentId === id && f.status === 'pending');
+        switchTab('fees');
+        setTimeout(() => {
+            if (existingPendingFee && typeof openFeeModal === 'function') {
+                openFeeModal(existingPendingFee.id);
+                return;
+            }
+            if (typeof openFeeModal === 'function') {
+                openFeeModal(null, {
+                    studentId: id,
+                    status: 'pending',
+                    remark: '首页优先处理补录'
+                });
+            }
+        }, 120);
+        return;
+    }
+    openDashboardPriority(type, id);
+}
+
+function openDashboardFirstPriority() {
+    const first = getDashboardPriorityItems()[0];
+    if (!first) {
+        switchTab('fees');
+        return;
+    }
+    openDashboardPriority(first.type, first.targetId);
 }
 
 function renderDashboard() {
@@ -442,7 +480,7 @@ function renderDashboard() {
                         <div class="reminder-num">AI</div>
                         <div class="reminder-label">经营复盘</div>
                     </div>
-                    <div class="reminder-item" onclick="switchTab('fees')">
+                    <div class="reminder-item" onclick="openDashboardFirstPriority()">
                         <div class="reminder-icon">💰</div>
                         <div class="reminder-num">${getPrivacyVal(work.pendingRenewal)} / ${getPrivacyVal(work.unpaidCount)}</div>
                         <div class="reminder-label">待续费 / 欠费</div>
@@ -475,11 +513,11 @@ function renderDashboard() {
                 <button class="btn btn-secondary btn-xs" onclick="openBusinessReviewFromDashboard()">AI 复盘</button>
             </div>
             ${priorityItems.length ? priorityItems.map(item => `
-                <button class="dashboard-priority-item" onclick="openDashboardPriority('${escapeHtml(item.type)}', '${escapeHtml(item.targetId)}')">
+                <div class="dashboard-priority-item" role="button" tabindex="0" onclick="openDashboardPriority('${escapeHtml(item.type)}', '${escapeHtml(item.targetId)}')" onkeydown="if(event.key==='Enter')openDashboardPriority('${escapeHtml(item.type)}', '${escapeHtml(item.targetId)}')">
                     <span class="dashboard-priority-name">${escapeHtml(item.title)}</span>
-                    <span class="dashboard-priority-reason">${escapeHtml(item.reason)}</span>
-                    <span class="dashboard-priority-action">${escapeHtml(item.action)}</span>
-                </button>
+                    <span class="dashboard-priority-reason">${escapeHtml(item.meta ? `${item.meta} · ${item.reason}` : item.reason)}</span>
+                    <button class="dashboard-priority-action" type="button" onclick="openDashboardPriorityAction(event, '${escapeHtml(item.type)}', '${escapeHtml(item.targetId)}')">${escapeHtml(item.action)}</button>
+                </div>
             `).join('') : `
                 <div class="dashboard-priority-empty">暂无明显优先事项，可以先做经营复盘或补录最近考勤。</div>
             `}
