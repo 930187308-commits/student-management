@@ -78,54 +78,54 @@ function renderStudents() {
     let html = `
         <div class="two-col">
             <div class="left-panel">
-                <!-- Tab切换 -->
-                <div style="display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap;">
-                    <button class="btn btn-sm ${currentStudentTab === 'active' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('active')">在读学员</button>
-                    <button class="btn btn-sm ${currentStudentTab === 'renewalPending' ? 'btn-warning' : 'btn-secondary'}" onclick="switchStudentTab('renewalPending')">待续费</button>
-                    <button class="btn btn-sm ${currentStudentTab === 'inactive' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('inactive')">非在读</button>
+                <div class="student-panel-header">
+                    <div class="student-tab-actions">
+                        <button class="btn btn-sm ${currentStudentTab === 'active' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('active')">在读学员</button>
+                        <button class="btn btn-sm ${currentStudentTab === 'renewalPending' ? 'btn-warning' : 'btn-secondary'}" onclick="switchStudentTab('renewalPending')">待续费</button>
+                        <button class="btn btn-sm ${currentStudentTab === 'inactive' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('inactive')">非在读</button>
+                    </div>
+                    <button class="student-add-pill" onclick="openStudentModal()">+ 新增</button>
                 </div>
 
-                <!-- 年级班级同一行 -->
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <select id="studentGradeFilter" onchange="onGradeFilterChange()" style="flex:1;">
+                <div class="student-filter-row">
+                    <select id="studentGradeFilter" class="student-filter-control" onchange="onGradeFilterChange()">
                         <option value="">全部年级</option>
                         ${grades.map(g => `<option value="${g}">${g}</option>`).join('')}
                     </select>
-                    <select id="studentClassFilter" onchange="renderStudentList()" style="flex:1;">
+                    <select id="studentClassFilter" class="student-filter-control" onchange="renderStudentList()">
                         <option value="">全部班级</option>
                     </select>
                 </div>
-                <input type="text" id="studentSearchInput" placeholder="搜索学员姓名..." oninput="renderStudentList()" style="margin-bottom: 8px; width: 100%;">
+                <input type="text" id="studentSearchInput" class="student-filter-control student-search-control" placeholder="搜索学员姓名..." oninput="renderStudentList()">
 
-                <div id="studentCountBar" style="font-size: 12px; color: var(--text-muted); margin: -2px 0 8px;"></div>
+                <div id="studentCountBar" class="student-count-bar"></div>
                 <div class="student-list" id="studentList"></div>
-                <div style="display: flex; gap: 8px; margin-top: 12px;">
-                    <button class="btn btn-secondary" style="flex:1;" onclick="downloadStudentTemplate()">下载模板</button>
-                    <div class="file-input-wrapper" style="flex:1;">
-                        <button class="btn btn-warning" style="width:100%;">导入</button>
+                <div class="student-panel-actions">
+                    <button class="btn btn-secondary student-panel-action-btn" onclick="downloadStudentTemplate()">下载模板</button>
+                    <div class="file-input-wrapper student-panel-file-action">
+                        <button class="btn btn-warning student-panel-action-btn">导入</button>
                         <input type="file" accept=".xlsx,.xls" onchange="importStudents(event)">
                     </div>
+                    <button class="btn btn-secondary btn-sm student-panel-action-btn" onclick="toggleStudentBatchMode()">${studentBatchMode ? '退出多选' : '多选'}</button>
+                    <button class="btn btn-secondary btn-sm student-panel-action-btn" onclick="openGradeUpgradePreview()">升年级预览</button>
                 </div>
-                <div style="display: flex; gap: 8px; margin-top: 8px;">
-                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="toggleStudentBatchMode()">${studentBatchMode ? '退出多选' : '多选'}</button>
-                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="openGradeUpgradePreview()">升年级预览</button>
-                </div>
-                ${studentBatchMode ? `<div id="studentBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                ${studentBatchMode ? `<div id="studentBatchBar" class="student-batch-bar">
                     <span>已选择 <strong id="studentSelectedCount">0</strong> 条</span>
-                    <button class="btn btn-secondary btn-xs" onclick="toggleAllStudentSelection(this)" style="padding: 2px 8px;">全选</button>
+                    <button class="btn btn-secondary btn-xs" onclick="toggleAllStudentSelection(this)">全选</button>
                 </div>` : ''}
-                ${studentBatchMode ? `<div style="display: flex; gap: 8px; margin-top: 8px;">
-                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="exportSelectedStudents()">导出选中</button>
-                    <button class="btn btn-danger btn-sm" style="flex:1;" onclick="deleteSelectedStudents()">删除选中</button>
+                ${studentBatchMode ? `<div class="student-batch-actions">
+                    <button class="btn btn-secondary btn-sm student-panel-action-btn" onclick="exportSelectedStudents()">导出选中</button>
+                    <button class="btn btn-danger btn-sm student-panel-action-btn" onclick="deleteSelectedStudents()">删除选中</button>
                 </div>` : ''}
-                <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="openStudentModal()">+ 新增学员</button>
             </div>
+            <div class="student-panel-resizer" id="studentPanelResizer" title="拖动调整学员列表宽度"></div>
             <div class="right-panel" id="studentDetail">
                 <div class="empty-state">请选择左侧学员查看详情</div>
             </div>
         </div>
     `;
     container.innerHTML = html;
+    initStudentPanelResize();
     const gradeSelect = document.getElementById('studentGradeFilter');
     const searchInput = document.getElementById('studentSearchInput');
     if (gradeSelect) gradeSelect.value = studentListFilters.grade || '';
@@ -136,6 +136,54 @@ function renderStudents() {
     } else {
         currentStudentId = null;
     }
+}
+
+function initStudentPanelResize() {
+    const layout = document.querySelector('#tab-students .two-col');
+    const resizer = document.getElementById('studentPanelResizer');
+    if (!layout || !resizer) return;
+
+    const minWidth = 240;
+    const maxWidth = 420;
+    const storageKey = 'studentManageStudentPanelWidth';
+
+    const applyWidth = (width) => {
+        const nextWidth = Math.min(maxWidth, Math.max(minWidth, Math.round(width)));
+        layout.style.setProperty('--student-panel-width', `${nextWidth}px`);
+        return nextWidth;
+    };
+
+    const savedWidth = Number(localStorage.getItem(storageKey));
+    if (savedWidth) applyWidth(savedWidth);
+
+    resizer.addEventListener('pointerdown', (event) => {
+        if (window.matchMedia('(max-width: 1024px)').matches) return;
+        event.preventDefault();
+        resizer.setPointerCapture(event.pointerId);
+        document.body.classList.add('student-panel-resizing');
+
+        const handleMove = (moveEvent) => {
+            const left = layout.getBoundingClientRect().left;
+            applyWidth(moveEvent.clientX - left);
+        };
+
+        const finishResize = (upEvent) => {
+            const left = layout.getBoundingClientRect().left;
+            const finalWidth = applyWidth(upEvent.clientX - left);
+            localStorage.setItem(storageKey, String(finalWidth));
+            document.body.classList.remove('student-panel-resizing');
+            if (resizer.hasPointerCapture(upEvent.pointerId)) {
+                resizer.releasePointerCapture(upEvent.pointerId);
+            }
+            resizer.removeEventListener('pointermove', handleMove);
+            resizer.removeEventListener('pointerup', finishResize);
+            resizer.removeEventListener('pointercancel', finishResize);
+        };
+
+        resizer.addEventListener('pointermove', handleMove);
+        resizer.addEventListener('pointerup', finishResize);
+        resizer.addEventListener('pointercancel', finishResize);
+    });
 }
 
 function switchStudentTab(tab) {

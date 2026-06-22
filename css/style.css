@@ -752,7 +752,13 @@ body.dark-mode .badge-normal {
 .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
 
 /* 两栏布局 */
-.two-col { display: grid; grid-template-columns: 280px 1fr; gap: 20px; min-height: 400px; align-items: stretch; }
+.two-col {
+    display: grid;
+    grid-template-columns: var(--student-panel-width, 280px) 6px minmax(0, 1fr);
+    gap: 14px;
+    min-height: 400px;
+    align-items: stretch;
+}
 .left-panel { background: var(--bg-card); border-radius: 12px; padding: 16px; box-shadow: 0 2px 12px var(--shadow); }
 .right-panel { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px var(--shadow); overflow-y: auto; max-height: 600px; }
 #tab-students.active .two-col {
@@ -767,12 +773,163 @@ body.dark-mode .badge-normal {
     max-height: calc(100vh - 170px);
 }
 
+.student-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.student-tab-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.student-tab-actions .btn {
+    min-height: 30px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.student-add-pill {
+    border: none;
+    border-radius: 999px;
+    padding: 6px 11px;
+    min-height: 30px;
+    background: rgba(52, 152, 219, 0.12);
+    color: #1976d2;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.student-add-pill:hover {
+    background: rgba(52, 152, 219, 0.22);
+    transform: translateY(-1px);
+}
+
+.student-filter-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.student-filter-control {
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 13px;
+    padding: 6px 9px;
+}
+
+.student-search-control {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.student-count-bar {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: -2px 0 8px;
+}
+
 .student-list { min-height: 520px; max-height: calc(100vh - 360px); overflow-y: auto; }
 .student-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: all 0.2s; color: var(--text-primary); }
 .student-item:hover { background: var(--hover-bg); }
 .student-item.active { background: #3498db; color: white; }
 .student-item .name { font-weight: 600; font-size: 14px; }
 .student-item .info { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+.student-panel-actions,
+.student-batch-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.student-panel-action-btn {
+    width: 100%;
+    min-height: 34px;
+    border-radius: 8px;
+    font-size: 13px;
+    padding: 7px 8px;
+}
+
+.student-panel-file-action {
+    display: block;
+    width: 100%;
+}
+
+.student-batch-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.student-batch-bar .btn-xs {
+    padding: 3px 8px;
+}
+
+.student-panel-resizer {
+    width: 6px;
+    border-radius: 999px;
+    cursor: col-resize;
+    background: transparent;
+    position: relative;
+    align-self: stretch;
+    min-height: 100%;
+    transition: background 0.2s;
+}
+
+.student-panel-resizer::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    bottom: 12px;
+    left: 2px;
+    width: 2px;
+    border-radius: 999px;
+    background: var(--border-color);
+    opacity: 0.55;
+    transition: opacity 0.2s, background 0.2s;
+}
+
+.student-panel-resizer:hover::before,
+body.student-panel-resizing .student-panel-resizer::before {
+    background: #3498db;
+    opacity: 1;
+}
+
+body.student-panel-resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+
+body.dark-mode .student-add-pill {
+    background: rgba(96, 165, 250, 0.16);
+    color: #bfdbfe;
+}
+
+body.dark-mode .student-add-pill:hover {
+    background: rgba(96, 165, 250, 0.28);
+}
 
 /* 明细卡片 */
 .detail-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
@@ -831,7 +988,8 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 
 /* 响应式 */
 @media (max-width: 1024px) {
-    .two-col { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; gap: 14px; }
+    .student-panel-resizer { display: none; }
     .left-panel { max-height: 300px; }
     .student-list { min-height: 0; max-height: 300px; }
     #tab-students.active .two-col {
