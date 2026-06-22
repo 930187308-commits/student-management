@@ -608,19 +608,18 @@ function renderStudentDetail() {
 
         ${riskNotes.length ? `<div class="student-detail-risk-line">${riskNotes.map(note => `<span>${escapeHtml(note)}</span>`).join('')}</div>` : ''}
 
-        <section class="student-timeline-panel">
-            <div class="student-record-title">
-                <span>最近时间线</span>
-                <em>收费 / 成绩 / 沟通 / 考勤 / 操作</em>
-            </div>
+        <details class="student-record-section student-timeline-panel" open>
+            <summary class="student-record-title">
+                <span>最近时间线 (${timelineEvents.length})</span><em>⌄</em>
+                <small>收费 / 成绩 / 沟通 / 考勤 / 操作</small>
+            </summary>
             ${renderStudentTimeline(timelineEvents)}
-        </section>
+        </details>
 
         <!-- 沟通记录 -->
-        <details class="student-comm-collapse">
+        <details class="student-record-section student-comm-collapse">
             <summary class="student-record-title">
-                <span>沟通记录 (${studentComms.length})</span>
-                <em>⌄</em>
+                <span>沟通记录 (${studentComms.length})</span><em>⌄</em>
             </summary>
             ${studentComms.length === 0 ? '<div class="student-detail-muted student-comm-empty">暂无沟通记录</div>' : `
                 <div class="student-detail-timeline">
@@ -636,26 +635,31 @@ function renderStudentDetail() {
         </details>
 
         <!-- 成绩记录 -->
-        <div class="student-grade-records">
-            <div class="student-record-title student-grade-record-title">
-                <span>成绩记录 (${studentGrades.length})</span>
-                <div style="display: flex; gap: 4px;">
-                    <button class="btn btn-xs ${currentStudentGradeTab === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentGradeTab('all')">全部</button>
-                    <button class="btn btn-xs ${currentStudentGradeTab === 'school' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentGradeTab('school')">校内</button>
-                    <button class="btn btn-xs ${currentStudentGradeTab === 'external' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentGradeTab('external')">校外</button>
+        <details class="student-record-section student-grade-records" open>
+            <summary class="student-record-title student-grade-record-title">
+                <span>成绩记录 (${studentGrades.length})</span><em>⌄</em>
+                <div class="student-grade-filter-actions">
+                    <button class="btn btn-xs ${currentStudentGradeTab === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="event.preventDefault(); event.stopPropagation(); switchStudentGradeTab('all')">全部</button>
+                    <button class="btn btn-xs ${currentStudentGradeTab === 'school' ? 'btn-primary' : 'btn-secondary'}" onclick="event.preventDefault(); event.stopPropagation(); switchStudentGradeTab('school')">校内</button>
+                    <button class="btn btn-xs ${currentStudentGradeTab === 'external' ? 'btn-primary' : 'btn-secondary'}" onclick="event.preventDefault(); event.stopPropagation(); switchStudentGradeTab('external')">校外</button>
                 </div>
-            </div>
+            </summary>
             ${displayGrades.length === 0 ? '<div class="empty-state" style="padding: 20px;">暂无记录</div>' : `
-                <div class="table-wrapper">
-                    <table>
-                        <thead><tr><th>测试</th><th>日期</th><th>类型</th><th>得分</th><th>排名</th></tr></thead>
-                        <tbody>
-                            ${[...displayGrades].sort((a, b) => String(b.testDate || '').localeCompare(String(a.testDate || ''))).map(g => `<tr><td>${escapeHtml(g.testName)}</td><td>${g.testDate}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                <div class="student-grade-list">
+                    ${[...displayGrades].sort((a, b) => String(b.testDate || '').localeCompare(String(a.testDate || ''))).map(g => `
+                        <div class="student-grade-row">
+                            <div class="student-grade-main">
+                                <b>${escapeHtml(g.testName || '未命名测试')}</b>
+                                <span>${escapeHtml(g.testDate || '-')}</span>
+                            </div>
+                            <span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span>
+                            <span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${escapeHtml(g.score ?? '-')}/${escapeHtml(g.fullScore ?? '-')}</span>
+                            <span>${g.ranking != null && g.ranking !== '' ? '第'+escapeHtml(g.ranking)+'名' : '排名未知'}</span>
+                        </div>
+                    `).join('')}
                 </div>
             `}
-        </div>
+        </details>
 
         ${chartHtml}
     `;
