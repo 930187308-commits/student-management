@@ -64,22 +64,57 @@ body {
 .toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .theme-toggle { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .theme-toggle:hover { background: rgba(255,255,255,0.25); }
-.privacy-toggle {
-    min-width: 58px;
+.btn.privacy-toggle {
+    min-width: 74px;
     justify-content: center;
+    gap: 8px;
+    padding: 5px 8px 5px 10px;
     border-radius: 999px;
     font-weight: 700;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: rgba(255,255,255,0.92);
 }
-.privacy-toggle.is-on {
-    background: #eef8f1;
-    color: #1f7a3f;
+.privacy-toggle-label {
+    font-size: 12px;
+    line-height: 1;
 }
-body.dark-mode .privacy-toggle {
+.privacy-toggle-track {
+    position: relative;
+    width: 28px;
+    height: 16px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.28);
+    transition: background 0.2s ease;
+}
+.privacy-toggle-dot {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+    transition: transform 0.2s ease;
+}
+.btn.privacy-toggle.is-on {
+    background: rgba(34,197,94,0.18);
+    border-color: rgba(134,239,172,0.45);
+    color: #dcfce7;
+}
+.btn.privacy-toggle.is-on .privacy-toggle-track {
+    background: #22c55e;
+}
+.btn.privacy-toggle.is-on .privacy-toggle-dot {
+    transform: translateX(12px);
+}
+body.dark-mode .btn.privacy-toggle {
     background: rgba(255,255,255,0.12);
     color: #e4e4e7;
     border: 1px solid rgba(255,255,255,0.22);
 }
-body.dark-mode .privacy-toggle.is-on {
+body.dark-mode .btn.privacy-toggle.is-on {
     background: rgba(34,197,94,0.18);
     color: #86efac;
     border-color: rgba(134,239,172,0.35);

@@ -236,7 +236,7 @@ function renderReports() {
                 <div class="card-header"><span class="card-title">月课消统计</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
                 <div class="table-wrapper">
                     <table><thead><tr><th>月份</th><th>已消课时</th><th>估算课消金额</th></tr></thead><tbody>
-                        ${monthlyConsumption.length > 0 ? monthlyConsumption.map(row => `<tr><td>${escapeHtml(row.month)}</td><td><strong style="color:#27ae60;">${row.sessions}</strong></td><td><strong style="color:#27ae60;">¥${Number(row.amount || 0).toLocaleString()}</strong></td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px;">暂无课消数据</td></tr>'}
+                        ${monthlyConsumption.length > 0 ? monthlyConsumption.map(row => `<tr><td>${escapeHtml(row.month)}</td><td><strong style="color:#27ae60;">${getPrivacyVal(row.sessions)}</strong></td><td><strong style="color:#27ae60;">${getPrivacyAmount(row.amount)}</strong></td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px;">暂无课消数据</td></tr>'}
                     </tbody></table>
                 </div>
             </div>
@@ -282,10 +282,10 @@ function renderReports() {
                             return `<tr class="${rowClass}">
                                 <td>${escapeHtml(s.name)}</td>
                                 <td>${escapeHtml(s.grade)}</td>
-                                <td>${s.totalHours}</td>
-                                <td><strong style="color:#27ae60;">${s.usedHours}</strong></td>
-                                <td><strong style="color:#f39c12;">${s.absentHours}</strong></td>
-                                <td><strong>${s.remainingHours}</strong></td>
+                                <td>${getPrivacyVal(s.totalHours)}</td>
+                                <td><strong style="color:#27ae60;">${getPrivacyVal(s.usedHours)}</strong></td>
+                                <td><strong style="color:#f39c12;">${getPrivacyVal(s.absentHours)}</strong></td>
+                                <td><strong>${getPrivacyVal(s.remainingHours)}</strong></td>
                                 <td><span class="badge ${statusInfo.badge}">${statusInfo.text}</span></td>
                             </tr>`;
                         }).join('') : `<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">当前筛选条件下无数据</td></tr>`}
@@ -426,7 +426,7 @@ function exportMonthlyRevenue() {
             }
         });
     });
-    const ws = XLSX.utils.aoa_to_sheet([['月份', '已消课时', '估算课消金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, monthlyConsumption[month].sessions, monthlyConsumption[month].amount])]);
+    const ws = XLSX.utils.aoa_to_sheet([['月份', '已消课时', '估算课消金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, getPrivacyVal(monthlyConsumption[month].sessions), getPrivacyVal(monthlyConsumption[month].amount)])]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '课消统计');
     XLSX.writeFile(wb, '课消统计.xlsx');
@@ -491,7 +491,7 @@ function exportConsumptionSummary() {
             else if (remainingHours < 0) consumptionStatus = '课时不足';
             else if (remainingHours <= 2) consumptionStatus = '即将不足';
             else consumptionStatus = '正常';
-            return [s.name, s.grade, totalHours, usedHours, absentHours, remainingHours, consumptionStatus];
+            return [s.name, s.grade, getPrivacyVal(totalHours), getPrivacyVal(usedHours), getPrivacyVal(absentHours), getPrivacyVal(remainingHours), consumptionStatus];
         }),
         consumptionStatusFilter
     );
