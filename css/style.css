@@ -1834,17 +1834,16 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
 /* ==================== 首页工作台样式 ==================== */
 .dashboard-workspace {}
 .workspace-body {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
 }
-.workspace-reminders { flex: 1; }
+.workspace-reminders { min-width: 0; }
 .workspace-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(74px, 1fr));
+    grid-template-columns: repeat(7, minmax(72px, 1fr));
     gap: 6px;
-    width: 176px;
-    flex-shrink: 0;
+    width: 100%;
 }
 .workspace-actions .btn {
     width: 100%;
@@ -2408,12 +2407,8 @@ body.dark-mode .student-card-note.is-risk {
 
 /* 移动端首页 */
 @media (max-width: 700px) {
-    .workspace-body {
-        flex-direction: column;
-    }
     .workspace-actions {
-        grid-template-columns: repeat(4, minmax(68px, 1fr));
-        width: 100%;
+        grid-template-columns: repeat(3, minmax(68px, 1fr));
     }
     .reminder-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -2433,6 +2428,9 @@ body.dark-mode .student-card-note.is-risk {
 }
 
 @media (max-width: 400px) {
+    .workspace-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
     .reminder-grid {
         grid-template-columns: repeat(2, 1fr);
     }
