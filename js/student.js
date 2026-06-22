@@ -261,7 +261,7 @@ function openStudentDetailFromRecord(studentId = '', studentName = '') {
     setTimeout(() => selectStudent(targetId), 80);
 }
 
-function openStudentFeeQuick(studentId) {
+function openStudentFeeQuick(studentId, mode = 'edit') {
     const student = data.students.find(s => s.id === studentId);
     if (!student) return;
     const pendingFee = (data.fees || [])
@@ -270,35 +270,23 @@ function openStudentFeeQuick(studentId) {
     const latestFee = (data.fees || [])
         .filter(f => f.studentId === studentId)
         .sort((a, b) => String(b.paymentDate || '').localeCompare(String(a.paymentDate || '')))[0];
-    switchTab('fees');
-    setTimeout(() => {
-        if (pendingFee && typeof openFeeModal === 'function') {
-            openFeeModal(pendingFee.id);
-            return;
-        }
-        if (latestFee && typeof openFeeModal === 'function') {
-            openFeeModal(latestFee.id);
-            return;
-        }
-        if (typeof openFeeModal === 'function') {
-            openFeeModal(null, { studentId, status: 'pending' });
-        }
-    }, 100);
+    if (typeof openFeeModal !== 'function') return;
+    if (mode === 'new') {
+        openFeeModal(null, { studentId, status: 'paid' });
+        return;
+    }
+    openFeeModal(pendingFee?.id || latestFee?.id || null, { studentId, status: pendingFee ? 'pending' : 'paid' });
 }
 
-function openStudentGradeQuick(studentId) {
+function openStudentGradeQuick(studentId, mode = 'edit') {
     const latestGrade = (data.grades || [])
         .filter(g => g.studentId === studentId)
         .sort((a, b) => String(b.testDate || '').localeCompare(String(a.testDate || '')))[0];
-    switchTab('grades');
-    setTimeout(() => {
-        if (typeof openGradeModal === 'function') {
-            openGradeModal(latestGrade?.id || null, { studentId });
-        }
-    }, 100);
+    if (typeof openGradeModal !== 'function') return;
+    openGradeModal(mode === 'new' ? null : latestGrade?.id || null, { studentId });
 }
 
-function openStudentCommQuick(studentId) {
+function openStudentCommQuick(studentId, mode = 'edit') {
     const latestComm = (data.communications || [])
         .filter(c => c.studentId === studentId)
         .sort((a, b) => {
@@ -307,12 +295,8 @@ function openStudentCommQuick(studentId) {
             if (rankDiff !== 0) return rankDiff;
             return String(b.contactDate || '').localeCompare(String(a.contactDate || ''));
         })[0];
-    switchTab('communications');
-    setTimeout(() => {
-        if (typeof openCommModal === 'function') {
-            openCommModal(latestComm?.id || null, { studentId });
-        }
-    }, 100);
+    if (typeof openCommModal !== 'function') return;
+    openCommModal(mode === 'new' ? null : latestComm?.id || null, { studentId });
 }
 
 function renderStudentDetail() {
@@ -437,7 +421,10 @@ function renderStudentDetail() {
             <div class="student-detail-card clickable-card ${riskNotes.length ? 'is-risk' : ''}" role="button" tabindex="0" title="点击处理该学员收费/欠费" onclick="openStudentFeeQuick('${student.id}')" onkeydown="if(event.key==='Enter')openStudentFeeQuick('${student.id}')">
                 <div class="student-detail-card-title">
                     <span>课时与收费</span>
-                    ${riskNotes.length ? '<span class="badge badge-pending">需处理</span>' : '<span class="badge badge-active">正常</span>'}
+                    <span class="student-detail-card-title-actions">
+                        ${riskNotes.length ? '<span class="badge badge-pending">需处理</span>' : '<span class="badge badge-active">正常</span>'}
+                        <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentFeeQuick('${student.id}', 'new')">+ 新增</button>
+                    </span>
                 </div>
                 <div class="student-detail-big">${escapeHtml(hoursHeadline)}</div>
                 <div class="student-detail-metrics">
@@ -452,7 +439,10 @@ function renderStudentDetail() {
             <div class="student-detail-card clickable-card" role="button" tabindex="0" title="点击查看或新增该学员成绩" onclick="openStudentGradeQuick('${student.id}')" onkeydown="if(event.key==='Enter')openStudentGradeQuick('${student.id}')">
                 <div class="student-detail-card-title">
                     <span>最近成绩</span>
-                    ${latestGrade ? `<span class="badge badge-normal">${escapeHtml(latestGrade.testName || '测试')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                    <span class="student-detail-card-title-actions">
+                        ${latestGrade ? `<span class="badge badge-normal">${escapeHtml(latestGrade.testName || '测试')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                        <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentGradeQuick('${student.id}', 'new')">+ 新增</button>
+                    </span>
                 </div>
                 ${latestGrade ? `
                     <div class="student-detail-big">${escapeHtml(latestGrade.score ?? '-')}/${escapeHtml(latestGrade.fullScore ?? '-')}</div>
@@ -464,7 +454,10 @@ function renderStudentDetail() {
             <div class="student-detail-card clickable-card" role="button" tabindex="0" title="点击查看或补充该学员沟通记录" onclick="openStudentCommQuick('${student.id}')" onkeydown="if(event.key==='Enter')openStudentCommQuick('${student.id}')">
                 <div class="student-detail-card-title">
                     <span>最近沟通</span>
-                    ${latestComm ? `<span class="badge badge-normal">${escapeHtml(latestComm.status || '已记录')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                    <span class="student-detail-card-title-actions">
+                        ${latestComm ? `<span class="badge badge-normal">${escapeHtml(latestComm.status || '已记录')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                        <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentCommQuick('${student.id}', 'new')">+ 新增</button>
+                    </span>
                 </div>
                 ${latestComm ? `
                     <div class="student-detail-line">${escapeHtml(latestComm.contactDate || '-')} · ${escapeHtml(latestComm.status || '-')}</div>
