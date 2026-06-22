@@ -122,8 +122,23 @@ function updatePrivacyBtnLabel() {
     const btn = document.getElementById('privacyToggleBtn');
     if (!btn) return;
     btn.title = privacyHidden ? '当前已隐藏敏感数据，点击显示' : '当前正常显示数据，点击隐藏';
+    btn.setAttribute('aria-label', btn.title);
     btn.classList.toggle('is-on', privacyHidden);
     btn.setAttribute('aria-pressed', privacyHidden ? 'true' : 'false');
+    btn.innerHTML = privacyHidden ? `
+        <svg class="privacy-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 8c2 4 4.8 6 8 6s6-2 8-6"></path>
+            <path d="M7 13.5l-1.6 2"></path>
+            <path d="M11 14.8l-.4 2.4"></path>
+            <path d="M15 14.4l.9 2.2"></path>
+            <path d="M18.3 12.4l1.8 1.7"></path>
+        </svg>
+    ` : `
+        <svg class="privacy-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+            <circle cx="12" cy="12" r="3.2"></circle>
+        </svg>
+    `;
 }
 
 // ========== 姓名规范化（用于匹配） ==========

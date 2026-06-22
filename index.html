@@ -17,9 +17,11 @@
             </div>
             <div class="toolbar">
                 <button class="theme-toggle" onclick="toggleDarkMode()" title="切换夜间模式">🌙</button>
-                <button class="btn btn-secondary btn-sm privacy-toggle" id="privacyToggleBtn" onclick="togglePrivacy()" title="当前正常显示数据，点击隐藏" aria-pressed="false">
-                    <span class="privacy-toggle-label">隐私</span>
-                    <span class="privacy-toggle-track" aria-hidden="true"><span class="privacy-toggle-dot"></span></span>
+                <button class="btn btn-secondary btn-sm privacy-toggle" id="privacyToggleBtn" onclick="togglePrivacy()" title="当前正常显示数据，点击隐藏" aria-label="当前正常显示数据，点击隐藏" aria-pressed="false">
+                    <svg class="privacy-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                        <circle cx="12" cy="12" r="3.2"></circle>
+                    </svg>
                 </button>
                 <span class="autosave-indicator" id="autosaveIndicator">● 已保存</span>
                 <button class="btn btn-secondary btn-sm" onclick="undoLastChange()" id="undoBtn" title="撤回最近一次保存的修改" disabled>撤回上一步</button>
