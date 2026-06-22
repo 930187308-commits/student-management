@@ -56,7 +56,8 @@ const API_COLLECTIONS = new Set([
     'classTypes',
     'gradeOptions',
     'aiQuestionPrompts',
-    'aiConversations'
+    'aiConversations',
+    'operationLogs'
 ]);
 const API_ITEM_COLLECTIONS = new Set([
     'classes',
@@ -65,7 +66,8 @@ const API_ITEM_COLLECTIONS = new Set([
     'fees',
     'attendance',
     'grades',
-    'communications'
+    'communications',
+    'operationLogs'
 ]);
 const KNOWLEDGE_API_ROUTES = [
     { base: '/api/knowledge/sources', resource: 'knowledgeSources', listKey: 'sources', itemKey: 'source' },
@@ -697,7 +699,7 @@ async function handleApi(req, res, pathname) {
         return true;
     }
 
-    const collectionMatch = pathname.match(/^\/api\/(classes|students|prospects|fees|attendance|grades|communications|communicationTopics|prospectSources|classTypes|gradeOptions|aiQuestionPrompts|aiConversations)$/);
+    const collectionMatch = pathname.match(/^\/api\/(classes|students|prospects|fees|attendance|grades|communications|communicationTopics|prospectSources|classTypes|gradeOptions|aiQuestionPrompts|aiConversations|operationLogs)$/);
     if (collectionMatch) {
         const collectionName = collectionMatch[1];
         if (req.method === 'GET') {
@@ -754,7 +756,7 @@ async function handleApi(req, res, pathname) {
         }
     }
 
-    const itemMatch = pathname.match(/^\/api\/(classes|students|prospects|fees|attendance|grades|communications)\/([^/]+)$/);
+    const itemMatch = pathname.match(/^\/api\/(classes|students|prospects|fees|attendance|grades|communications|operationLogs)\/([^/]+)$/);
     if (itemMatch) {
         const collectionName = itemMatch[1];
         const itemId = decodeURIComponent(itemMatch[2]);

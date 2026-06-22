@@ -11,7 +11,8 @@ const COLLECTIONS = [
     'communicationTopics',
     'prospectSources',
     'classTypes',
-    'gradeOptions'
+    'gradeOptions',
+    'operationLogs'
 ];
 
 function main() {

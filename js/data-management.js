@@ -51,6 +51,51 @@ function openDataManager() {
     document.getElementById('modal').classList.add('show');
 }
 
+function formatOperationLogTime(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function openOperationLogModal() {
+    const logs = [...(data.operationLogs || [])]
+        .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+        .slice(0, 100);
+    const rows = logs.map(log => `
+        <tr>
+            <td style="white-space:nowrap;">${escapeHtml(formatOperationLogTime(log.createdAt))}</td>
+            <td>${escapeHtml(log.module || '-')}</td>
+            <td>${escapeHtml(log.targetName || '-')}</td>
+            <td>${escapeHtml(log.summary || '-')}</td>
+        </tr>
+    `).join('');
+
+    document.getElementById('modalTitle').textContent = '操作日志';
+    document.getElementById('modalBody').innerHTML = `
+        <div class="operation-log-modal">
+            <div class="operation-log-note">
+                记录核心业务的新增、编辑、删除和系统动作。当前仅用于追溯，撤回仍使用顶部“撤回上一步”。
+            </div>
+            ${logs.length === 0 ? '<div class="empty-state">暂无操作记录。之后新增、编辑、删除核心数据会自动记录。</div>' : `
+                <div class="table-wrapper">
+                    <table class="operation-log-table">
+                        <thead><tr><th>时间</th><th>模块</th><th>对象</th><th>记录</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `}
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
+    `;
+    document.getElementById('modal').classList.add('show');
+}
+
 function getDataHealthReport() {
     const classes = data.classes || [];
     const students = data.students || [];

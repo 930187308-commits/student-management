@@ -2212,6 +2212,72 @@ body.dark-mode .student-judgement-item.is-risk {
     color: #856404;
     font-size: 11px;
 }
+.student-timeline-panel {
+    margin: 0 0 12px;
+    padding: 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-card);
+}
+.student-timeline-panel .student-record-title {
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+.student-timeline-panel .student-record-title em {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 500;
+}
+.student-timeline-list {
+    display: grid;
+    gap: 6px;
+}
+.student-timeline-row {
+    display: grid;
+    grid-template-columns: 76px 52px 1fr;
+    gap: 8px;
+    align-items: start;
+    padding: 7px 8px;
+    border-radius: 8px;
+    background: var(--hover-bg);
+    font-size: 12px;
+}
+.student-timeline-date,
+.student-timeline-type {
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.student-timeline-type {
+    font-weight: 700;
+}
+.student-timeline-main {
+    min-width: 0;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+.student-timeline-main b {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+.student-timeline-main span {
+    color: var(--text-secondary);
+}
+.student-timeline-row.is-risk {
+    background: #fff7f2;
+}
+.student-timeline-row.is-warn {
+    background: #fffaf0;
+}
+.student-timeline-row.is-good {
+    background: #f4fbf6;
+}
+.student-timeline-empty {
+    padding: 8px 0 2px;
+}
 .student-comm-collapse {
     margin-top: 14px;
     width: 100%;
@@ -2297,6 +2363,20 @@ body.dark-mode .student-judgement-item.is-risk {
 }
 .record-link-btn:hover {
     text-decoration: underline;
+}
+.operation-log-note {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--hover-bg);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.55;
+}
+.operation-log-table th,
+.operation-log-table td {
+    font-size: 12px;
+    vertical-align: top;
 }
 .class-member-chip {
     cursor: pointer;

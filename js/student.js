@@ -304,6 +304,100 @@ function openStudentCommQuick(studentId, mode = 'edit') {
     openCommModal(mode === 'new' ? null : latestComm?.id || null, { studentId });
 }
 
+function getStudentTimelineEvents(student) {
+    if (!student) return [];
+    const events = [];
+    const studentId = String(student.id);
+    const classMap = new Map((data.classes || []).map(c => [String(c.id), c]));
+
+    (data.fees || []).filter(f => String(f.studentId) === studentId).forEach(f => {
+        events.push({
+            date: f.paymentDate || '',
+            type: f.status === 'pending' ? '欠费' : '收费',
+            tone: f.status === 'pending' ? 'risk' : 'good',
+            title: `${f.status === 'pending' ? '欠费' : '缴费'} ¥${Number(f.amount || 0).toLocaleString()} · ${Number(f.hours || 0)}课时`,
+            detail: f.remark || f.package || ''
+        });
+    });
+
+    (data.grades || []).filter(g => String(g.studentId) === studentId).forEach(g => {
+        events.push({
+            date: g.testDate || '',
+            type: '成绩',
+            tone: Number(g.score || 0) >= 90 ? 'good' : Number(g.score || 0) >= 70 ? 'warn' : 'risk',
+            title: `${g.testName || '未命名测试'} · ${g.score ?? '-'}/${g.fullScore ?? '-'}`,
+            detail: g.weakPoints ? `薄弱点：${g.weakPoints}` : ''
+        });
+    });
+
+    (data.communications || []).filter(c => String(c.studentId) === studentId).forEach(c => {
+        events.push({
+            date: c.contactDate || '',
+            type: '沟通',
+            tone: c.status === 'pending' ? 'warn' : 'normal',
+            title: `${c.status || '已记录'} · ${c.contactType || '沟通'}`,
+            detail: c.content || c.followUp || ''
+        });
+    });
+
+    (data.attendance || []).forEach(session => {
+        const status = session.records ? session.records[student.id] : undefined;
+        if (status !== 1 && status !== 0) return;
+        const cls = classMap.get(String(session.classId));
+        events.push({
+            date: session.date || '',
+            type: '考勤',
+            tone: status === 1 ? 'good' : 'warn',
+            title: `${status === 1 ? '出勤' : '请假'} · ${cls?.name || '未知班级'}`,
+            detail: session.sessionName || session.name || ''
+        });
+    });
+
+    (data.operationLogs || [])
+        .filter(log => String(log.studentId || '') === studentId || (log.targetType === 'students' && String(log.targetId || '') === studentId))
+        .forEach(log => {
+            events.push({
+                date: log.createdAt || '',
+                type: '操作',
+                tone: 'normal',
+                title: log.summary || `${log.module || '操作'} · ${log.targetName || student.name}`,
+                detail: log.canUndo ? '可回退' : '已记录'
+            });
+        });
+
+    return events
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+        .slice(0, 10);
+}
+
+function renderStudentTimeline(events) {
+    if (!events || events.length === 0) {
+        return '<div class="student-detail-muted student-timeline-empty">暂无时间线记录</div>';
+    }
+    return `
+        <div class="student-timeline-list">
+            ${events.map(event => `
+                <div class="student-timeline-row is-${escapeHtml(event.tone || 'normal')}">
+                    <div class="student-timeline-date">${escapeHtml(formatTimelineDate(event.date))}</div>
+                    <div class="student-timeline-type">${escapeHtml(event.type || '-')}</div>
+                    <div class="student-timeline-main">
+                        <b>${escapeHtml(event.title || '-')}</b>
+                        ${event.detail ? `<span>${escapeHtml(event.detail)}</span>` : ''}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function formatTimelineDate(value) {
+    if (!value) return '-';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return String(value);
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
+    return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+}
+
 function renderStudentDetail() {
     if (!currentStudentId) return;
     const student = data.students.find(s => s.id === currentStudentId);
@@ -391,6 +485,7 @@ function renderStudentDetail() {
         return `<button type="button" data-school="${escapeHtml(display)}" onclick="setStudentDetailSchoolDisplay(this)">${escapeHtml(display)}</button>`;
     }).join('');
     const currentSchoolDisplay = `${currentSchool.stageText} · ${currentSchool.school || '-'}`;
+    const timelineEvents = getStudentTimelineEvents(student);
 
     const detail = document.getElementById('studentDetail');
     if (currentStudentGradeChart && typeof currentStudentGradeChart.destroy === 'function') {
@@ -512,6 +607,14 @@ function renderStudentDetail() {
         </div>
 
         ${riskNotes.length ? `<div class="student-detail-risk-line">${riskNotes.map(note => `<span>${escapeHtml(note)}</span>`).join('')}</div>` : ''}
+
+        <section class="student-timeline-panel">
+            <div class="student-record-title">
+                <span>最近时间线</span>
+                <em>收费 / 成绩 / 沟通 / 考勤 / 操作</em>
+            </div>
+            ${renderStudentTimeline(timelineEvents)}
+        </section>
 
         <!-- 沟通记录 -->
         <details class="student-comm-collapse">

@@ -16,7 +16,8 @@ const API_COLLECTION_NAMES = [
     'classTypes',
     'gradeOptions',
     'aiQuestionPrompts',
-    'aiConversations'
+    'aiConversations',
+    'operationLogs'
 ];
 
 // 全局数据对象
@@ -47,7 +48,8 @@ let data = {
         { id: 'qa_prompt_fee_risk', text: '哪些学生有欠费或需要续费？', category: '收费', sortOrder: 60, isDefault: true },
         { id: 'qa_prompt_focus_students', text: '帮我总结一下最近需要关注的学生', category: '经营', sortOrder: 70, isDefault: true }
     ],
-    aiConversations: []
+    aiConversations: [],
+    operationLogs: []
 };
 
 // 全局状态
@@ -132,6 +134,124 @@ function normalizeNameForMatch(name) {
 function normalizeTextForMatch(text) {
     if (text == null) return '';
     return String(text).trim().replace(/\s+/g, '');
+}
+
+function getStudentNameById(studentId) {
+    if (!studentId) return '';
+    return (data.students || []).find(student => String(student.id) === String(studentId))?.name || '';
+}
+
+// ========== 操作日志 ==========
+
+const OPERATION_LOG_COLLECTIONS = new Set([
+    'classes',
+    'students',
+    'prospects',
+    'fees',
+    'attendance',
+    'grades',
+    'communications'
+]);
+
+function getCollectionLabel(collectionName) {
+    return {
+        classes: '班级',
+        students: '学员',
+        prospects: '意向学员',
+        fees: '收费记录',
+        attendance: '考勤课次',
+        grades: '成绩记录',
+        communications: '沟通记录'
+    }[collectionName] || collectionName;
+}
+
+function getOperationTargetName(collectionName, item = {}) {
+    if (!item) return '-';
+    if (collectionName === 'classes') return item.name || item.className || item.id || '-';
+    if (collectionName === 'students') return item.name || item.studentName || item.id || '-';
+    if (collectionName === 'prospects') return item.name || item.id || '-';
+    if (collectionName === 'fees') return `${item.studentName || getStudentNameById(item.studentId) || '未知学员'} · ${item.paymentDate || '未填日期'}`;
+    if (collectionName === 'grades') return `${item.studentName || getStudentNameById(item.studentId) || '未知学员'} · ${item.testName || '未命名测试'}`;
+    if (collectionName === 'communications') return `${item.studentName || getStudentNameById(item.studentId) || '未知学员'} · ${item.contactDate || '未填日期'}`;
+    if (collectionName === 'attendance') {
+        const cls = (data.classes || []).find(c => c.id === item.classId);
+        return `${cls?.name || '未知班级'} · ${item.date || '未填日期'}`;
+    }
+    return item.name || item.title || item.id || '-';
+}
+
+function getOperationStudentId(collectionName, item = {}) {
+    if (!item) return '';
+    if (collectionName === 'students') return item.id || '';
+    if (['fees', 'grades', 'communications'].includes(collectionName)) return item.studentId || '';
+    return '';
+}
+
+function getTrackedFieldLabels(collectionName) {
+    const common = {
+        name: '姓名',
+        status: '状态',
+        grade: '年级',
+        classId: '班级',
+        remark: '备注'
+    };
+    const maps = {
+        students: { ...common, phone: '电话', school: '学校', firstEnrollGrade: '首次上课年级' },
+        prospects: { ...common, source: '来源', trialStatus: '试课状态', dealStatus: '成交状态', wechat: '微信' },
+        classes: { name: '班级名', grade: '年级', status: '状态', schedule: '上课时间', plannedSessions: '计划课次', maxStudents: '容量' },
+        fees: { studentName: '学员', amount: '金额', hours: '课时', paymentDate: '缴费日期', status: '状态', package: '套餐', remark: '备注' },
+        grades: { studentName: '学员', testName: '测试', testDate: '日期', score: '得分', fullScore: '满分', ranking: '排名', weakPoints: '薄弱点', remark: '备注' },
+        communications: { studentName: '学员', contactDate: '日期', status: '状态', contactType: '方式', contactPerson: '联系人', content: '内容', followUp: '跟进' },
+        attendance: { classId: '班级', date: '日期', sessionName: '课次名称', name: '课次名称' }
+    };
+    return maps[collectionName] || common;
+}
+
+function buildChangedFieldText(collectionName, beforeItem = {}, afterItem = {}) {
+    if (!beforeItem || !afterItem) return '';
+    const labels = getTrackedFieldLabels(collectionName);
+    const changed = Object.entries(labels)
+        .filter(([key]) => JSON.stringify(beforeItem[key] ?? '') !== JSON.stringify(afterItem[key] ?? ''))
+        .map(([, label]) => label);
+    if (!changed.length) return '内容';
+    return changed.slice(0, 6).join('、') + (changed.length > 6 ? `等${changed.length}项` : '');
+}
+
+function buildOperationLogEntry({ collectionName, action, beforeItem, afterItem, detail }) {
+    const item = afterItem || beforeItem || {};
+    const moduleName = getCollectionLabel(collectionName);
+    const targetName = getOperationTargetName(collectionName, item);
+    const actionLabel = action === 'create' ? '新增' : action === 'delete' ? '删除' : action === 'batch' ? '批量保存' : action === 'action' ? '执行' : '更新';
+    const changedText = action === 'update' ? `（${buildChangedFieldText(collectionName, beforeItem, afterItem)}）` : '';
+    return {
+        id: `op_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        action,
+        module: moduleName,
+        collectionName,
+        targetType: collectionName,
+        targetId: String(item.id || ''),
+        targetName,
+        studentId: getOperationStudentId(collectionName, item),
+        summary: detail || `${actionLabel}${moduleName}：${targetName}${changedText}`,
+        canUndo: false,
+        source: 'web',
+        createdAt: new Date().toISOString()
+    };
+}
+
+async function recordOperationLog(entry) {
+    if (!entry || !entry.summary) return;
+    try {
+        if (!Array.isArray(data.operationLogs)) data.operationLogs = [];
+        const saved = await saveCollectionItemToApi('operationLogs', entry, {
+            skipUndo: true,
+            skipOperationLog: true,
+            skipToast: true
+        });
+        return saved;
+    } catch (error) {
+        console.warn('记录操作日志失败:', error);
+    }
 }
 
 // ========== 日期解析工具 ==========
@@ -585,8 +705,8 @@ async function loadDataHealthReportFromApi() {
     return response.json();
 }
 
-async function saveCollectionToApi(collectionName, items) {
-    if (lastSavedDataSnapshot) {
+async function saveCollectionToApi(collectionName, items, options = {}) {
+    if (!options.skipUndo && lastSavedDataSnapshot) {
         undoDataSnapshot = cloneData(lastSavedDataSnapshot);
     }
     const response = await fetch(`${SERVER_URL}/api/${collectionName}`, {
@@ -612,13 +732,23 @@ async function saveCollectionToApi(collectionName, items) {
     dataModified = false;
     updateAutoSaveIndicator();
     updateUndoButton();
+    if (!options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName)) {
+        await recordOperationLog(buildOperationLogEntry({
+            collectionName,
+            action: 'batch',
+            detail: `批量保存${getCollectionLabel(collectionName)}：${items.length} 条`
+        }));
+    }
     return data[collectionName];
 }
 
-async function saveCollectionItemToApi(collectionName, item) {
-    if (lastSavedDataSnapshot) {
+async function saveCollectionItemToApi(collectionName, item, options = {}) {
+    if (!options.skipUndo && lastSavedDataSnapshot) {
         undoDataSnapshot = cloneData(lastSavedDataSnapshot);
     }
+    const beforeItem = item?.id
+        ? (data[collectionName] || []).find(current => String(current.id) === String(item.id))
+        : null;
     const method = item && item.id ? 'PUT' : 'POST';
     const url = item && item.id
         ? `${SERVER_URL}/api/${collectionName}/${encodeURIComponent(item.id)}`
@@ -646,13 +776,22 @@ async function saveCollectionItemToApi(collectionName, item) {
     dataModified = false;
     updateAutoSaveIndicator();
     updateUndoButton();
+    if (!options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName)) {
+        await recordOperationLog(buildOperationLogEntry({
+            collectionName,
+            action: beforeItem ? 'update' : 'create',
+            beforeItem,
+            afterItem: payload.item
+        }));
+    }
     return payload.item;
 }
 
-async function deleteCollectionItemFromApi(collectionName, id) {
-    if (lastSavedDataSnapshot) {
+async function deleteCollectionItemFromApi(collectionName, id, options = {}) {
+    if (!options.skipUndo && lastSavedDataSnapshot) {
         undoDataSnapshot = cloneData(lastSavedDataSnapshot);
     }
+    const beforeItem = (data[collectionName] || []).find(current => String(current.id) === String(id));
     const response = await fetch(`${SERVER_URL}/api/${collectionName}/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: {
@@ -675,6 +814,13 @@ async function deleteCollectionItemFromApi(collectionName, id) {
     dataModified = false;
     updateAutoSaveIndicator();
     updateUndoButton();
+    if (!options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName)) {
+        await recordOperationLog(buildOperationLogEntry({
+            collectionName,
+            action: 'delete',
+            beforeItem: payload.deleted || beforeItem
+        }));
+    }
     return payload.deleted;
 }
 
@@ -712,6 +858,22 @@ async function runActionToApi(path, options = {}) {
     dataModified = false;
     updateAutoSaveIndicator();
     updateUndoButton();
+    if (!options.skipOperationLog && method !== 'GET') {
+        await recordOperationLog({
+            id: `op_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+            action: 'action',
+            module: '系统操作',
+            collectionName: 'actions',
+            targetType: 'action',
+            targetId: path,
+            targetName: path,
+            studentId: '',
+            summary: options.operationSummary || `执行系统操作：${path}`,
+            canUndo: false,
+            source: 'web',
+            createdAt: new Date().toISOString()
+        });
+    }
     return payload;
 }
 

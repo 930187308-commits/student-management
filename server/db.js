@@ -31,7 +31,8 @@ const DEFAULT_DATA = {
         { id: 'qa_prompt_fee_risk', text: '哪些学生有欠费或需要续费？', category: '收费', sortOrder: 60, isDefault: true },
         { id: 'qa_prompt_focus_students', text: '帮我总结一下最近需要关注的学生', category: '经营', sortOrder: 70, isDefault: true }
     ],
-    aiConversations: []
+    aiConversations: [],
+    operationLogs: []
 };
 
 const ENTITY_COLLECTIONS = new Set([
@@ -870,13 +871,14 @@ function getCollectionItemId(collectionName, item) {
         fees: 'fee',
         attendance: 'attendance',
         grades: 'grade',
-        communications: 'communication'
+        communications: 'communication',
+        operationLogs: 'op'
     };
     return item.id ? String(item.id) : `${prefixMap[collectionName] || 'item'}_${crypto.randomUUID()}`;
 }
 
 function upsertCollectionItem(collectionName, item, reason = 'item_save') {
-    if (!ENTITY_READ_COLLECTIONS.has(collectionName)) {
+    if (!ENTITY_READ_COLLECTIONS.has(collectionName) && !Array.isArray(DEFAULT_DATA[collectionName])) {
         const error = new Error(`${collectionName} 不支持单条记录保存`);
         error.statusCode = 400;
         throw error;
@@ -902,7 +904,7 @@ function upsertCollectionItem(collectionName, item, reason = 'item_save') {
 }
 
 function deleteCollectionItem(collectionName, id, reason = 'item_delete') {
-    if (!ENTITY_READ_COLLECTIONS.has(collectionName)) {
+    if (!ENTITY_READ_COLLECTIONS.has(collectionName) && !Array.isArray(DEFAULT_DATA[collectionName])) {
         const error = new Error(`${collectionName} 不支持单条记录删除`);
         error.statusCode = 400;
         throw error;
