@@ -65,26 +65,26 @@ function loadAttendanceClass(classId) {
 
     // 班级基本信息栏
     const classInfoBar = `
-        <div style="display: flex; gap: 12px; flex-wrap: wrap; padding: 8px 12px; background: var(--hover-bg); border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
-            <div><span style="color:#888;">班级：</span><strong>${escapeHtml(cls?.name || '')}</strong></div>
-            <div><span style="color:#888;">上课：</span>${escapeHtml(cls?.schedule || '-')}</div>
-            <div><span style="color:#888;">课次：</span><strong style="color:#27ae60;">${sessions.length}</strong><span style="color:#888;">/${cls?.plannedSessions || 16}</span></div>
-            <div><span style="color:#888;">学员：</span><strong>${data.students.filter(s => s.classId === classId && s.status === 'active').length}</strong><span style="color:#888;">人</span></div>
+        <div class="attendance-class-info">
+            <div><span class="attendance-meta-label">班级：</span><strong>${escapeHtml(cls?.name || '')}</strong></div>
+            <div><span class="attendance-meta-label">上课：</span>${escapeHtml(cls?.schedule || '-')}</div>
+            <div><span class="attendance-meta-label">课次：</span><strong class="text-success">${sessions.length}</strong><span class="attendance-meta-label">/${cls?.plannedSessions || 16}</span></div>
+            <div><span class="attendance-meta-label">学员：</span><strong>${data.students.filter(s => s.classId === classId && s.status === 'active').length}</strong><span class="attendance-meta-label">人</span></div>
         </div>
     `;
 
     let tableHtml = '';
     if (students.length === 0) {
-        tableHtml = '<div class="empty-state" style="padding:24px;text-align:center;color:#888;">暂无学员，请先在班级管理中添加学员。</div>';
+        tableHtml = '<div class="empty-state attendance-empty">暂无学员，请先在班级管理中添加学员。</div>';
     } else if (allDates.length === 0) {
-        tableHtml = '<div class="empty-state" style="padding:24px;text-align:center;color:#888;">暂无考勤课次，请先新增课次或导入考勤。</div>';
+        tableHtml = '<div class="empty-state attendance-empty">暂无考勤课次，请先新增课次或导入考勤。</div>';
     } else {
         tableHtml = `
             <div class="attendance-scroll">
             <table class="attendance-table">
                 <thead>
                     <tr>
-                        <th style="min-width:80px;position:sticky;left:0;background:#fafafa;z-index:2;border-right:1px solid var(--table-border);">学员</th>
+                        <th class="attendance-sticky-col" style="min-width:80px;">学员</th>
                         ${allDates.map((d, i) => {
                             const sess = sessions.find(s => s.date === d);
                             return `<th style="min-width:60px;">
@@ -122,7 +122,7 @@ function loadAttendanceClass(classId) {
                         });
                         return `
                             <tr>
-                                <td style="position:sticky;left:0;background:#fafafa;z-index:1;border-right:1px solid var(--table-border);">${escapeHtml(s.name)}${studentMarker ? `<br><span style="font-size:10px;color:#888;">${studentMarker}</span>` : ''}</td>
+                                <td class="attendance-sticky-col">${escapeHtml(s.name)}${studentMarker ? `<br><span class="attendance-student-marker">${studentMarker}</span>` : ''}</td>
                                 ${allDates.map((date, i) => {
                                     const session = sessions.find(sess => sess.date === date);
                                     const status = session?.records?.[s.id];
@@ -137,8 +137,8 @@ function loadAttendanceClass(classId) {
                 </tbody>
             </table>
             </div>
-            <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center;">
-                <span style="font-size: 12px; color: #888;">说明：1=正常出勤 0=请假，空=未记录。停课/转出/转入标记在姓名旁。</span>
+            <div class="attendance-footer-note">
+                <span class="attendance-note-text">说明：1=正常出勤 0=请假，空=未记录。停课/转出/转入标记在姓名旁。</span>
                 <button class="btn btn-secondary btn-sm" onclick="exportAttendance()">导出Excel</button>
             </div>
         `;
@@ -198,9 +198,9 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
     const tempStudents = Object.values(tempMap);
     if (tempStudents.length === 0) {
         const sessionOptions = sessions.map((sess, i) => `<option value="${sess.date}">${escapeHtml(sess.sessionName || '第'+(i+1)+'次')} - ${sess.date}</option>`).join('');
-        return `<div style="margin-top: 20px; padding: 12px; background: var(--hover-bg); border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <strong style="color: #2c3e50;">临时调课学员</strong>
+        return `<div class="attendance-temp-section">
+            <div class="attendance-temp-header">
+                <strong>临时调课学员</strong>
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <select id="tempSessionSelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">${sessionOptions}</select>
                     <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal(document.getElementById('tempSessionSelect').value)">+ 添加临时学员</button>
@@ -210,9 +210,9 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
         </div>`;
     }
 
-    return `<div style="margin-top: 20px; padding: 12px; background: var(--hover-bg); border-radius: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <strong style="color: #2c3e50;">临时调课学员 <span style="font-size: 12px; color: #888;">（临时到本班上课）</span></strong>
+    return `<div class="attendance-temp-section">
+        <div class="attendance-temp-header">
+            <strong>临时调课学员 <span>（临时到本班上课）</span></strong>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <select id="tempSessionSelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">${sessions.map((sess, i) => `<option value="${sess.date}">${escapeHtml(sess.sessionName || '第'+(i+1)+'次')} - ${sess.date}</option>`).join('')}</select>
                 <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal(document.getElementById('tempSessionSelect').value)">+ 添加临时学员</button>
@@ -245,16 +245,16 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
                         else if (status === 0) absent++;
                     });
                     return `
-                        <tr style="background: #fff3cd;">
+                        <tr class="attendance-temp-row">
                             <td><span style="font-weight: 600;">${escapeHtml(student.name)}</span> <span style="font-size: 10px; background: #f39c12; color: white; padding: 1px 4px; border-radius: 3px;">临时</span></td>
-                            <td style="font-size: 12px; color: #888;">${escapeHtml(fromClass?.name || '-')}</td>
+                            <td class="attendance-muted-cell">${escapeHtml(fromClass?.name || '-')}</td>
                             ${allDates.map((date, i) => {
                                 const sess = sessions.find(s => s.date === date);
                                 const status = ts.dates[date];
                                 const cls = status === 1 ? 'present' : status === 0 ? 'absent' : '';
                                 const isTempHere = ts.isTempHere[date];
                                 if (!isTempHere) {
-                                    return `<td style="color: #ccc; text-align: center;">-</td>`;
+                                    return `<td class="attendance-muted-cell">-</td>`;
                                 }
                                 return `<td>
                                     <input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${ts.studentId}" data-temp="true" onchange="updateAttendance(this)">
@@ -491,7 +491,7 @@ function openEditAttendanceSession(sessionId) {
     document.getElementById('modalTitle').textContent = '编辑课次';
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveEditAttendanceSession(event, '${sessionId}')">
-            <div style="margin-bottom: 12px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 13px; color: #2980b9;">
+            <div class="attendance-helper-note">
                 编辑课次名称/日期后，学员出勤状态（1/0/空）保持不变。
             </div>
             <div class="form-row">

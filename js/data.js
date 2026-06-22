@@ -574,6 +574,7 @@ async function init() {
     await loadData();
     initDarkMode();
     initTabs();
+    initSidebarResize();
     render();
 }
 
@@ -1247,6 +1248,51 @@ function initTabs() {
             }
             render();
         });
+    });
+}
+
+function initSidebarResize() {
+    const shell = document.querySelector('.app-shell');
+    const resizer = document.getElementById('sidebarResizer');
+    if (!shell || !resizer) return;
+
+    const minWidth = 150;
+    const maxWidth = 260;
+    const savedWidth = Number(localStorage.getItem('studentManageSidebarWidth'));
+    const applyWidth = width => {
+        const nextWidth = Math.min(maxWidth, Math.max(minWidth, Math.round(width)));
+        shell.style.setProperty('--sidebar-width', nextWidth + 'px');
+        return nextWidth;
+    };
+
+    if (savedWidth) applyWidth(savedWidth);
+
+    resizer.addEventListener('pointerdown', event => {
+        if (window.matchMedia('(max-width: 700px)').matches) return;
+        event.preventDefault();
+        resizer.setPointerCapture(event.pointerId);
+        document.body.classList.add('sidebar-resizing');
+
+        const moveHandler = moveEvent => {
+            const shellLeft = shell.getBoundingClientRect().left;
+            applyWidth(moveEvent.clientX - shellLeft);
+        };
+        const endHandler = endEvent => {
+            const shellLeft = shell.getBoundingClientRect().left;
+            const finalWidth = applyWidth(endEvent.clientX - shellLeft);
+            localStorage.setItem('studentManageSidebarWidth', String(finalWidth));
+            document.body.classList.remove('sidebar-resizing');
+            if (resizer.hasPointerCapture(endEvent.pointerId)) {
+                resizer.releasePointerCapture(endEvent.pointerId);
+            }
+            resizer.removeEventListener('pointermove', moveHandler);
+            resizer.removeEventListener('pointerup', endHandler);
+            resizer.removeEventListener('pointercancel', endHandler);
+        };
+
+        resizer.addEventListener('pointermove', moveHandler);
+        resizer.addEventListener('pointerup', endHandler);
+        resizer.addEventListener('pointercancel', endHandler);
     });
 }
 

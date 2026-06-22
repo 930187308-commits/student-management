@@ -592,8 +592,10 @@ function goToAttendanceToday() {
 function switchTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-    document.getElementById('tab-' + tab).classList.add('active');
+    const navTab = document.querySelector(`[data-tab="${tab}"]`);
+    const tabContent = document.getElementById('tab-' + tab);
+    if (navTab) navTab.classList.add('active');
+    if (tabContent) tabContent.classList.add('active');
     currentTab = tab;
     const appMain = document.querySelector('.app-main');
     if (appMain) {
