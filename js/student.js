@@ -2,6 +2,7 @@
 
 let currentStudentTab = 'active'; // active / renewalPending / inactive
 let studentBatchMode = false;
+let studentListFilters = { grade: '', classId: '', search: '' };
 
 const STUDENT_DEFAULT_GRADES = ['五年级', '六年级', '初一', '初二', '初三', '高一', '高二', '高三'];
 const STUDENT_GRADE_UPGRADE_MAP = {
@@ -55,6 +56,19 @@ function getCurrentStageSchool(student = {}) {
 function getLegacySchoolFromHistory(grade, schoolHistory, fallback = '') {
     const stageInfo = getCurrentStageSchool({ grade, schoolHistory, school: fallback });
     return stageInfo.school || fallback || '';
+}
+
+function getCommunicationStatusText(status = '') {
+    const map = { pending: '待沟通', done: '已完成' };
+    return map[status] || status || '已记录';
+}
+
+function syncStudentListFiltersFromDom() {
+    studentListFilters = {
+        grade: document.getElementById('studentGradeFilter')?.value || '',
+        classId: document.getElementById('studentClassFilter')?.value || '',
+        search: document.getElementById('studentSearchInput')?.value || ''
+    };
 }
 
 function renderStudents() {
@@ -112,7 +126,11 @@ function renderStudents() {
         </div>
     `;
     container.innerHTML = html;
-    onGradeFilterChange();
+    const gradeSelect = document.getElementById('studentGradeFilter');
+    const searchInput = document.getElementById('studentSearchInput');
+    if (gradeSelect) gradeSelect.value = studentListFilters.grade || '';
+    if (searchInput) searchInput.value = studentListFilters.search || '';
+    onGradeFilterChange(studentListFilters.classId || '');
     if (currentStudentId && data.students.some(s => s.id === currentStudentId)) {
         renderStudentDetail();
     } else {
@@ -121,19 +139,28 @@ function renderStudents() {
 }
 
 function switchStudentTab(tab) {
+    syncStudentListFiltersFromDom();
     currentStudentTab = tab;
     renderStudents();
 }
 
-function onGradeFilterChange() {
+function onGradeFilterChange(preferredClassId = '') {
     const grade = document.getElementById('studentGradeFilter').value;
     const classSelect = document.getElementById('studentClassFilter');
     const classes = grade ? data.classes.filter(c => c.grade === grade && c.status === 'active') : data.classes.filter(c => c.status === 'active');
     classSelect.innerHTML = `<option value="">全部班级</option><option value="__unassigned__">未分班</option>${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}`;
+    const targetClassId = preferredClassId || studentListFilters.classId || '';
+    if ([...classSelect.options].some(option => option.value === targetClassId)) {
+        classSelect.value = targetClassId;
+    } else {
+        classSelect.value = '';
+    }
+    syncStudentListFiltersFromDom();
     renderStudentList();
 }
 
 function renderStudentList() {
+    syncStudentListFiltersFromDom();
     const grade = document.getElementById('studentGradeFilter')?.value || '';
     const classId = document.getElementById('studentClassFilter')?.value || '';
     const search = document.getElementById('studentSearchInput')?.value?.toLowerCase() || '';
@@ -220,6 +247,7 @@ function toggleAllStudentSelection(button) {
 }
 
 function selectStudent(id) {
+    syncStudentListFiltersFromDom();
     currentStudentId = id;
     currentStudentGradeTab = 'all';
     renderStudentList();
@@ -371,7 +399,7 @@ function getStudentTimelineEvents(student) {
             date: c.contactDate || '',
             type: '沟通',
             tone: c.status === 'pending' ? 'warn' : 'normal',
-            title: `${c.status || '已记录'} · ${c.contactType || '沟通'}`,
+            title: `${getCommunicationStatusText(c.status)} · ${c.contactType || '沟通'}`,
             detail: c.content || c.followUp || ''
         });
     });
@@ -597,13 +625,13 @@ function renderStudentDetail() {
                 <div class="student-detail-card-title">
                     <span>最近沟通</span>
                     <span class="student-detail-card-title-actions">
-                        ${latestComm ? `<span class="badge badge-normal">${escapeHtml(latestComm.status || '已记录')}</span>` : '<span class="badge badge-normal">暂无</span>'}
+                        ${latestComm ? `<span class="badge badge-normal">${escapeHtml(getCommunicationStatusText(latestComm.status))}</span>` : '<span class="badge badge-normal">暂无</span>'}
                         <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentCommManager('${student.id}')">管理</button>
                         <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentCommQuick('${student.id}', 'new')">+ 新增</button>
                     </span>
                 </div>
                 ${latestComm ? `
-                    <div class="student-detail-line">${escapeHtml(latestComm.contactDate || '-')} · ${escapeHtml(latestComm.status || '-')}</div>
+                    <div class="student-detail-line">${escapeHtml(latestComm.contactDate || '-')} · ${escapeHtml(getCommunicationStatusText(latestComm.status))}</div>
                     <div class="student-detail-muted">${escapeHtml(latestComm.content || latestComm.followUp || '-')}</div>
                     <div class="student-card-note is-${commJudge.tone}">${escapeHtml(commJudge.text)} · ${escapeHtml(commJudge.note)}</div>
                 ` : `
@@ -643,7 +671,7 @@ function renderStudentDetail() {
 
         ${riskNotes.length ? `<div class="student-detail-risk-line">${riskNotes.map(note => `<span>${escapeHtml(note)}</span>`).join('')}</div>` : ''}
 
-        <details class="student-record-section student-timeline-panel" open>
+        <details class="student-record-section student-timeline-panel">
             <summary class="student-record-title">
                 <span>最近时间线 (${timelineEvents.length})</span><em>⌄</em>
                 <small>收费 / 成绩 / 沟通 / 考勤 / 操作</small>
@@ -660,7 +688,7 @@ function renderStudentDetail() {
                 <div class="student-detail-timeline">
                     ${studentComms.slice(0, 8).map(c => `
                         <div class="student-detail-timeline-item">
-                            <div class="student-detail-timeline-date">${escapeHtml(c.contactDate || '-')} · ${escapeHtml(c.status || '-')}</div>
+                            <div class="student-detail-timeline-date">${escapeHtml(c.contactDate || '-')} · ${escapeHtml(getCommunicationStatusText(c.status))}</div>
                             <div>${escapeHtml(c.content || '-')}</div>
                             ${c.followUp ? `<div class="student-detail-muted">跟进：${escapeHtml(c.followUp)}</div>` : ''}
                         </div>
