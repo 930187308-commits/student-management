@@ -19,17 +19,22 @@
                 <button class="theme-toggle" onclick="toggleDarkMode()" title="切换夜间模式">🌙</button>
                 <button class="btn btn-secondary btn-sm" id="privacyToggleBtn" onclick="togglePrivacy()" title="隐藏/显示敏感数据" style="margin-right:8px;">🛡</button>
                 <span class="autosave-indicator" id="autosaveIndicator">● 已保存</span>
-                <button class="btn btn-secondary btn-sm" onclick="undoLastChange()" id="undoBtn" title="撤回最近一次保存的修改" disabled>撤回上一步</button>
-                <button class="btn btn-info btn-sm" onclick="showGistSetupModal()" id="gistSyncBtn" title="查看本地服务器同步说明">同步说明</button>
-                <button class="btn btn-secondary btn-sm" onclick="unbindLicense()" title="解除授权">解绑</button>
-                <button class="btn btn-secondary btn-sm" onclick="exportBackup()">导出备份</button>
-                <div class="file-input-wrapper">
-                    <button class="btn btn-warning btn-sm">导入备份</button>
-                    <input type="file" accept=".json" onchange="importBackup(event)">
-                </div>
                 <button class="btn btn-info btn-sm health-check-button" onclick="openDataHealthCheck()">数据体检<span id="dataHealthBadge" class="health-badge" style="display:none;"></span></button>
-                <button class="btn btn-secondary btn-sm" onclick="openOperationLogModal()">操作日志</button>
                 <button class="btn btn-primary btn-sm" onclick="openDataManager()">数据管理</button>
+                <details class="toolbar-more">
+                    <summary class="btn btn-secondary btn-sm">更多</summary>
+                    <div class="toolbar-more-menu">
+                        <button class="toolbar-more-item" onclick="undoLastChange()" id="undoBtn" title="撤回最近一次保存的修改" disabled>撤回上一步</button>
+                        <button class="toolbar-more-item" onclick="showGistSetupModal()" id="gistSyncBtn" title="查看本地服务器同步说明">同步说明</button>
+                        <button class="toolbar-more-item" onclick="exportBackup()">导出备份</button>
+                        <div class="file-input-wrapper toolbar-more-file">
+                            <button class="toolbar-more-item">导入备份</button>
+                            <input type="file" accept=".json" onchange="importBackup(event)">
+                        </div>
+                        <button class="toolbar-more-item" onclick="openOperationLogModal()">操作日志</button>
+                        <button class="toolbar-more-item" onclick="unbindLicense()" title="解除授权">解绑</button>
+                    </div>
+                </details>
             </div>
         </div>
     </div>

@@ -497,7 +497,7 @@ function renderStudentDetail() {
     if (displayGrades.length >= 2) {
         chartHtml = `
             <div style="margin-top: 24px;">
-                <div style="font-weight: 600; color: #2c3e50; margin-bottom: 12px;">成绩趋势</div>
+                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">${escapeHtml(student.name)} · 成绩趋势</div>
                 <div class="chart-container"><canvas id="gradeChart"></canvas></div>
             </div>
         `;
