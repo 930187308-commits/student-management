@@ -311,6 +311,23 @@ function openStudentFeeQuick(studentId, mode = 'edit') {
     openFeeModal(pendingFee?.id || latestFee?.id || null, { studentId, status: pendingFee ? 'pending' : 'paid' });
 }
 
+function openStudentFeeManager(studentId) {
+    const student = (data.students || []).find(s => s.id === studentId);
+    if (!student) {
+        showToast('未找到对应学员');
+        return;
+    }
+    switchTab('fees');
+    setTimeout(() => {
+        const search = document.getElementById('feeSearch');
+        const statusFilter = document.getElementById('feeStatusFilter');
+        if (search) search.value = student.name || '';
+        if (statusFilter) statusFilter.value = '';
+        if (typeof renderFeeTable === 'function') renderFeeTable();
+        search?.focus();
+    }, 80);
+}
+
 function openStudentGradeQuick(studentId, mode = 'edit') {
     const latestGrade = (data.grades || [])
         .filter(g => g.studentId === studentId)
@@ -587,6 +604,7 @@ function renderStudentDetail() {
                     <span>课时与收费</span>
                     <span class="student-detail-card-title-actions">
                         ${riskNotes.length ? '<span class="badge badge-pending">需处理</span>' : '<span class="badge badge-active">正常</span>'}
+                        <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentFeeManager('${student.id}')">管理</button>
                         <button type="button" class="student-card-mini-action" onclick="event.stopPropagation(); openStudentFeeQuick('${student.id}', 'new')">+ 新增</button>
                     </span>
                 </div>
