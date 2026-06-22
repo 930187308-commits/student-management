@@ -777,32 +777,33 @@ body.dark-mode .badge-normal {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 6px;
+    margin-bottom: 10px;
 }
 
 .student-tab-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
 }
 
 .student-tab-actions .btn {
-    min-height: 30px;
-    padding: 6px 10px;
-    border-radius: 8px;
+    min-height: 26px;
+    padding: 4px 8px;
+    border-radius: 7px;
+    font-size: 12px;
     white-space: nowrap;
 }
 
 .student-add-pill {
     border: none;
     border-radius: 999px;
-    padding: 6px 11px;
-    min-height: 30px;
+    padding: 4px 9px;
+    min-height: 26px;
     background: rgba(52, 152, 219, 0.12);
     color: #1976d2;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
@@ -856,16 +857,16 @@ body.dark-mode .badge-normal {
 .student-batch-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 10px;
+    gap: 6px;
+    margin-top: 8px;
 }
 
 .student-panel-action-btn {
     width: 100%;
-    min-height: 34px;
-    border-radius: 8px;
-    font-size: 13px;
-    padding: 7px 8px;
+    min-height: 30px;
+    border-radius: 7px;
+    font-size: 12px;
+    padding: 5px 7px;
 }
 
 .student-panel-file-action {
