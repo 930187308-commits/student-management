@@ -534,6 +534,7 @@ function renderStudentDetail() {
                     <div><span>欠费</span><b>¥${pendingFeeAmount.toLocaleString()}</b></div>
                 </div>
                 <div class="student-detail-muted">最近收费：${latestFeeText}</div>
+                <div class="student-card-note is-${hourJudge.tone}">${escapeHtml(hourJudge.text)} · ${escapeHtml(hourJudge.note)}</div>
             </div>
 
             <div class="student-detail-card clickable-card" role="button" tabindex="0" title="点击查看或新增该学员成绩" onclick="openStudentGradeQuick('${student.id}')" onkeydown="if(event.key==='Enter')openStudentGradeQuick('${student.id}')">
@@ -548,7 +549,11 @@ function renderStudentDetail() {
                     <div class="student-detail-big">${escapeHtml(latestGrade.score ?? '-')}/${escapeHtml(latestGrade.fullScore ?? '-')}</div>
                     <div class="student-detail-line">日期：${escapeHtml(latestGrade.testDate || '-')}</div>
                     <div class="student-detail-muted">薄弱点：${escapeHtml(latestGrade.weakPoints || '暂无')}</div>
-                ` : '<div class="student-detail-muted">暂无成绩记录</div>'}
+                    <div class="student-card-note is-${learningJudge.tone}">${escapeHtml(learningJudge.text)} · ${escapeHtml(learningJudge.note)}</div>
+                ` : `
+                    <div class="student-detail-muted">暂无成绩记录</div>
+                    <div class="student-card-note is-${learningJudge.tone}">${escapeHtml(learningJudge.text)} · ${escapeHtml(learningJudge.note)}</div>
+                `}
             </div>
 
             <div class="student-detail-card clickable-card" role="button" tabindex="0" title="点击查看或补充该学员沟通记录" onclick="openStudentCommQuick('${student.id}')" onkeydown="if(event.key==='Enter')openStudentCommQuick('${student.id}')">
@@ -562,19 +567,11 @@ function renderStudentDetail() {
                 ${latestComm ? `
                     <div class="student-detail-line">${escapeHtml(latestComm.contactDate || '-')} · ${escapeHtml(latestComm.status || '-')}</div>
                     <div class="student-detail-muted">${escapeHtml(latestComm.content || latestComm.followUp || '-')}</div>
-                ` : '<div class="student-detail-muted">暂无沟通记录</div>'}
-            </div>
-        </div>
-
-        <div class="student-judgement-strip">
-            <div class="student-judgement-item is-${hourJudge.tone}">
-                <span>课时</span><b>${escapeHtml(hourJudge.text)}</b><em>${escapeHtml(hourJudge.note)}</em>
-            </div>
-            <div class="student-judgement-item is-${learningJudge.tone}">
-                <span>学习</span><b>${escapeHtml(learningJudge.text)}</b><em>${escapeHtml(learningJudge.note)}</em>
-            </div>
-            <div class="student-judgement-item is-${commJudge.tone}">
-                <span>沟通</span><b>${escapeHtml(commJudge.text)}</b><em>${escapeHtml(commJudge.note)}</em>
+                    <div class="student-card-note is-${commJudge.tone}">${escapeHtml(commJudge.text)} · ${escapeHtml(commJudge.note)}</div>
+                ` : `
+                    <div class="student-detail-muted">暂无沟通记录</div>
+                    <div class="student-card-note is-${commJudge.tone}">${escapeHtml(commJudge.text)} · ${escapeHtml(commJudge.note)}</div>
+                `}
             </div>
         </div>
 
