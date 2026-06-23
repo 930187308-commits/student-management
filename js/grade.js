@@ -7,7 +7,7 @@ function renderGrades() {
     const gradeOptions = data.gradeOptions || [...new Set((data.students || []).map(s => s.grade).filter(Boolean))];
 
     let html = `
-        <div class="card">
+        <div class="card record-card">
             <div class="card-header">
                 <div class="search-bar">
                     <input type="text" id="gradeSearch" placeholder="搜索学员姓名...">
@@ -23,22 +23,22 @@ function renderGrades() {
                 <div class="toolbar">
                     <button class="btn btn-success" onclick="openGradeModal()">+ 新增成绩</button>
                     <div class="divider"></div>
-                    <button class="btn btn-secondary" onclick="downloadGradeTemplate()">下载导入模板</button>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadGradeTemplate()">下载导入模板</button>
                     <div class="file-input-wrapper">
-                        <button class="btn btn-warning">导入Excel</button>
+                        <button class="btn btn-warning btn-sm">导入Excel</button>
                         <input type="file" accept=".xlsx,.xls" onchange="importGrades(event)">
                     </div>
                     <button class="btn btn-secondary btn-sm" onclick="toggleGradeBatchMode()">${gradeBatchMode ? '退出多选' : '多选'}</button>
                 </div>
             </div>
-            <div id="gradeCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
-            <div id="gradeBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+            <div id="gradeCountBar" class="record-meta-bar"></div>
+            <div id="gradeBatchBar" class="record-batch-bar">
                 ${gradeBatchMode ? `<span>已选择 <strong id="gradeSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllGradeSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
             </div>
             <div class="table-wrapper">
                 <table><thead><tr>${gradeBatchMode ? '<th><input type="checkbox" onchange="toggleAllGradeSelection(this)"></th>' : ''}<th>学员</th><th>测试名称</th><th style="white-space:nowrap;">日期</th><th>类型</th><th>得分</th><th>排名</th><th>备注</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
             </div>
-            <div style="margin-top: 16px; display: flex; gap: 12px;">
+            <div class="record-footer-actions">
                 <button class="btn btn-secondary" onclick="exportGrades()">导出Excel</button>
                 ${gradeBatchMode ? '<button class="btn btn-secondary" onclick="exportSelectedGrades()">导出选中</button><button class="btn btn-danger" onclick="deleteSelectedGrades()">删除选中</button>' : ''}
             </div>

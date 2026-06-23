@@ -8,7 +8,7 @@ function renderFees() {
     const totalPending = data.fees.filter(f => f.status === 'pending').reduce((sum, f) => sum + f.amount, 0);
 
     let html = `
-        <div class="card">
+        <div class="card record-card">
             <div class="card-header">
                 <div class="search-bar">
                     <input type="text" id="feeSearch" placeholder="搜索学员姓名...">
@@ -25,18 +25,18 @@ function renderFees() {
 	                    <button class="btn btn-secondary btn-sm" onclick="toggleFeeBatchMode()">${feeBatchMode ? '退出多选' : '多选'}</button>
 	                </div>
 	            </div>
-            <div id="feeCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
-            <div id="feeBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+            <div id="feeCountBar" class="record-meta-bar"></div>
+            <div id="feeBatchBar" class="record-batch-bar">
                 ${feeBatchMode ? `<span>已选择 <strong id="feeSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllFeeSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
             </div>
-            <div style="display: flex; gap: 24px; margin-bottom: 16px; flex-wrap: wrap;">
-                <div><span style="color: #888;">已缴合计：</span><strong style="color: #27ae60;">¥${totalPaid.toLocaleString()}</strong></div>
-                <div><span style="color: #888;">欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
+            <div class="record-summary-row">
+                <div><span>已缴合计：</span><strong style="color: #27ae60;">¥${totalPaid.toLocaleString()}</strong></div>
+                <div><span>欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
             </div>
             <div class="table-wrapper">
 	                <table><thead><tr>${feeBatchMode ? '<th><input type="checkbox" onchange="toggleAllFeeSelection(this)"></th>' : ''}<th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
 	            </div>
-	            <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+	            <div class="record-footer-actions">
 	                <button class="btn btn-secondary" onclick="exportFees()">导出Excel</button>
 	                ${feeBatchMode ? '<button class="btn btn-secondary" onclick="exportSelectedFees()">导出选中</button><button class="btn btn-danger" onclick="deleteSelectedFees()">删除选中</button>' : ''}
 	            </div>

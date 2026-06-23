@@ -6,7 +6,7 @@ function renderCommunications() {
     const container = document.getElementById('tab-communications');
 
     let html = `
-        <div class="card">
+        <div class="card record-card">
             <div class="card-header">
                 <div class="search-bar">
                     <input type="text" id="commSearch" placeholder="搜索学员姓名...">
@@ -18,13 +18,13 @@ function renderCommunications() {
                 </div>
                 <div class="toolbar">
                     <button class="btn btn-secondary btn-sm" onclick="openTopicManager()">管理主题</button>
-                    <button class="btn btn-primary" onclick="openCommModal()">+ 新增沟通</button>
+                    <button class="btn btn-primary btn-sm" onclick="openCommModal()">+ 新增沟通</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleCommunicationBatchMode()">${communicationBatchMode ? '退出多选' : '多选'}</button>
                     ${communicationBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedCommunications()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedCommunications()">删除选中</button>' : ''}
                 </div>
             </div>
-            <div id="commCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
-            <div id="commBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+            <div id="commCountBar" class="record-meta-bar"></div>
+            <div id="commBatchBar" class="record-batch-bar">
                 ${communicationBatchMode ? `<span>已选择 <strong id="commSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllCommunicationSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
             </div>
             <div class="table-wrapper">

@@ -536,6 +536,79 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
 .card-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
 
+/* 记录类页面：收费、成绩、沟通、意向 */
+.record-card {
+    padding: 16px;
+}
+.record-card .card-header {
+    margin-bottom: 10px;
+    align-items: stretch;
+}
+.record-card .search-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    flex: 1 1 320px;
+}
+.record-card .search-bar input,
+.record-card .search-bar select {
+    min-height: 30px;
+    border-radius: 8px;
+}
+.record-card .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+}
+.record-card .toolbar .btn {
+    min-height: 28px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+.record-meta-bar,
+.record-batch-bar {
+    padding: 4px 0 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.record-summary-row {
+    display: flex;
+    gap: 18px;
+    margin: 2px 0 12px;
+    flex-wrap: wrap;
+    font-size: 13px;
+}
+.record-summary-row span {
+    color: var(--text-muted);
+}
+.record-card .table-wrapper {
+    border: 1px solid var(--table-border);
+    border-radius: 10px;
+    overflow: auto;
+    max-height: calc(100vh - 260px);
+}
+.record-card table {
+    min-width: 720px;
+}
+.record-card th,
+.record-card td {
+    padding: 8px 8px;
+}
+.record-footer-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 /* 表格 */
 .table-wrapper { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 600px; }

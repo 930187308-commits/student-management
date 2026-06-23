@@ -8,7 +8,7 @@ function renderProspects() {
     const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
 
     let html = `
-        <div class="card">
+        <div class="card record-card">
             <div class="card-header">
                 <div class="search-bar">
                     <input type="text" id="prospectSearch" placeholder="搜索姓名/微信/电话..." oninput="renderProspectList()">
@@ -19,19 +19,19 @@ function renderProspects() {
                     </select>
                 </div>
                 <div class="toolbar">
-                    <button class="btn btn-secondary" onclick="downloadProspectTemplate()">下载模板</button>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadProspectTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
-                        <button class="btn btn-warning">导入</button>
+                        <button class="btn btn-warning btn-sm">导入</button>
                         <input type="file" accept=".xlsx,.xls" onchange="importProspects(event)">
                     </div>
-                    <button class="btn btn-primary" onclick="openProspectModal()">+ 新增意向</button>
+                    <button class="btn btn-primary btn-sm" onclick="openProspectModal()">+ 新增意向</button>
                     <button class="btn btn-secondary btn-sm" onclick="openSourceManager()">渠道管理</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleProspectBatchMode()">${prospectBatchMode ? '退出多选' : '多选'}</button>
                     ${prospectBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedProspects()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedProspects()">删除选中</button>' : ''}
                 </div>
             </div>
-            <div id="prospectCountBar" style="padding: 6px 0; color: #888; font-size: 13px;"></div>
-            <div id="prospectBatchBar" style="padding: 6px 0; color: #888; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+            <div id="prospectCountBar" class="record-meta-bar"></div>
+            <div id="prospectBatchBar" class="record-batch-bar">
                 ${prospectBatchMode ? `<span>已选择 <strong id="prospectSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllProspectSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
             </div>
             <div class="table-wrapper">
