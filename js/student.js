@@ -871,8 +871,6 @@ function openStudentModal(id = null) {
                 <div class="form-group"><label>联系电话</label><input type="tel" name="phone" value="${escapeHtml(student?.phone || '')}"></div>
                 <div class="form-group"><label>紧急联系人</label><input type="tel" name="emergencyContact" value="${escapeHtml(student?.emergencyContact || '')}"></div>
                 <div class="form-group"><label>首次入学时间</label><input type="date" name="firstEnrollDate" value="${student?.firstEnrollDate || student?.enrollDate || new Date().toISOString().split('T')[0]}"></div>
-            </div>
-            <div class="form-row">
                 <div class="form-group">
                     <label>首次上课年级</label>
                     <select name="firstEnrollGrade">
@@ -880,10 +878,10 @@ function openStudentModal(id = null) {
                         ${getStudentGradeOptions(student?.firstEnrollGrade || student?.grade).map(g => `<option value="${escapeHtml(g)}" ${student?.firstEnrollGrade === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}
                     </select>
                 </div>
-                <div class="form-group"><label>小学学校</label><input type="text" name="primarySchool" value="${escapeHtml(schoolHistory.primarySchool)}" placeholder="如：XX小学" list="schoolDatalist" autocomplete="off"></div>
-                <div class="form-group"><label>初中学校</label><input type="text" name="middleSchool" value="${escapeHtml(schoolHistory.middleSchool)}" placeholder="如：XX中学" list="schoolDatalist" autocomplete="off"></div>
             </div>
             <div class="form-row">
+                <div class="form-group"><label>小学学校</label><input type="text" name="primarySchool" value="${escapeHtml(schoolHistory.primarySchool)}" placeholder="如：XX小学" list="schoolDatalist" autocomplete="off"></div>
+                <div class="form-group"><label>初中学校</label><input type="text" name="middleSchool" value="${escapeHtml(schoolHistory.middleSchool)}" placeholder="如：XX中学" list="schoolDatalist" autocomplete="off"></div>
                 <div class="form-group"><label>高中学校</label><input type="text" name="highSchool" value="${escapeHtml(schoolHistory.highSchool)}" placeholder="如：XX高中" list="schoolDatalist" autocomplete="off"></div>
             </div>
             <div class="form-row">
