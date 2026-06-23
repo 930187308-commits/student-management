@@ -7,44 +7,46 @@ function openDataManager() {
 
     document.getElementById('modalTitle').textContent = '数据管理';
     document.getElementById('modalBody').innerHTML = `
-        <div style="margin-bottom: 12px;">
-            <div style="font-weight: 600; color: #666; margin-bottom: 8px; font-size: 13px;">导出</div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn btn-secondary" onclick="exportAllStudents()">导出所有学员</button>
-                <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
-            </div>
-        </div>
-
-        <div style="margin-bottom: 12px;">
-            <div style="font-weight: 600; color: #666; margin-bottom: 8px; font-size: 13px;">备份</div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn btn-secondary" onclick="openBackupManager()">备份列表</button>
-                <button class="btn btn-success" onclick="createManualServerBackup()">立即创建备份</button>
-            </div>
-        </div>
-
-        <details style="margin-bottom: 16px; padding: 12px; background: var(--hover-bg); border-radius: 8px; border: 1px solid var(--border-color);">
-            <summary style="cursor: pointer; font-weight: 600; color: #888; font-size: 13px;">🔧 高级 JSON 工具（仅调试使用）</summary>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
-                <span style="font-size: 13px; color: #888;">数据大小：${sizeStr}</span>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn btn-secondary btn-sm" onclick="copyJsonData()">复制JSON</button>
-                    <button class="btn btn-success btn-sm" onclick="saveJsonToFile()">保存JSON</button>
+        <div class="data-manager-modal">
+            <section class="data-manager-section">
+                <div class="data-manager-section-title">导出</div>
+                <div class="data-manager-action-row">
+                    <button class="btn btn-secondary" onclick="exportAllStudents()">导出所有学员</button>
+                    <button class="btn btn-primary" onclick="exportAllExcel()">一键导出所有Excel</button>
                 </div>
-            </div>
-            <textarea id="dataJsonPreview" style="width: 100%; height: 160px; font-family: monospace; font-size: 12px; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; resize: vertical; background: var(--input-bg); color: var(--text-primary);" readonly>${jsonStr}</textarea>
-        </details>
+            </section>
 
-        <div style="margin-top: 20px; padding: 16px; border: 1px solid #e74c3c; border-radius: 8px; background: #fef2f2;">
-            <div style="font-weight: 600; color: #e74c3c; margin-bottom: 10px; font-size: 14px;">⚠️ 危险操作</div>
-            <div style="margin-bottom: 10px;">
-                <button class="btn btn-danger" onclick="confirmClearAllData()">一键清空所有数据</button>
-                <span style="font-size: 12px; color: #888; margin-left: 8px;">覆盖当前所有数据，删除后无法找回</span>
-            </div>
-            <div>
-                <button class="btn btn-warning" onclick="resetToSampleData()">重置为示例数据</button>
-                <span style="font-size: 12px; color: #888; margin-left: 8px;">用示例数据替换当前所有数据</span>
-            </div>
+            <section class="data-manager-section">
+                <div class="data-manager-section-title">备份</div>
+                <div class="data-manager-action-row">
+                    <button class="btn btn-secondary" onclick="openBackupManager()">备份列表</button>
+                    <button class="btn btn-success" onclick="createManualServerBackup()">立即创建备份</button>
+                </div>
+            </section>
+
+            <details class="data-manager-debug">
+                <summary>高级 JSON 工具（仅调试使用）</summary>
+                <div class="data-manager-debug-head">
+                    <span>数据大小：${sizeStr}</span>
+                    <div class="data-manager-action-row">
+                        <button class="btn btn-secondary btn-sm" onclick="copyJsonData()">复制JSON</button>
+                        <button class="btn btn-success btn-sm" onclick="saveJsonToFile()">保存JSON</button>
+                    </div>
+                </div>
+                <textarea id="dataJsonPreview" class="data-manager-json-preview" readonly>${jsonStr}</textarea>
+            </details>
+
+            <section class="data-manager-danger">
+                <div class="data-manager-danger-title">危险操作</div>
+                <div class="data-manager-danger-row">
+                    <button class="btn btn-danger" onclick="confirmClearAllData()">一键清空所有数据</button>
+                    <span>覆盖当前所有数据，删除后无法找回</span>
+                </div>
+                <div class="data-manager-danger-row">
+                    <button class="btn btn-warning" onclick="resetToSampleData()">重置为示例数据</button>
+                    <span>用示例数据替换当前所有数据</span>
+                </div>
+            </section>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
@@ -200,7 +202,7 @@ async function loadPreferredDataHealthReport() {
 
 async function openDataHealthCheck() {
     document.getElementById('modalTitle').textContent = '数据体检';
-    document.getElementById('modalBody').innerHTML = '<div style="padding:16px;color:#888;">正在读取数据体检...</div>';
+    document.getElementById('modalBody').innerHTML = '<div class="modal-loading-text">正在读取数据体检...</div>';
     document.getElementById('modal').classList.add('show');
 
     const report = await loadPreferredDataHealthReport();
@@ -208,32 +210,32 @@ async function openDataHealthCheck() {
     updateDataHealthBadge(report);
     document.getElementById('modalTitle').textContent = '数据体检';
     document.getElementById('modalBody').innerHTML = `
-        <div style="font-size: 14px; line-height: 1.8;">
-            <div style="margin-bottom: 12px;">
-                <div style="font-weight: 600; color: #e74c3c; margin-bottom: 6px; font-size: 13px;">⚠️ 需处理（可安全清理）</div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
-                    <div style="padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;">不存在班级的考勤<br><strong style="color:#e74c3c;">${report.orphanAttendance.length}</strong> 条</div>
-                    <div style="padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;">无关联学员的考勤记录<br><strong style="color:#e74c3c;">${report.unknownRecordRefs}</strong> 个</div>
-                    <div style="padding:10px;background:#fdecea;border-radius:8px;border:1px solid #e74c3c;">已删学员的收费记录<br><strong style="color:#e74c3c;">${report.orphanFees.length}</strong> 条</div>
+        <div class="data-health-modal">
+            <section class="data-health-section">
+                <div class="data-health-section-title is-danger">需处理（可安全清理）</div>
+                <div class="data-health-card-grid">
+                    <div class="data-health-card is-danger"><span>不存在班级的考勤</span><strong>${report.orphanAttendance.length}</strong><em>条</em></div>
+                    <div class="data-health-card is-danger"><span>无关联学员的考勤记录</span><strong>${report.unknownRecordRefs}</strong><em>个</em></div>
+                    <div class="data-health-card is-danger"><span>已删学员的收费记录</span><strong>${report.orphanFees.length}</strong><em>条</em></div>
                 </div>
-            </div>
-            <div style="margin-bottom: 12px;">
-                <div style="font-weight: 600; color: #666; margin-bottom: 6px; font-size: 13px;">ℹ️ 提示（不自动处理）</div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
-                    <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">空考勤课次<br><strong>${report.emptySessions.length}</strong> 条</div>
-                    <div style="padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;">已缴余额为负<br><strong style="color:#f39c12;">${report.negativeRemaining.length}</strong> 名</div>
-                    <div style="padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;">课时不足（欠费）<br><strong style="color:#e74c3c;">${report.missingDebtRecords.length}</strong> 名</div>
-                    <div style="padding:10px;background:#fff3e0;border-radius:8px;border:1px solid #f39c12;">上课无收费记录<br><strong style="color:#f39c12;">${report.activeNoPaid.length}</strong> 名</div>
-                    <div style="padding:10px;background:var(--hover-bg);border-radius:8px;">超容量班级<br><strong>${report.overCapacity.length}</strong> 个</div>
+            </section>
+            <section class="data-health-section">
+                <div class="data-health-section-title">提示（不自动处理）</div>
+                <div class="data-health-card-grid">
+                    <div class="data-health-card"><span>空考勤课次</span><strong>${report.emptySessions.length}</strong><em>条</em></div>
+                    <div class="data-health-card is-warning"><span>已缴余额为负</span><strong>${report.negativeRemaining.length}</strong><em>名</em></div>
+                    <div class="data-health-card is-warning"><span>课时不足（欠费）</span><strong>${report.missingDebtRecords.length}</strong><em>名</em></div>
+                    <div class="data-health-card is-warning"><span>上课无收费记录</span><strong>${report.activeNoPaid.length}</strong><em>名</em></div>
+                    <div class="data-health-card"><span>超容量班级</span><strong>${report.overCapacity.length}</strong><em>个</em></div>
                 </div>
-            </div>
-            <div style="padding:12px;background:#e8f4fd;border-radius:8px;color:#2980b9;margin-bottom:12px;line-height:1.6;">
+            </section>
+            <div class="data-health-note">
                 <strong>说明：</strong>上排红色项（${safeCleanCount} 条）可一键清理，下排橙色项只提示不自动处理。<br>
                 「已有收费但课时不足」适合补欠费，「上课无收费记录」适合先建收费记录再补欠费。「已缴余额为负」不建议重复补录。
             </div>
             ${renderFeeHealthDetails(report)}
             ${renderTuitionHealthDetails(report)}
-            ${safeCleanCount > 0 ? `<div style="margin-top:12px;"><button class="btn btn-danger" onclick="cleanSafeHealthIssues()">清理安全项（${safeCleanCount} 条）</button></div>` : '<div style="color:#27ae60;font-weight:600;padding:12px;">✓ 暂无需要安全清理的数据</div>'}
+            ${safeCleanCount > 0 ? `<div class="data-health-action-row"><button class="btn btn-danger" onclick="cleanSafeHealthIssues()">清理安全项（${safeCleanCount} 条）</button></div>` : '<div class="data-health-safe-state">暂无需要安全清理的数据</div>'}
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
@@ -272,23 +274,23 @@ function renderTuitionHealthDetails(report) {
             <td>${s.paidHours}</td>
             <td>${s.pendingHours}</td>
             <td>${s.usedHours}</td>
-            <td><strong style="color:${s.coveredRemainingHours < 0 ? '#e74c3c' : '#f39c12'};">${s.coveredRemainingHours}</strong></td>
+            <td><strong class="${s.coveredRemainingHours < 0 ? 'data-health-negative' : 'data-health-warning'}">${s.coveredRemainingHours}</strong></td>
             ${showAction ? `<td><button class="btn btn-warning btn-xs" onclick="openPendingFeeFromHealth('${s.id}', ${s.suggestedHours}, '${type}')">补录欠费</button></td>` : ''}
         </tr>
     `).join('');
 
     const section = (title, items, note, type, showAction = true) => `
-        <details ${items.length > 0 ? 'open' : ''} style="margin:12px 0;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--card-bg);">
-            <summary style="cursor:pointer;font-weight:600;">${title}（${items.length} 名）</summary>
-            <div style="color:#888;font-size:13px;margin:6px 0 10px;">${note}</div>
+        <details class="data-health-detail">
+            <summary>${title}（${items.length} 名）</summary>
+            <div class="data-health-detail-note">${note}</div>
             ${items.length > 0 ? `
-                <div class="table-wrapper" style="max-height:260px;overflow:auto;">
+                <div class="table-wrapper data-health-table-wrap">
                     <table>
                         <thead><tr><th>学员</th><th>年级</th><th>班级</th><th>已缴课时</th><th>欠费课时</th><th>已消课时</th><th>覆盖后余额</th>${showAction ? '<th>操作</th>' : ''}</tr></thead>
                         <tbody>${renderRows(items, type, showAction)}</tbody>
                     </table>
                 </div>
-            ` : '<div style="color:#27ae60;">暂无</div>'}
+            ` : '<div class="data-health-empty">暂无</div>'}
         </details>
     `;
 
@@ -324,23 +326,23 @@ function renderFeeHealthDetails(report) {
     }).join('');
 
     return `
-        <details ${report.orphanFees.length > 0 ? 'open' : ''} style="margin:12px 0;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--card-bg);">
-            <summary style="cursor:pointer;font-weight:600;">已删除学员的收费记录（${report.orphanFees.length} 条）</summary>
-            <div style="color:#888;font-size:13px;margin:6px 0 10px;">这类记录已经找不到对应学员，会影响首页已收/欠费统计，建议通过"清理安全项"删除。</div>
+        <details class="data-health-detail" ${report.orphanFees.length > 0 ? 'open' : ''}>
+            <summary>已删除学员的收费记录（${report.orphanFees.length} 条）</summary>
+            <div class="data-health-detail-note">这类记录已经找不到对应学员，会影响首页已收/欠费统计，建议通过"清理安全项"删除。</div>
             ${report.orphanFees.length > 0 ? `
-                <div class="table-wrapper" style="max-height:220px;overflow:auto;">
+                <div class="table-wrapper data-health-table-wrap">
                     <table><thead><tr><th>学员</th><th>状态</th><th>金额</th><th>课时</th><th>套餐</th></tr></thead><tbody>${orphanRows}</tbody></table>
                 </div>
-            ` : '<div style="color:#27ae60;">暂无</div>'}
+            ` : '<div class="data-health-empty">暂无</div>'}
         </details>
-        <details style="margin:12px 0;border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--card-bg);">
-            <summary style="cursor:pointer;font-weight:600;">非在读学员收费记录参考（${report.inactiveStudentFees.length} 条）</summary>
-            <div style="color:#888;font-size:13px;margin:6px 0 10px;">停课/退费/毕业学员的收费记录通常属于历史财务记录，不自动清理；如果只是测试数据，可到收费记录里手动删除。</div>
+        <details class="data-health-detail">
+            <summary>非在读学员收费记录参考（${report.inactiveStudentFees.length} 条）</summary>
+            <div class="data-health-detail-note">停课/退费/毕业学员的收费记录通常属于历史财务记录，不自动清理；如果只是测试数据，可到收费记录里手动删除。</div>
             ${report.inactiveStudentFees.length > 0 ? `
-                <div class="table-wrapper" style="max-height:220px;overflow:auto;">
+                <div class="table-wrapper data-health-table-wrap">
                     <table><thead><tr><th>学员</th><th>学员状态</th><th>收费状态</th><th>金额</th><th>课时</th></tr></thead><tbody>${inactiveRows}</tbody></table>
                 </div>
-            ` : '<div style="color:#27ae60;">暂无</div>'}
+            ` : '<div class="data-health-empty">暂无</div>'}
         </details>
     `;
 }
