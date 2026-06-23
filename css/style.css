@@ -579,6 +579,13 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
     gap: 8px;
     flex-wrap: wrap;
 }
+.record-meta-bar:empty,
+.record-batch-bar:empty {
+    display: none;
+}
+.record-batch-bar:not(:has(*)) {
+    display: none;
+}
 .record-summary-row {
     display: flex;
     gap: 18px;
@@ -608,6 +615,81 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
     gap: 8px;
     flex-wrap: wrap;
 }
+
+/* 统计报表 */
+.report-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.report-kpi-card {
+    padding: 14px;
+    text-align: center;
+    min-width: 0;
+}
+.report-kpi-value {
+    font-size: 24px;
+    line-height: 1.15;
+    font-weight: 700;
+}
+.report-kpi-value.success { color: #27ae60; }
+.report-kpi-value.danger { color: #e74c3c; }
+.report-kpi-value.warning { color: #f39c12; }
+.report-kpi-label {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+.report-kpi-note {
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+.report-grid > .card {
+    min-width: 0;
+    margin-bottom: 0;
+}
+.report-card-full {
+    grid-column: 1 / -1;
+}
+.report-chart-box {
+    height: 220px;
+    min-width: 0;
+}
+.report-filter-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.report-filter-actions select {
+    min-height: 30px;
+    padding: 5px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 12px;
+    max-width: 220px;
+}
+.report-table-value-success { color: #27ae60; }
+.report-table-value-warning { color: #f39c12; }
+.report-empty-cell {
+    color: var(--text-muted);
+    padding: 24px;
+    text-align: center;
+}
+body.dark-mode .report-kpi-value.success,
+body.dark-mode .report-table-value-success { color: #4ade80; }
+body.dark-mode .report-kpi-value.danger { color: #f87171; }
+body.dark-mode .report-kpi-value.warning,
+body.dark-mode .report-table-value-warning { color: #fbbf24; }
 
 /* 表格 */
 .table-wrapper { overflow-x: auto; }
@@ -1041,8 +1123,66 @@ body.dark-mode .badge-normal {
 .student-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: all 0.2s; color: var(--text-primary); }
 .student-item:hover { background: var(--hover-bg); }
 .student-item.active { background: #3498db; color: white; }
+.student-item.is-muted { opacity: 0.62; }
+.student-item-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.student-item-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
 .student-item .name { font-weight: 600; font-size: 14px; }
 .student-item .info { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+.student-list-info {
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
+.student-status-badge {
+    flex-shrink: 0;
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+.student-status-badge.is-active {
+    background: #d4edda;
+    color: #155724;
+}
+.student-status-badge.is-renewal {
+    background: #f39c12;
+    color: white;
+}
+.student-status-badge.is-other {
+    background: #e8f4fd;
+    color: #4b5563;
+}
+.student-item.active .student-list-info {
+    color: rgba(255,255,255,0.78);
+}
+.student-item.active .student-status-badge {
+    background: rgba(255,255,255,0.22);
+    color: white;
+}
+body.dark-mode .student-status-badge.is-active {
+    background: rgba(74, 222, 128, 0.16);
+    color: #bbf7d0;
+}
+body.dark-mode .student-status-badge.is-renewal {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fde68a;
+}
+body.dark-mode .student-status-badge.is-other {
+    background: rgba(148, 163, 184, 0.18);
+    color: #cbd5e1;
+}
 
 .student-panel-actions,
 .student-batch-actions {
@@ -1197,6 +1337,9 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 }
 @media (max-width: 768px) {
     .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .report-grid { grid-template-columns: 1fr; }
+    .report-filter-actions { width: 100%; }
+    .report-filter-actions select { flex: 1 1 180px; max-width: none; }
     .form-row { flex-direction: column; }
     .form-group { min-width: 100%; }
     .card-header { flex-direction: column; align-items: flex-start; }
@@ -1229,6 +1372,7 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
     /* 首页仪表盘移动端单列 */
     .dashboard-grid-2col { display: flex; flex-direction: column; gap: 12px; }
     .dashboard-grid-2col .card { width: 100%; }
+    .report-kpi-grid { grid-template-columns: 1fr; }
 
     /* 表格操作按钮在移动端换行 */
     td button.btn-xs { display: inline-block; margin: 2px 0; }

@@ -260,17 +260,17 @@ function renderStudentList() {
         const cls = data.classes.find(c => c.id === s.classId);
         const statusMap = { active: '在读', forming: '组班中（旧）', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业' };
         const statusText = statusMap[s.status] || s.status;
-        const statusClass = (s.status === 'inactive' || s.status === 'withdrawn' || s.status === 'graduated') ? 'style="opacity: 0.6;"' : '';
-        const badgeColor = s.status === 'renewalPending' ? 'background:#f39c12;color:white;' : s.status === 'active' ? 'background:#d4edda;color:#155724;' : 'background:#e8f4fd;color:#666;';
-        return `<div class="student-item ${currentStudentId === s.id ? 'active' : ''}" onclick="selectStudent('${s.id}')" ${statusClass}>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="display:flex; align-items:center; gap:6px;">
+        const mutedClass = (s.status === 'inactive' || s.status === 'withdrawn' || s.status === 'graduated') ? ' is-muted' : '';
+        const badgeClass = s.status === 'renewalPending' ? 'is-renewal' : s.status === 'active' ? 'is-active' : 'is-other';
+        return `<div class="student-item ${currentStudentId === s.id ? 'active' : ''}${mutedClass}" onclick="selectStudent('${s.id}')">
+            <div class="student-item-main">
+                <div class="student-item-title">
                     ${studentBatchMode ? `<input type="checkbox" class="student-select" value="${s.id}" onclick="event.stopPropagation(); updateStudentSelectionCount()">` : ''}
-                    <div class="name" style="font-weight: 600; font-size: 14px;">${escapeHtml(s.name)}</div>
+                    <div class="name">${escapeHtml(s.name)}</div>
                 </div>
-                <span class="badge" style="${badgeColor} font-size: 10px;">${statusText}</span>
+                <span class="student-status-badge ${badgeClass}">${statusText}</span>
             </div>
-            <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(s.grade)} · ${escapeHtml(cls?.name) || '未分班'}</div>
+            <div class="student-list-info">${escapeHtml(s.grade)} · ${escapeHtml(cls?.name) || '未分班'}</div>
         </div>`;
     }).join('');
     if (studentBatchMode) updateStudentSelectionCount();

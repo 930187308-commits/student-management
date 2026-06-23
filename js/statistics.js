@@ -215,56 +215,56 @@ function renderReports() {
     };
 
     let html = `
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
-            <div class="card" style="padding: 16px; text-align: center;">
-                <div style="font-size: 28px; font-weight: 700; color: #27ae60;">${dynamics.newStudents}</div>
-                <div style="font-size: 12px; color: #888; margin-top: 2px;">当季新增</div>
+        <div class="report-kpi-grid">
+            <div class="card report-kpi-card">
+                <div class="report-kpi-value success">${dynamics.newStudents}</div>
+                <div class="report-kpi-label">当季新增</div>
             </div>
-            <div class="card" style="padding: 16px; text-align: center;">
-                <div style="font-size: 28px; font-weight: 700; color: #e74c3c;">${dynamics.churnedStudents}</div>
-                <div style="font-size: 12px; color: #888; margin-top: 2px;">当季流失</div>
+            <div class="card report-kpi-card">
+                <div class="report-kpi-value danger">${dynamics.churnedStudents}</div>
+                <div class="report-kpi-label">当季流失</div>
             </div>
-            <div class="card" style="padding: 16px; text-align: center;">
-                <div style="font-size: 28px; font-weight: 700; color: #f39c12;">${getPrivacyVal(renewalPendingCount)}</div>
-                <div style="font-size: 12px; color: #888; margin-top: 2px;">待续费学员</div>
-                <div style="font-size: 11px; color: #aaa; margin-top: 2px;">结课后待确认续费</div>
+            <div class="card report-kpi-card">
+                <div class="report-kpi-value warning">${getPrivacyVal(renewalPendingCount)}</div>
+                <div class="report-kpi-label">待续费学员</div>
+                <div class="report-kpi-note">结课后待确认续费</div>
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="report-grid">
             <div class="card">
                 <div class="card-header"><span class="card-title">月课消统计</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
                 <div class="table-wrapper">
                     <table><thead><tr><th>月份</th><th>已消课时</th><th>估算课消金额</th></tr></thead><tbody>
-                        ${monthlyConsumption.length > 0 ? monthlyConsumption.map(row => `<tr><td>${escapeHtml(row.month)}</td><td><strong style="color:#27ae60;">${getPrivacyVal(row.sessions)}</strong></td><td><strong style="color:#27ae60;">${getPrivacyAmount(row.amount)}</strong></td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px;">暂无课消数据</td></tr>'}
+                        ${monthlyConsumption.length > 0 ? monthlyConsumption.map(row => `<tr><td>${escapeHtml(row.month)}</td><td><strong class="report-table-value-success">${getPrivacyVal(row.sessions)}</strong></td><td><strong class="report-table-value-success">${getPrivacyAmount(row.amount)}</strong></td></tr>`).join('') : '<tr><td colspan="3" class="report-empty-cell">暂无课消数据</td></tr>'}
                     </tbody></table>
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header"><span class="card-title">班级出勤率对比</span></div>
-                <div class="chart-container" style="height: 220px;"><canvas id="attendanceChart"></canvas></div>
+                <div class="chart-container report-chart-box"><canvas id="attendanceChart"></canvas></div>
             </div>
 
             <div class="card">
                 <div class="card-header"><span class="card-title">意向学员来源分布</span></div>
-                <div class="chart-container" style="height: 220px;"><canvas id="sourceChart"></canvas></div>
+                <div class="chart-container report-chart-box"><canvas id="sourceChart"></canvas></div>
             </div>
 
             <div class="card">
                 <div class="card-header"><span class="card-title">学员学校分布</span></div>
-                <div class="chart-container" style="height: 220px;"><canvas id="schoolChart"></canvas></div>
+                <div class="chart-container report-chart-box"><canvas id="schoolChart"></canvas></div>
             </div>
 
-            <div class="card" style="grid-column: 1 / -1;">
+            <div class="card report-card-full">
                 <div class="card-header">
                     <span class="card-title">课消明细（剩余课时）</span>
-                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                        <select id="reportClassFilter" onchange="switchReportClass(this.value)" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;">
+                    <div class="report-filter-actions">
+                        <select id="reportClassFilter" onchange="switchReportClass(this.value)">
                             <option value="">全部班级</option>
                             ${reportClassOptions.map(c => `<option value="${escapeHtml(c.id)}" ${currentReportClassId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                         </select>
-                        <select id="consumptionStatusFilter" onchange="switchConsumptionStatus(this.value)" style="padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;">
+                        <select id="consumptionStatusFilter" onchange="switchConsumptionStatus(this.value)">
                             <option value="all" ${consumptionStatusFilter === 'all' ? 'selected' : ''}>全部</option>
                             <option value="normal" ${consumptionStatusFilter === 'normal' ? 'selected' : ''}>正常（${statusCounts.normal}人）</option>
                             <option value="warning" ${consumptionStatusFilter === 'warning' ? 'selected' : ''}>即将不足（${statusCounts.warning}人）</option>
@@ -283,12 +283,12 @@ function renderReports() {
                                 <td>${escapeHtml(s.name)}</td>
                                 <td>${escapeHtml(s.grade)}</td>
                                 <td>${getPrivacyVal(s.totalHours)}</td>
-                                <td><strong style="color:#27ae60;">${getPrivacyVal(s.usedHours)}</strong></td>
-                                <td><strong style="color:#f39c12;">${getPrivacyVal(s.absentHours)}</strong></td>
+                                <td><strong class="report-table-value-success">${getPrivacyVal(s.usedHours)}</strong></td>
+                                <td><strong class="report-table-value-warning">${getPrivacyVal(s.absentHours)}</strong></td>
                                 <td><strong>${getPrivacyVal(s.remainingHours)}</strong></td>
                                 <td><span class="badge ${statusInfo.badge}">${statusInfo.text}</span></td>
                             </tr>`;
-                        }).join('') : `<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">当前筛选条件下无数据</td></tr>`}
+                        }).join('') : `<tr><td colspan="7" class="report-empty-cell">当前筛选条件下无数据</td></tr>`}
                     </tbody></table>
                 </div>
             </div>
