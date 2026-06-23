@@ -333,6 +333,56 @@ function renderKnowledge() {
                 padding: 7px 9px;
                 margin-bottom: 8px;
             }
+            .knowledge-list-area {
+                max-height: min(58vh, 640px);
+                overflow-y: auto;
+                padding-right: 4px;
+                display: flex;
+                flex-direction: column;
+                gap: 9px;
+            }
+            .knowledge-item {
+                border: 1px solid var(--border-color);
+                border-radius: 9px;
+                background: var(--bg-card);
+                padding: 10px 11px;
+            }
+            .knowledge-item-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .knowledge-item-title {
+                color: var(--text-primary);
+                font-size: 13px;
+                font-weight: 700;
+                line-height: 1.35;
+            }
+            .knowledge-item-meta {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                flex-wrap: wrap;
+                margin-top: 5px;
+            }
+            .knowledge-item-content {
+                margin-top: 7px;
+                color: var(--text-secondary);
+                font-size: 12px;
+                line-height: 1.5;
+            }
+            .knowledge-badge {
+                border-radius: 999px;
+                padding: 2px 7px;
+                border: 1px solid var(--border-color);
+                color: var(--text-muted);
+                font-size: 10px;
+                line-height: 1.35;
+            }
+            .knowledge-badge-source {
+                color: var(--primary-color);
+            }
             .knowledge-item-path {
                 font-size: 11px;
                 color: var(--text-muted);
