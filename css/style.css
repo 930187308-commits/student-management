@@ -1939,6 +1939,12 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     font-weight: 600;
     white-space: nowrap;
 }
+.system-qa-run-status {
+    margin: 0 0 7px;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
 .system-qa-input-area {
     padding: 8px max(32px, calc((100% - 760px) / 2)) 14px;
     border-top: none;
@@ -2132,6 +2138,45 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
 }
 .ai-md-content {
     line-height: 1.45;
+}
+.ai-md-code {
+    margin: 8px 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--table-header-bg);
+    color: var(--text-primary);
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.ai-md-heading {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+.ai-md-heading-sm {
+    margin: 9px 0 4px;
+    font-size: 13px;
+}
+.ai-md-heading-md {
+    margin: 10px 0 5px;
+    font-size: 14px;
+}
+.ai-md-heading-lg {
+    margin: 12px 0 6px;
+    font-size: 15px;
+}
+.ai-md-list {
+    margin: 4px 0;
+    padding-left: 0;
+}
+.ai-md-li {
+    margin: 2px 0 2px 16px;
+}
+.ai-md-li-disc {
+    list-style: disc;
+}
+.ai-md-li-decimal {
+    list-style: decimal;
 }
 .ai-md-content br {
     line-height: 1.25;

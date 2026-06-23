@@ -72,16 +72,16 @@ function renderMarkdownTables(html) {
 function renderMarkdown(text) {
     if (!text) return '';
     let html = escapeHtml(text);
-    html = html.replace(/```([\s\S]*?)```/g, '<pre style="background:#f4f4f4;padding:12px;border-radius:6px;overflow-x:auto;margin:8px 0;font-size:12px;line-height:1.4;"><code>$1</code></pre>');
+    html = html.replace(/```([\s\S]*?)```/g, '<pre class="ai-md-code"><code>$1</code></pre>');
     html = renderMarkdownTables(html);
-    html = html.replace(/^### (.+)$/gm, '<h4 style="margin:12px 0 6px;font-size:14px;font-weight:600;color:var(--text-primary);">$1</h4>');
-    html = html.replace(/^## (.+)$/gm, '<h3 style="margin:14px 0 8px;font-size:16px;font-weight:600;color:var(--text-primary);">$1</h3>');
-    html = html.replace(/^# (.+)$/gm, '<h2 style="margin:16px 0 10px;font-size:18px;font-weight:600;color:var(--text-primary);">$1</h2>');
+    html = html.replace(/^### (.+)$/gm, '<h4 class="ai-md-heading ai-md-heading-sm">$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 class="ai-md-heading ai-md-heading-md">$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h2 class="ai-md-heading ai-md-heading-lg">$1</h2>');
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/^- (.+)$/gm, '<li style="margin:4px 0 4px 16px;list-style:disc;">$1</li>');
-    html = html.replace(/^(\d+)\. (.+)$/gm, '<li style="margin:4px 0 4px 16px;list-style:decimal;">$2</li>');
+    html = html.replace(/^- (.+)$/gm, '<li class="ai-md-li ai-md-li-disc">$1</li>');
+    html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="ai-md-li ai-md-li-decimal">$2</li>');
     html = html.replace(/\n/g, '<br>');
-    html = html.replace(/(<li[^>]*>.*?<\/li>)+/g, '<ul style="margin:8px 0;padding-left:0;">$&</ul>');
+    html = html.replace(/(<li[^>]*>.*?<\/li>)+/g, '<ul class="ai-md-list">$&</ul>');
     return `<div class="ai-md-content">${html}</div>`;
 }
 
@@ -695,12 +695,20 @@ function renderSystemQAConversation() {
         <div class="ai-chat-message ${message.role === 'user' ? 'user' : 'assistant'}">
             <div class="ai-chat-role">${message.role === 'user' ? '我' : 'AI'}</div>
             <div class="ai-chat-bubble">
-                ${renderMarkdown(message.content || '')}
+                ${renderMarkdown(getSystemQAVisibleContent(message))}
                 ${message.role === 'assistant' ? renderSystemQAMessageMeta(message) : ''}
             </div>
         </div>
     `).join('');
     area.scrollTop = area.scrollHeight;
+}
+
+function getSystemQAVisibleContent(message = {}) {
+    const content = String(message.content || '');
+    if (message.role === 'assistant' && content.includes('renderAIRunStatus is not defined')) {
+        return '这条历史回答生成时前端显示出错，当前问题已修复。请重新发送上一条问题获取新回答。';
+    }
+    return content;
 }
 
 function renderSystemQAMessageMeta(message = {}) {
@@ -721,6 +729,28 @@ function renderSystemQAMessageMeta(message = {}) {
             ${isHistorical ? '<strong>历史回答，可能不是当前数据</strong>' : ''}
         </div>
     `;
+}
+
+function renderAIRunStatus(response = {}) {
+    const meta = {
+        mode: response.mode || '',
+        provider: response.provider || selectedSystemQAModelProvider,
+        answerLength: response.answerLength || selectedSystemQAAnswerLength,
+        sourceScope: response.sourceScope || { ...aiSourceScope },
+        queryFactKeys: response.queryFactKeys || [],
+        contextRefsCount: Array.isArray(response.contextRefs) ? response.contextRefs.length : 0,
+        contextSize: response.contextSize || 0,
+        elapsedMs: response.elapsedMs || 0,
+        generatedAt: response.generatedAt || new Date().toISOString()
+    };
+    const modeLabel = getSystemQAModeLabel(meta.mode);
+    const providerLabel = getSystemQAProviderLabel(meta.provider);
+    const sourceLabel = getSystemQASourceLabel(meta.sourceScope);
+    const factsLabel = Array.isArray(meta.queryFactKeys) && meta.queryFactKeys.length ? `精确查询 ${meta.queryFactKeys.length} 项` : '';
+    const refsLabel = Number(meta.contextRefsCount || 0) > 0 ? `引用 ${meta.contextRefsCount} 条` : '';
+    const parts = [modeLabel, providerLabel, sourceLabel, factsLabel, refsLabel].filter(Boolean);
+    if (!parts.length) return '';
+    return `<div class="system-qa-run-status">${parts.map(escapeHtml).join(' · ')}</div>`;
 }
 
 function getSystemQAModeLabel(mode) {
@@ -1145,6 +1175,7 @@ window.deleteSelectedSystemQAConversations = deleteSelectedSystemQAConversations
 window.toggleAISourceScope = toggleAISourceScope;
 window.setSystemQAModelProvider = setSystemQAModelProvider;
 window.setSystemQAAnswerLength = setSystemQAAnswerLength;
+window.renderAIRunStatus = renderAIRunStatus;
 
 if (!window.__systemQAHistoryMenuClickBound) {
     window.__systemQAHistoryMenuClickBound = true;

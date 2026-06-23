@@ -339,6 +339,64 @@ function renderKnowledge() {
                 margin-top: 6px;
                 word-break: break-all;
             }
+            .knowledge-tag-row {
+                margin-top: 6px;
+            }
+            .knowledge-item-muted {
+                color: var(--text-muted);
+            }
+            .knowledge-item-menu {
+                position: relative;
+                flex-shrink: 0;
+            }
+            .knowledge-item-menu summary {
+                list-style: none;
+                border: 1px solid var(--border-color);
+                border-radius: 999px;
+                padding: 4px 9px;
+                background: var(--hover-bg);
+                color: var(--text-secondary);
+                font-size: 11px;
+                font-weight: 700;
+                cursor: pointer;
+            }
+            .knowledge-item-menu summary::-webkit-details-marker {
+                display: none;
+            }
+            .knowledge-item-menu[open] summary {
+                border-color: var(--primary-color);
+                color: var(--primary-color);
+            }
+            .knowledge-item-menu-popover {
+                position: absolute;
+                right: 0;
+                top: calc(100% + 6px);
+                z-index: 30;
+                min-width: 110px;
+                padding: 5px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                background: var(--bg-card);
+                box-shadow: 0 10px 24px var(--shadow);
+            }
+            .knowledge-item-menu-popover button {
+                display: block;
+                width: 100%;
+                border: 0;
+                border-radius: 6px;
+                padding: 7px 8px;
+                background: transparent;
+                color: var(--text-primary);
+                text-align: left;
+                font-size: 12px;
+                cursor: pointer;
+            }
+            .knowledge-item-menu-popover button:hover {
+                background: var(--hover-bg);
+            }
+            .knowledge-item-menu-popover button.danger {
+                color: #e74c3c;
+            }
             .knowledge-state-badge {
                 font-size: 10px;
                 border-radius: 999px;
@@ -467,15 +525,18 @@ function renderKnowledgeSources(sources) {
                         <span class="knowledge-state-badge ${state.hasRawText ? 'ok' : 'warn'}">${state.hasRawText ? '有原文' : '无原文'}</span>
                     </div>
                 </div>
-                <div style="display:flex;gap:4px;">
-                    <button class="btn btn-secondary btn-xs" onclick="regenerateKnowledgeSummary('${escapeHtml(s.id)}')">重新摘要</button>
-                    <button class="btn btn-secondary btn-xs" onclick="editKnowledgeSource('${escapeHtml(s.id)}')">编辑</button>
-                    <button class="btn btn-danger btn-xs" onclick="deleteKnowledgeSource('${escapeHtml(s.id)}')">删除</button>
-                </div>
+                <details class="knowledge-item-menu">
+                    <summary>操作</summary>
+                    <div class="knowledge-item-menu-popover">
+                        <button type="button" onclick="regenerateKnowledgeSummary('${escapeHtml(s.id)}')">重新摘要</button>
+                        <button type="button" onclick="editKnowledgeSource('${escapeHtml(s.id)}')">编辑</button>
+                        <button type="button" class="danger" onclick="deleteKnowledgeSource('${escapeHtml(s.id)}')">删除</button>
+                    </div>
+                </details>
             </div>
-            ${tags.length ? `<div class="knowledge-item-meta" style="margin-top:6px;">${tags.slice(0, 8).map(tag => `<span class="knowledge-badge">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+            ${tags.length ? `<div class="knowledge-item-meta knowledge-tag-row">${tags.slice(0, 8).map(tag => `<span class="knowledge-badge">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
             ${ref ? `<div class="knowledge-item-path">来源：${escapeHtml(ref)}</div>` : ''}
-            ${s.summary ? `<div class="knowledge-item-content">${escapeHtml(s.summary.substring(0, 140))}${s.summary.length > 140 ? '...' : ''}</div>` : '<div class="knowledge-item-content" style="color:var(--text-muted);">未填写摘要。只保存路径时，AI 只能知道资料存在，不能理解具体内容。</div>'}
+            ${s.summary ? `<div class="knowledge-item-content">${escapeHtml(s.summary.substring(0, 140))}${s.summary.length > 140 ? '...' : ''}</div>` : '<div class="knowledge-item-content knowledge-item-muted">未填写摘要。只保存路径时，AI 只能知道资料存在，不能理解具体内容。</div>'}
         </div>`;
     }).join('');
 }
