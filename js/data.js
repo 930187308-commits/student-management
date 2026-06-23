@@ -1514,15 +1514,15 @@ function showImportPreCheck({
     let currentDuplicateStrategy = duplicateStrategy;
     let currentMissingStudentStrategy = missingStudentStrategy;
 
-    const buildDetailsSection = ({ title, items, color, bg, border, emptyText = '' }) => {
+    const buildDetailsSection = ({ title, items, tone = '', emptyText = '' }) => {
         if (!items || items.length === 0) return '';
         const list = items.slice(0, 200);
         return `
-            <div style="margin-top: 12px; padding: 10px; background: ${bg}; border-radius: 6px; border: 1px solid ${border};">
-                <details style="font-size: 12px; color: ${color};">
-                    <summary style="cursor: pointer; user-select: none; font-weight: 600;">${title}（${items.length} 条）</summary>
-                    <div style="margin-top: 6px; max-height: 180px; overflow-y: auto;">
-                        ${list.map(item => `<div style="margin-bottom: 2px;">${item.row ? `第${item.row}行：` : ''}${escapeHtml(item.msg || item.name || emptyText)}</div>`).join('')}
+            <div class="import-detail-card ${tone ? `is-${tone}` : ''}">
+                <details>
+                    <summary>${title}（${items.length} 条）</summary>
+                    <div class="import-detail-list">
+                        ${list.map(item => `<div>${item.row ? `第${item.row}行：` : ''}${escapeHtml(item.msg || item.name || emptyText)}</div>`).join('')}
                         ${items.length > list.length ? `<div>还有 ${items.length - list.length} 条未显示</div>` : ''}
                     </div>
                 </details>
@@ -1533,23 +1533,23 @@ function showImportPreCheck({
     let dupeSection = '';
     if (hasDupe) {
         dupeSection = `
-            <div style="margin-top: 12px; padding: 10px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
-                <div style="font-weight: 600; color: #856404; margin-bottom: 6px;">发现重复记录（${dup} 条）</div>
+            <div class="import-strategy-card is-warning">
+                <div class="import-strategy-title">发现重复记录（${dup} 条）</div>
                 ${duplicates.length > 0 ? `
-                    <details style="margin-bottom: 8px; font-size: 12px; color: #856404;">
-                        <summary style="cursor: pointer; user-select: none;">查看重复明细</summary>
-                        <div style="margin-top: 6px; max-height: 160px; overflow-y: auto;">
-                            ${duplicates.slice(0, 200).map(d => `<div style="margin-bottom: 2px;">第${d.row}行：${escapeHtml(d.msg)}</div>`).join('')}
+                    <details class="import-strategy-details">
+                        <summary>查看重复明细</summary>
+                        <div class="import-detail-list">
+                            ${duplicates.slice(0, 200).map(d => `<div>第${d.row}行：${escapeHtml(d.msg)}</div>`).join('')}
                             ${duplicates.length > 200 ? `<div>还有 ${duplicates.length - 200} 条未显示</div>` : ''}
                         </div>
                     </details>
                 ` : ''}
-                <div class="duplicate-strategy-label" style="margin-bottom: 8px; font-size: 13px; color: #856404;">
+                <div class="duplicate-strategy-label import-strategy-label">
                     当前策略：<strong>${duplicateStrategy === 'skip' ? '保留现有并跳过' : duplicateStrategy === 'replace' ? '替换已有重复' : '未选择'}</strong>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-secondary btn-sm duplicate-skip-btn" onclick="this.closest('.import-precheck-modal')._onStrategyChange('skip')" ${duplicateStrategy === 'skip' ? 'style="font-weight:bold;"' : ''}>保留现有</button>
-                    <button class="btn btn-secondary btn-sm duplicate-replace-btn" onclick="this.closest('.import-precheck-modal')._onStrategyChange('replace')" ${duplicateStrategy === 'replace' ? 'style="font-weight:bold;"' : ''}>替换已有</button>
+                <div class="import-strategy-actions">
+                    <button class="btn btn-secondary btn-sm duplicate-skip-btn ${duplicateStrategy === 'skip' ? 'is-selected' : ''}" onclick="this.closest('.import-precheck-modal')._onStrategyChange('skip')">保留现有</button>
+                    <button class="btn btn-secondary btn-sm duplicate-replace-btn ${duplicateStrategy === 'replace' ? 'is-selected' : ''}" onclick="this.closest('.import-precheck-modal')._onStrategyChange('replace')">替换已有</button>
                 </div>
             </div>
         `;
@@ -1559,55 +1559,55 @@ function showImportPreCheck({
     if (hasMissingStudents) {
         const missingList = missingStudents.map(s => ({ row: s.row, msg: s.name }));
         missingStudentSection = `
-            <div style="margin-top: 12px; padding: 10px; background: #fff7e6; border-radius: 6px; border: 1px solid #f39c12;">
-                <div style="font-weight: 600; color: #8a5a00; margin-bottom: 6px;">系统内无此学员（${missingStudents.length} 条）</div>
-                <details style="margin-bottom: 8px; font-size: 12px; color: #8a5a00;">
-                    <summary style="cursor: pointer; user-select: none;">查看无匹配明细</summary>
-                    <div style="margin-top: 6px; max-height: 160px; overflow-y: auto;">
-                        ${missingList.slice(0, 200).map(s => `<div style="margin-bottom: 2px;">第${s.row}行：${escapeHtml(s.msg)}</div>`).join('')}
+            <div class="import-strategy-card is-warning">
+                <div class="import-strategy-title">系统内无此学员（${missingStudents.length} 条）</div>
+                <details class="import-strategy-details">
+                    <summary>查看无匹配明细</summary>
+                    <div class="import-detail-list">
+                        ${missingList.slice(0, 200).map(s => `<div>第${s.row}行：${escapeHtml(s.msg)}</div>`).join('')}
                         ${missingList.length > 200 ? `<div>还有 ${missingList.length - 200} 条未显示</div>` : ''}
                     </div>
                 </details>
-                <div class="missing-strategy-label" style="margin-bottom: 8px; font-size: 13px; color: #8a5a00;">
+                <div class="missing-strategy-label import-strategy-label">
                     当前策略：<strong>${missingStudentStrategy === 'create' ? '自动新建学员后导入' : missingStudentStrategy === 'skip' ? '跳过这些记录' : '未选择'}</strong>
                 </div>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn btn-secondary btn-sm missing-skip-btn" onclick="this.closest('.import-precheck-modal')._onMissingStudentStrategyChange('skip')" ${missingStudentStrategy === 'skip' ? 'style="font-weight:bold;"' : ''}>跳过</button>
-                    <button class="btn btn-secondary btn-sm missing-create-btn" onclick="this.closest('.import-precheck-modal')._onMissingStudentStrategyChange('create')" ${missingStudentStrategy === 'create' ? 'style="font-weight:bold;"' : ''}>自动新建</button>
+                <div class="import-strategy-actions">
+                    <button class="btn btn-secondary btn-sm missing-skip-btn ${missingStudentStrategy === 'skip' ? 'is-selected' : ''}" onclick="this.closest('.import-precheck-modal')._onMissingStudentStrategyChange('skip')">跳过</button>
+                    <button class="btn btn-secondary btn-sm missing-create-btn ${missingStudentStrategy === 'create' ? 'is-selected' : ''}" onclick="this.closest('.import-precheck-modal')._onMissingStudentStrategyChange('create')">自动新建</button>
                 </div>
             </div>
         `;
     }
 
-    const warningSection = buildDetailsSection({ title: '提示明细', items: warnings, color: '#9a6308', bg: '#fff7e6', border: '#f5c16c' });
-    const errorSection = buildDetailsSection({ title: '失败明细', items: errors, color: '#c0392b', bg: '#fdecea', border: '#e74c3c' });
-    const skippedSection = buildDetailsSection({ title: '跳过明细', items: skippedDetails, color: '#666', bg: 'var(--hover-bg)', border: 'var(--border-color)' });
+    const warningSection = buildDetailsSection({ title: '提示明细', items: warnings, tone: 'warning' });
+    const errorSection = buildDetailsSection({ title: '失败明细', items: errors, tone: 'danger' });
+    const skippedSection = buildDetailsSection({ title: '跳过明细', items: skippedDetails });
 
     const modal = document.getElementById('modal');
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = `
         <div class="import-precheck-modal">
-            <div style="font-size: 14px; line-height: 1.8;">
-                <div style="margin-bottom: 8px;">
-                    <span style="color: #888;">本次读取：</span><strong>${total}</strong> 条
+            <div class="import-summary-head">
+                <div class="import-read-count">
+                    <span>本次读取</span><strong>${total}</strong><em>条</em>
                 </div>
-                <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 8px;">
-                    <div><span style="color: #27ae60;">可导入</span> <strong style="color: #27ae60;">${success}</strong> 条</div>
-                    ${dup > 0 ? `<div><span style="color: #f39c12;">重复</span> <strong style="color: #f39c12;">${dup}</strong> 条</div>` : ''}
-                    ${fail > 0 ? `<div><span style="color: #e74c3c;">失败</span> <strong style="color: #e74c3c;">${fail}</strong> 条</div>` : ''}
-                    ${skip > 0 ? `<div><span style="color: #888;">跳过</span> <strong>${skip}</strong> 条</div>` : ''}
+                <div class="import-count-grid">
+                    <div class="import-count-card is-success"><span>可导入</span><strong>${success}</strong><em>条</em></div>
+                    ${dup > 0 ? `<div class="import-count-card is-warning"><span>重复</span><strong>${dup}</strong><em>条</em></div>` : ''}
+                    ${fail > 0 ? `<div class="import-count-card is-danger"><span>失败</span><strong>${fail}</strong><em>条</em></div>` : ''}
+                    ${skip > 0 ? `<div class="import-count-card"><span>跳过</span><strong>${skip}</strong><em>条</em></div>` : ''}
                 </div>
-                ${dup === 0 && fail === 0 && !hasMissingStudents ? `<div style="color: #27ae60; font-weight: 600;">✓ 所有数据可正常导入</div>` : ''}
+                ${dup === 0 && fail === 0 && !hasMissingStudents ? `<div class="import-ok-message">所有数据可正常导入</div>` : ''}
             </div>
             ${dupeSection}
             ${missingStudentSection}
             ${warningSection}
             ${errorSection}
             ${skippedSection}
-            <div style="margin-top: 16px; padding: 10px; background: #e8f4fd; border-radius: 6px; font-size: 13px; color: #2980b9;">
+            <div class="import-action-note">
                 ${hasDupe || hasMissingStudents ? '请先选择需要处理的策略，再确认导入。' : fail > 0 ? '失败记录不影响其他正常数据，可确认导入。' : '点击"确认"后将正式写入数据。'}
             </div>
-            <div class="modal-footer" style="margin-top: 16px;">
+            <div class="modal-footer import-modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
                 <button type="button" class="btn btn-primary" onclick="this.closest('.import-precheck-modal')._onConfirm()">确认${actionLabel}</button>
             </div>
@@ -1634,8 +1634,8 @@ function showImportPreCheck({
         currentDuplicateStrategy = s;
         const btn1 = modalEl.querySelector('.duplicate-skip-btn');
         const btn2 = modalEl.querySelector('.duplicate-replace-btn');
-        if (btn1) btn1.style.fontWeight = s === 'skip' ? 'bold' : '';
-        if (btn2) btn2.style.fontWeight = s === 'replace' ? 'bold' : '';
+        if (btn1) btn1.classList.toggle('is-selected', s === 'skip');
+        if (btn2) btn2.classList.toggle('is-selected', s === 'replace');
         const strategyLabel = modalEl.querySelector('.duplicate-strategy-label');
         if (strategyLabel) {
             strategyLabel.innerHTML = `当前策略：<strong>${s === 'skip' ? '保留现有并跳过' : '替换已有重复'}</strong>`;
@@ -1645,8 +1645,8 @@ function showImportPreCheck({
         currentMissingStudentStrategy = s;
         const skipBtn = modalEl.querySelector('.missing-skip-btn');
         const createBtn = modalEl.querySelector('.missing-create-btn');
-        if (skipBtn) skipBtn.style.fontWeight = s === 'skip' ? 'bold' : '';
-        if (createBtn) createBtn.style.fontWeight = s === 'create' ? 'bold' : '';
+        if (skipBtn) skipBtn.classList.toggle('is-selected', s === 'skip');
+        if (createBtn) createBtn.classList.toggle('is-selected', s === 'create');
         const strategyLabel = modalEl.querySelector('.missing-strategy-label');
         if (strategyLabel) {
             strategyLabel.innerHTML = `当前策略：<strong>${s === 'create' ? '自动新建学员后导入' : '跳过这些记录'}</strong>`;
@@ -1663,14 +1663,14 @@ function showImportResultSummary({ imported, replaced, skipped, failed, total, a
     const modal = document.getElementById('modal');
     document.getElementById('modalTitle').textContent = actionLabel + '结果';
 
-    const buildDetails = (items, color, bg, border, emptyLabel) => {
+    const buildDetails = (items, tone, title) => {
         if (!items || items.length === 0) return '';
         const list = items.slice(0, 200);
         return `
-            <details style="margin-top: 8px; font-size: 12px; color: ${color};">
-                <summary style="cursor: pointer; user-select: none; font-weight: 600;">查看明细（${items.length} 条）</summary>
-                <div style="margin-top: 6px; max-height: 160px; overflow-y: auto; background: ${bg}; border-radius: 6px; padding: 8px;">
-                    ${list.map(item => `<div style="margin-bottom: 2px;">${item.row ? `第${item.row}行：` : ''}${escapeHtml(item.msg || item.name || '')}</div>`).join('')}
+            <details class="import-result-detail ${tone ? `is-${tone}` : ''}">
+                <summary>${title}（${items.length} 条）</summary>
+                <div class="import-detail-list">
+                    ${list.map(item => `<div>${item.row ? `第${item.row}行：` : ''}${escapeHtml(item.msg || item.name || '')}</div>`).join('')}
                     ${items.length > 200 ? `<div>还有 ${items.length - 200} 条未显示</div>` : ''}
                 </div>
             </details>
@@ -1678,39 +1678,28 @@ function showImportResultSummary({ imported, replaced, skipped, failed, total, a
     };
 
     const allSuccess = failed === 0 && skipped === 0;
-    const summaryColor = failed > 0 ? '#e74c3c' : allSuccess ? '#27ae60' : '#f39c12';
-    const summaryBg = failed > 0 ? '#fdecea' : allSuccess ? '#e8f5e9' : '#fff7e6';
+    const resultTone = failed > 0 ? 'danger' : allSuccess ? 'success' : 'warning';
 
     document.getElementById('modalBody').innerHTML = `
-        <div style="text-align: center; padding: 16px 0;">
-            <div style="font-size: 48px; margin-bottom: 8px;">${failed > 0 ? '⚠️' : allSuccess ? '✅' : '⚡'}</div>
-            <div style="font-size: 16px; font-weight: 600; color: ${summaryColor}; margin-bottom: 4px;">
+        <div class="import-result-modal">
+            <div class="import-result-head is-${resultTone}">
+                <div class="import-result-icon">${failed > 0 ? '⚠️' : allSuccess ? '✓' : '!'}</div>
+                <div class="import-result-title">
                 ${failed > 0 ? '导入完成（有失败）' : allSuccess ? '全部导入成功' : '导入完成'}
+                </div>
+                <div class="import-result-total">共读取 ${total} 条</div>
             </div>
-            <div style="font-size: 13px; color: #888;">共读取 ${total} 条</div>
-        </div>
-        <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin: 16px 0;">
-            <div style="text-align: center; padding: 12px 20px; background: #e8f5e9; border-radius: 8px; min-width: 80px;">
-                <div style="font-size: 24px; font-weight: 700; color: #27ae60;">${imported}</div>
-                <div style="font-size: 12px; color: #888;">成功</div>
+            <div class="import-result-counts">
+                <div class="import-count-card is-success"><span>成功</span><strong>${imported}</strong><em>条</em></div>
+                ${replaced > 0 ? `<div class="import-count-card is-warning"><span>替换</span><strong>${replaced}</strong><em>条</em></div>` : ''}
+                ${skipped > 0 ? `<div class="import-count-card"><span>跳过</span><strong>${skipped}</strong><em>条</em></div>` : ''}
+                ${failed > 0 ? `<div class="import-count-card is-danger"><span>失败</span><strong>${failed}</strong><em>条</em></div>` : ''}
             </div>
-            ${replaced > 0 ? `<div style="text-align: center; padding: 12px 20px; background: #fff3e0; border-radius: 8px; min-width: 80px;">
-                <div style="font-size: 24px; font-weight: 700; color: #f39c12;">${replaced}</div>
-                <div style="font-size: 12px; color: #888;">替换</div>
-            </div>` : ''}
-            ${skipped > 0 ? `<div style="text-align: center; padding: 12px 20px; background: var(--hover-bg); border-radius: 8px; min-width: 80px;">
-                <div style="font-size: 24px; font-weight: 700; color: #888;">${skipped}</div>
-                <div style="font-size: 12px; color: #888;">跳过</div>
-            </div>` : ''}
-            ${failed > 0 ? `<div style="text-align: center; padding: 12px 20px; background: #fdecea; border-radius: 8px; min-width: 80px;">
-                <div style="font-size: 24px; font-weight: 700; color: #e74c3c;">${failed}</div>
-                <div style="font-size: 12px; color: #888;">失败</div>
-            </div>` : ''}
-        </div>
-        ${failed > 0 && failedDetails.length > 0 ? buildDetails(failedDetails, '#c0392b', '#fdecea', '#e74c3c', '失败明细') : ''}
-        ${skipped > 0 && skippedDetails.length > 0 ? buildDetails(skippedDetails, '#666', 'var(--hover-bg)', 'var(--border-color)', '跳过明细') : ''}
-        <div class="modal-footer" style="margin-top: 16px;">
-            <button type="button" class="btn btn-primary" onclick="closeModal()">关闭</button>
+            ${failed > 0 && failedDetails.length > 0 ? buildDetails(failedDetails, 'danger', '失败明细') : ''}
+            ${skipped > 0 && skippedDetails.length > 0 ? buildDetails(skippedDetails, '', '跳过明细') : ''}
+            <div class="modal-footer import-modal-footer">
+                <button type="button" class="btn btn-primary" onclick="closeModal()">关闭</button>
+            </div>
         </div>
     `;
     modal.classList.add('show');
