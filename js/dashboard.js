@@ -88,7 +88,7 @@ function renderMiniCalendar(year, month, selectedDate, onSelect) {
             isToday ? 'mc-today' : '',
             isSelected ? 'mc-selected' : '',
         ].filter(Boolean).join(' ');
-        cells += `<div class="${classes}" onclick="${onSelect}('${dateStr}')" style="cursor:pointer;">
+        cells += `<div class="${classes}" onclick="${onSelect}('${dateStr}')">
             <span class="mc-day-num">${d}</span>
             ${hasTodo ? '<span class="mc-dot"></span>' : ''}
         </div>`;
@@ -181,7 +181,7 @@ function renderTodoCalendarArea() {
                     </div>
                 `).join('')}
                 <div class="tc-add-date-todo">
-                    <input type="text" id="dateTodoInput" placeholder="添加待办事项..." style="flex:1;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;font-size:12px;background:var(--input-bg);color:var(--text-primary);" onkeydown="if(event.key==='Enter')addDateTodo()">
+                    <input type="text" id="dateTodoInput" class="tc-date-input" placeholder="添加待办事项..." onkeydown="if(event.key==='Enter')addDateTodo()">
                     <button class="btn btn-xs btn-primary" onclick="addDateTodo()">+</button>
                 </div>
             </div>
@@ -192,8 +192,8 @@ function renderTodoCalendarArea() {
         <div class="todo-calendar-layout">
             <div class="tc-left">
                 <div class="tc-add-row">
-                    <input type="text" id="todoInput" placeholder="添加待办事项..." style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--input-bg);color:var(--text-primary);" onkeydown="if(event.key==='Enter')submitTodo()">
-                    <select id="todoCategory" style="padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;font-size:13px;background:var(--input-bg);color:var(--text-primary);">
+                    <input type="text" id="todoInput" class="tc-main-input" placeholder="添加待办事项..." onkeydown="if(event.key==='Enter')submitTodo()">
+                    <select id="todoCategory" class="tc-category-select">
                         <option value="教务">教务</option>
                         <option value="招生">招生</option>
                         <option value="续费">续费</option>
@@ -539,25 +539,29 @@ function renderDashboard() {
             <table>
                 <thead><tr><th>班级名称</th><th>状态</th><th>年级</th><th>上课时间</th><th>人数/满班</th><th>课次进度</th><th>操作</th></tr></thead>
                 <tbody>
-                    ${classStats.length === 0 ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:24px;">暂无班级</td></tr>' : classStats.map(c => {
+                    ${classStats.length === 0 ? '<tr><td colspan="7" class="dashboard-empty-row">暂无班级</td></tr>' : classStats.map(c => {
                         const classStatus = c.status || 'active';
                         const statusBadge = classStatus === 'active' ? 'badge-active' : classStatus === 'forming' ? 'badge-trial' : 'badge-pending';
                         const statusText = classStatus === 'active' ? '正常' : classStatus === 'forming' ? '组班中' : '已结课';
                         const progressPercent = c.plannedSessions > 0 ? Math.round((c.completedSessions / c.plannedSessions) * 100) : 0;
                         const isNearEnd = classStatus !== 'forming' && c.plannedSessions > 0 && progressPercent >= 90;
                         const isFinished = classStatus === 'finished' || (classStatus === 'active' && progressPercent >= 100);
+                        const rowClasses = [
+                            isFinished ? 'class-row-muted' : '',
+                            isNearEnd && !isFinished ? 'class-row-near-end' : ''
+                        ].filter(Boolean).join(' ');
                         return `
-                            <tr style="${isFinished ? 'opacity:0.7;' : ''}${isNearEnd && !isFinished ? 'background:#fff8e6;' : ''}">
-                                <td><strong style="color:#3498db;">${escapeHtml(c.name)}</strong></td>
+                            <tr class="${rowClasses}">
+                                <td><strong class="dashboard-class-name">${escapeHtml(c.name)}</strong></td>
                                 <td><span class="badge ${statusBadge}">${statusText}</span></td>
                                 <td>${escapeHtml(c.grade) || '-'}</td>
                                 <td>${escapeHtml(c.schedule) || '-'}</td>
                                 <td>${getPrivacyVal(c.currentCount)}/${getPrivacyVal(c.maxStudents)}</td>
                                 <td>
-                                    <div style="display:flex;align-items:center;gap:6px;">
-                                        <strong style="color:#27ae60;">${getPrivacyVal(c.completedSessions)}</strong>
-                                        <span style="color:#888;font-size:12px;">/ ${getPrivacyVal(c.plannedSessions || 16)}</span>
-                                        <span style="font-size:11px;color:${isFinished ? '#e74c3c' : isNearEnd ? '#f39c12' : '#888'};">${isFinished ? '(已结课)' : isNearEnd ? '(接近结课)' : ''}</span>
+                                    <div class="class-progress">
+                                        <strong class="class-progress-current">${getPrivacyVal(c.completedSessions)}</strong>
+                                        <span class="class-progress-total">/ ${getPrivacyVal(c.plannedSessions || 16)}</span>
+                                        <span class="class-progress-note ${isFinished ? 'is-finished' : isNearEnd ? 'is-near-end' : ''}">${isFinished ? '(已结课)' : isNearEnd ? '(接近结课)' : ''}</span>
                                     </div>
                                 </td>
                                 <td>

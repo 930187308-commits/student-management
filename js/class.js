@@ -44,7 +44,7 @@ function renderClasses() {
             </div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr><th style="width: 40px;"></th><th>班级名称</th><th>年级</th><th>班型</th><th>上课时间</th><th>人数/满班</th><th>满班率</th><th>状态</th><th>操作</th></tr></thead>
+                    <thead><tr><th class="class-expand-col"></th><th>班级名称</th><th>年级</th><th>班型</th><th>上课时间</th><th>人数/满班</th><th>满班率</th><th>状态</th><th>操作</th></tr></thead>
                     <tbody>
                         ${visibleClasses.filter(c => {
                             return (!currentGradeFilter || c.grade === currentGradeFilter) && (!currentStatusFilter || c.status === currentStatusFilter);
@@ -55,13 +55,13 @@ function renderClasses() {
                             const fillRate = Math.round((count / c.maxStudents) * 100);
                             const isExpanded = expandedClassIds.has(c.id);
                             return `
-                                <tr style="background: var(--hover-bg);">
-                                    <td style="text-align: center;">
-                                        <button onclick="toggleClassExpand('${c.id}')" style="background: none; border: none; cursor: pointer; font-size: 14px; color: #666; padding: 4px;">
+                                <tr class="class-summary-row">
+                                    <td class="class-expand-cell">
+                                        <button class="class-expand-toggle" onclick="toggleClassExpand('${c.id}')" aria-label="${isExpanded ? '收起班级' : '展开班级'}">
                                             ${isExpanded ? '▼' : '▶'}
                                         </button>
                                     </td>
-                                    <td><strong style="cursor: pointer; color: #3498db;" onclick="toggleClassExpand('${c.id}')">${c.name}</strong></td>
+                                    <td><strong class="class-name-link" onclick="toggleClassExpand('${c.id}')">${c.name}</strong></td>
                                     <td>${c.grade}</td>
                                     <td>${c.classType}</td>
                                     <td>${c.schedule}</td>
@@ -76,10 +76,10 @@ function renderClasses() {
                                 </tr>
                                 ${isExpanded ? `
                                     <tr>
-                                        <td colspan="9" style="padding: 16px; background: var(--bg-card); border-bottom: 1px solid var(--table-border);">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                                <strong style="color: #2c3e50;">${c.status === 'forming' ? '组班成员' : '班级学员列表'}</strong>
-                                                <div style="display: flex; gap: 8px;">
+                                        <td colspan="9" class="class-expanded-cell">
+                                            <div class="class-expanded-head">
+                                                <strong class="class-expanded-title">${c.status === 'forming' ? '组班成员' : '班级学员列表'}</strong>
+                                                <div class="class-expanded-actions">
                                                     <button class="btn btn-success btn-sm" onclick="openClassMemberManager('${c.id}')">管理成员</button>
                                                     ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="switchToStudentTab(); setTimeout(() => { const s = document.getElementById('studentClassFilter'); if(s) s.value='${c.id}'; renderStudentList(); }, 100)">查看全部学员</button>` : ''}
                                                     ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="openClassGrades('${c.id}')">本班成绩</button>` : ''}
@@ -87,31 +87,31 @@ function renderClasses() {
                                                     ${c.status === 'active' ? `<button class="btn btn-secondary btn-sm" onclick="exportClassStudents('${c.id}')">导出学员</button>` : ''}
                                                 </div>
                                             </div>
-                                            ${count === 0 && c.status !== 'forming' ? '<div class="empty-state" style="padding: 20px;">该班级暂无在读或待续费学员</div>' : ''}
+                                            ${count === 0 && c.status !== 'forming' ? '<div class="empty-state class-empty-state">该班级暂无在读或待续费学员</div>' : ''}
                                             ${c.status !== 'forming' && data.students.filter(s => s.classId === c.id && isCurrentClassStudent(s)).length > 0 ? `
-                                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                                <div class="class-member-list">
                                                     ${data.students.filter(s => s.classId === c.id && isCurrentClassStudent(s)).map(s => `
-                                                        <span class="class-member-chip" onclick="openStudentDetailFromRecord('${s.id}')" style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-                                                            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${s.status === 'renewalPending' ? '#f39c12' : '#27ae60'};"></span>
+                                                        <span class="class-member-chip ${s.status === 'renewalPending' ? 'is-renewal' : 'is-active'}" onclick="openStudentDetailFromRecord('${s.id}')">
+                                                            <span class="class-member-dot"></span>
                                                             ${escapeHtml(s.name)}
-                                                            ${s.status === 'renewalPending' ? '<span style="font-size: 11px; color: #f39c12;">待续费</span>' : ''}
-                                                            ${s.school ? `<span style="font-size: 11px; color: #888;">(${escapeHtml(s.school)})</span>` : ''}
+                                                            ${s.status === 'renewalPending' ? '<span class="class-member-status">待续费</span>' : ''}
+                                                            ${s.school ? `<span class="class-member-meta">(${escapeHtml(s.school)})</span>` : ''}
                                                         </span>
                                                     `).join('')}
                                                 </div>
                                             ` : ''}
                                             ${c.status === 'forming' && (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length > 0 ? `
-                                                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                                <div class="class-member-list">
                                                     ${(data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').map(p => `
-                                                        <span style="padding: 6px 12px; background: #fff3cd; border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-                                                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #f39c12;"></span>
+                                                        <span class="class-member-chip class-prospect-chip">
+                                                            <span class="class-member-dot"></span>
                                                             ${escapeHtml(p.name)}
-                                                            ${p.grade ? `<span style="font-size: 11px; color: #888;">(${escapeHtml(p.grade)})</span>` : ''}
+                                                            ${p.grade ? `<span class="class-member-meta">(${escapeHtml(p.grade)})</span>` : ''}
                                                         </span>
                                                     `).join('')}
                                                 </div>
                                             ` : ''}
-                                            ${c.status === 'forming' && (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length === 0 ? '<div class="empty-state" style="padding: 20px;">该组班暂无意向学员</div>' : ''}
+                                            ${c.status === 'forming' && (data.prospects || []).filter(p => p.classId === c.id && p.trialStatus === 'forming').length === 0 ? '<div class="empty-state class-empty-state">该组班暂无意向学员</div>' : ''}
                                         </td>
                                     </tr>
                                 ` : ''}
