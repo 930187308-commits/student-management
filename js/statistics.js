@@ -426,7 +426,7 @@ function exportMonthlyRevenue() {
             }
         });
     });
-    const ws = XLSX.utils.aoa_to_sheet([['月份', '已消课时', '估算课消金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, getPrivacyVal(monthlyConsumption[month].sessions), getPrivacyVal(monthlyConsumption[month].amount)])]);
+    const ws = XLSX.utils.aoa_to_sheet([['月份', '已消课时', '估算课消金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, getPrivacyVal(monthlyConsumption[month].sessions), getPrivacyAmount(monthlyConsumption[month].amount)])]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '课消统计');
     XLSX.writeFile(wb, '课消统计.xlsx');
