@@ -117,10 +117,10 @@ function renderKnowledge() {
                         <div id="knowledgeSourcesArea" class="knowledge-list-area"></div>
                     </div>
 
-                    <div class="card" id="knowledgeEmptyHint" style="display:none;padding:16px;text-align:center;">
-                        <div style="font-size:28px;margin-bottom:8px;">📭</div>
-                        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">资料库还没有可用资料</div>
-                        <div style="font-size:12px;color:var(--text-muted);">可以手动新增资料，或先从 Obsidian dry-run 检查后再导入。</div>
+                    <div class="card knowledge-empty-hint is-hidden" id="knowledgeEmptyHint">
+                        <div class="knowledge-empty-hint-icon">📭</div>
+                        <div class="knowledge-empty-hint-title">资料库还没有可用资料</div>
+                        <div class="knowledge-empty-hint-text">可以手动新增资料，或先从 Obsidian dry-run 检查后再导入。</div>
                     </div>
                 </main>
 
@@ -141,7 +141,7 @@ function renderKnowledge() {
                             <button class="btn btn-secondary btn-xs" onclick="rebuildKnowledgeChunks()">重建引用片段</button>
                         </div>
                         <div id="knowledgeImportStatus" class="knowledge-side-status">当前知识库状态加载中...</div>
-                        <div id="knowledgeSideImportResult" class="knowledge-side-result" style="display:none;"></div>
+                        <div id="knowledgeSideImportResult" class="knowledge-side-result is-hidden"></div>
                     </div>
                     <div class="card knowledge-side-card">
                         <div class="knowledge-side-title">推荐使用方式</div>
@@ -220,6 +220,25 @@ function renderKnowledge() {
                 line-height: 1.5;
                 max-height: 180px;
                 overflow: auto;
+            }
+            .knowledge-side-result.is-hidden {
+                display: none;
+            }
+            .knowledge-result-title {
+                font-weight: 700;
+                margin-bottom: 4px;
+                color: var(--text-primary);
+            }
+            .knowledge-result-preview-list {
+                margin-top: 8px;
+                max-height: 180px;
+                overflow: auto;
+            }
+            .knowledge-result-muted {
+                color: var(--text-muted);
+            }
+            .knowledge-result-details {
+                margin-top: 8px;
             }
             .knowledge-bound-path {
                 margin-top: 10px;
@@ -332,6 +351,43 @@ function renderKnowledge() {
                 border-radius: 6px;
                 padding: 7px 9px;
                 margin-bottom: 8px;
+            }
+            .knowledge-import-preview {
+                margin: 10px 0;
+                padding: 10px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                background: var(--hover-bg);
+                font-size: 12px;
+                color: var(--text-secondary);
+                line-height: 1.6;
+            }
+            .knowledge-import-preview.is-hidden {
+                display: none;
+            }
+            .knowledge-empty-hint {
+                padding: 16px;
+                text-align: center;
+            }
+            .knowledge-empty-hint.is-hidden {
+                display: none;
+            }
+            .knowledge-empty-hint-icon {
+                font-size: 28px;
+                margin-bottom: 8px;
+            }
+            .knowledge-empty-hint-title {
+                font-size: 14px;
+                color: var(--text-secondary);
+                margin-bottom: 8px;
+            }
+            .knowledge-empty-hint-text {
+                font-size: 12px;
+                color: var(--text-muted);
+            }
+            .knowledge-empty-tip {
+                font-size: 11px;
+                color: var(--text-muted);
             }
             .knowledge-list-area {
                 max-height: min(58vh, 640px);
@@ -523,7 +579,7 @@ function loadKnowledgeSummary() {
                 importStatus.textContent = `当前可引用资料 ${total} 条，其中 Obsidian ${obsidian} 条，有摘要 ${withSummary} 条，有原文 ${withRawText} 条，已生成引用片段 ${chunks} 条。`;
             }
             const emptyHint = document.getElementById('knowledgeEmptyHint');
-            if (emptyHint) emptyHint.style.display = total === 0 ? 'block' : 'none';
+            if (emptyHint) emptyHint.classList.toggle('is-hidden', total !== 0);
         })
         .catch(() => {
             ['statKnowledgeCount', 'statObsidianCount', 'statSummaryCount', 'statRawTextCount', 'statChunkCount'].forEach(id => {
@@ -557,7 +613,7 @@ function renderKnowledgeSources(sources) {
     const area = document.getElementById('knowledgeSourcesArea');
     if (!area) return;
     if (!sources || sources.length === 0) {
-        area.innerHTML = `<div class="knowledge-empty"><div class="knowledge-empty-icon">📄</div>暂无资料<br><span style="font-size:11px;">点击右上角「新增资料」开始录入</span></div>`;
+        area.innerHTML = `<div class="knowledge-empty"><div class="knowledge-empty-icon">📄</div>暂无资料<br><span class="knowledge-empty-tip">点击右上角「新增资料」开始录入</span></div>`;
         return;
     }
     area.innerHTML = sources.map(s => {
@@ -883,7 +939,7 @@ function openKnowledgeImportModal(type) {
                 <div><label style="font-size:13px;font-weight:600;">适用年级</label><select id="kiGrade" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;">${gradeOptions}</select></div>
                 <div><label style="font-size:13px;font-weight:600;">标签</label><input id="kiTags" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="多个用逗号分隔"></div>
             </div>
-            <div id="knowledgeImportPreview" style="display:none;margin:10px 0;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--hover-bg);font-size:12px;color:var(--text-secondary);line-height:1.6;"></div>
+            <div id="knowledgeImportPreview" class="knowledge-import-preview is-hidden"></div>
             <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px;">
                 <button class="btn btn-secondary" onclick="closeModal()">取消</button>
                 ${isBatch ? `<button class="btn btn-secondary" onclick="previewKnowledgeBatchImport('${type}')">预览</button><button class="btn btn-primary" onclick="applyKnowledgeBatchImport('${type}')">确认导入</button>` : `<button class="btn btn-primary" onclick="submitKnowledgeSingleImport('${type}')">导入并生成摘要</button>`}
@@ -949,13 +1005,13 @@ function renderKnowledgeImportPreview(data) {
     if (!box) return;
     const summary = data.summary || {};
     const preview = data.preview || [];
-    box.style.display = 'block';
+    box.classList.remove('is-hidden');
     box.innerHTML = `
-        <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px;">导入预览 / 结果</div>
+        <div class="knowledge-result-title">导入预览 / 结果</div>
         <div>扫描 ${summary.total ?? 0} 个文件；新增 ${summary.willCreate ?? summary.created ?? 0} 条；更新 ${summary.willUpdate ?? summary.updated ?? 0} 条；失败 ${summary.failed ?? 0} 条。</div>
         ${data.backup ? `<div>自动备份：${escapeHtml(data.backup.fileName || data.backup.path || '已创建')}</div>` : ''}
-        ${preview.length ? `<div style="margin-top:8px;max-height:180px;overflow:auto;">${preview.map(item => `<div>• ${escapeHtml(item.title || '')} <span style="color:var(--text-muted);">(${escapeHtml(item.action || item.relativePath || '')})</span></div>`).join('')}</div>` : ''}
-        ${(summary.failedDetails || []).length ? `<details style="margin-top:8px;"><summary>失败明细</summary>${summary.failedDetails.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</details>` : ''}
+        ${preview.length ? `<div class="knowledge-result-preview-list">${preview.map(item => `<div>• ${escapeHtml(item.title || '')} <span class="knowledge-result-muted">(${escapeHtml(item.action || item.relativePath || '')})</span></div>`).join('')}</div>` : ''}
+        ${(summary.failedDetails || []).length ? `<details class="knowledge-result-details"><summary>失败明细</summary>${summary.failedDetails.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</details>` : ''}
     `;
 }
 
@@ -964,20 +1020,20 @@ function renderKnowledgeSideImportResult(data, modeLabel = '预览') {
     if (!box) return;
     const summary = data.summary || {};
     const preview = data.preview || [];
-    box.style.display = 'block';
+    box.classList.remove('is-hidden');
     box.innerHTML = `
-        <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(modeLabel)}结果</div>
+        <div class="knowledge-result-title">${escapeHtml(modeLabel)}结果</div>
         <div>扫描 ${summary.total ?? 0} 个文件；新增 ${summary.willCreate ?? summary.created ?? 0} 条；更新 ${summary.willUpdate ?? summary.updated ?? 0} 条；失败 ${summary.failed ?? 0} 条。</div>
         ${data.backup ? `<div>已自动备份：${escapeHtml(data.backup.fileName || data.backup.path || '已创建')}</div>` : ''}
-        ${preview.length ? `<details style="margin-top:6px;"><summary>查看前 ${preview.length} 条</summary>${preview.slice(0, 20).map(item => `<div>• ${escapeHtml(item.title || '')}</div>`).join('')}</details>` : ''}
-        ${(summary.failedDetails || []).length ? `<details style="margin-top:6px;"><summary>失败明细</summary>${summary.failedDetails.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</details>` : ''}
+        ${preview.length ? `<details class="knowledge-result-details"><summary>查看前 ${preview.length} 条</summary>${preview.slice(0, 20).map(item => `<div>• ${escapeHtml(item.title || '')}</div>`).join('')}</details>` : ''}
+        ${(summary.failedDetails || []).length ? `<details class="knowledge-result-details"><summary>失败明细</summary>${summary.failedDetails.map(item => `<div>${escapeHtml(item)}</div>`).join('')}</details>` : ''}
     `;
 }
 
 function previewDefaultObsidianImport() {
     const box = document.getElementById('knowledgeSideImportResult');
     if (box) {
-        box.style.display = 'block';
+        box.classList.remove('is-hidden');
         box.innerHTML = '正在检查 Obsidian 资料库...';
     }
     postKnowledgeJson('/api/knowledge/import-obsidian', { mode: 'dry-run' })
@@ -992,7 +1048,7 @@ function applyDefaultObsidianImport() {
     if (!confirm('将从默认 Obsidian 库导入 .md 文件，写入前会自动备份。确定继续吗？')) return;
     const box = document.getElementById('knowledgeSideImportResult');
     if (box) {
-        box.style.display = 'block';
+        box.classList.remove('is-hidden');
         box.innerHTML = '正在导入 Obsidian 资料库，文件较多时会稍慢...';
     }
     postKnowledgeJson('/api/knowledge/import-obsidian', { mode: 'apply' })
@@ -1011,14 +1067,14 @@ function applyDefaultObsidianImport() {
 function rebuildKnowledgeChunks() {
     const box = document.getElementById('knowledgeSideImportResult');
     if (box) {
-        box.style.display = 'block';
+        box.classList.remove('is-hidden');
         box.innerHTML = '正在重建资料引用片段...';
     }
     postKnowledgeJson('/api/knowledge/rebuild-chunks', {})
         .then(data => {
             if (box) {
                 box.innerHTML = `
-                    <div style="font-weight:700;margin-bottom:4px;">引用片段已重建</div>
+                    <div class="knowledge-result-title">引用片段已重建</div>
                     <div>处理资料 ${data.sources ?? 0} 条，生成引用片段 ${data.chunks ?? 0} 条。</div>
                 `;
             }
