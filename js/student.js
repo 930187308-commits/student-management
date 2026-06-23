@@ -154,10 +154,15 @@ function initStudentPanelResize() {
     };
 
     const savedWidth = Number(localStorage.getItem(storageKey));
-    if (savedWidth) applyWidth(savedWidth);
+    if (savedWidth) {
+        const normalizedWidth = applyWidth(savedWidth);
+        if (normalizedWidth !== savedWidth) {
+            localStorage.setItem(storageKey, String(normalizedWidth));
+        }
+    }
 
     resizer.addEventListener('pointerdown', (event) => {
-        if (window.matchMedia('(max-width: 1024px)').matches) return;
+        if (window.matchMedia('(max-width: 860px)').matches) return;
         event.preventDefault();
         resizer.setPointerCapture(event.pointerId);
         document.body.classList.add('student-panel-resizing');

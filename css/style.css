@@ -875,48 +875,48 @@ body.dark-mode .badge-normal {
 .left-panel { background: var(--bg-card); border-radius: 12px; padding: 16px; box-shadow: 0 2px 12px var(--shadow); }
 .right-panel { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px var(--shadow); overflow-y: auto; max-height: 600px; }
 #tab-students.active .two-col {
-    min-height: calc(100vh - 170px);
+    min-height: calc(100vh - 120px);
 }
 #tab-students.active .right-panel {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    height: calc(100vh - 170px);
-    min-height: calc(100vh - 170px);
-    max-height: calc(100vh - 170px);
+    height: calc(100vh - 120px);
+    min-height: calc(100vh - 120px);
+    max-height: calc(100vh - 120px);
 }
 
 .student-panel-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 6px;
-    margin-bottom: 10px;
+    gap: 5px;
+    margin-bottom: 8px;
 }
 
 .student-tab-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 3px;
     min-width: 0;
 }
 
 .student-tab-actions .btn {
-    min-height: 26px;
-    padding: 4px 8px;
+    min-height: 24px;
+    padding: 3px 7px;
     border-radius: 7px;
-    font-size: 12px;
+    font-size: 11px;
     white-space: nowrap;
 }
 
 .student-add-pill {
     border: none;
     border-radius: 999px;
-    padding: 4px 9px;
-    min-height: 26px;
+    padding: 3px 8px;
+    min-height: 24px;
     background: rgba(52, 152, 219, 0.12);
     color: #1976d2;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
@@ -959,7 +959,10 @@ body.dark-mode .badge-normal {
     margin: -2px 0 8px;
 }
 
-.student-list { min-height: 520px; max-height: calc(100vh - 360px); overflow-y: auto; }
+.student-list {
+    height: clamp(300px, calc(100vh - 340px), 520px);
+    overflow-y: auto;
+}
 .student-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: all 0.2s; color: var(--text-primary); }
 .student-item:hover { background: var(--hover-bg); }
 .student-item.active { background: #3498db; color: white; }
@@ -970,16 +973,16 @@ body.dark-mode .badge-normal {
 .student-batch-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-    margin-top: 8px;
+    gap: 5px;
+    margin-top: 7px;
 }
 
 .student-panel-action-btn {
     width: 100%;
-    min-height: 30px;
+    min-height: 27px;
     border-radius: 7px;
-    font-size: 12px;
-    padding: 5px 7px;
+    font-size: 11px;
+    padding: 4px 6px;
 }
 
 .student-panel-file-action {
@@ -1101,10 +1104,10 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 .autosave-indicator.saved { color: #a3e635; }
 
 /* 响应式 */
-@media (max-width: 1024px) {
+@media (max-width: 860px) {
     .two-col { grid-template-columns: 1fr; gap: 14px; }
     .student-panel-resizer { display: none; }
-    .left-panel { max-height: 300px; }
+    .left-panel { max-height: none; }
     .student-list { min-height: 0; max-height: 300px; }
     #tab-students.active .two-col {
         min-height: 0;
