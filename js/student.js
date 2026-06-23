@@ -80,7 +80,7 @@ function renderStudents() {
             <div class="left-panel">
                 <div class="student-panel-header">
                     <div class="student-tab-actions">
-                        <button class="btn btn-sm ${currentStudentTab === 'active' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('active')">在读学员</button>
+                        <button class="btn btn-sm ${currentStudentTab === 'active' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('active')">在读</button>
                         <button class="btn btn-sm ${currentStudentTab === 'renewalPending' ? 'btn-warning' : 'btn-secondary'}" onclick="switchStudentTab('renewalPending')">待续费</button>
                         <button class="btn btn-sm ${currentStudentTab === 'inactive' ? 'btn-primary' : 'btn-secondary'}" onclick="switchStudentTab('inactive')">非在读</button>
                     </div>
@@ -1215,6 +1215,7 @@ function exportStudentRows(students, filename) {
         return [s.name || '', s.gender || '', s.grade || '', cls?.name || '未分班', s.teacher || '', s.enrollDate || '', s.firstEnrollDate || '', s.firstEnrollGrade || '', s.phone || '', s.emergencyContact || '', history.primarySchool || '', history.middleSchool || '', history.highSchool || '', statusMap[s.status] || s.status || '', s.remark || ''];
     });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    formatExcelSheet(ws, [headers, ...rows], { maxWidth: 36 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '选中学员');
     XLSX.writeFile(wb, filename);
@@ -1223,14 +1224,16 @@ function exportStudentRows(students, filename) {
 
 // 下载学员导入模板（含填写说明）
 function downloadStudentTemplate() {
-    const ws = XLSX.utils.aoa_to_sheet([
+    const templateRows = [
         ['姓名', '性别', '年级', '班级名称', '授课老师', '入班时间', '首次入学', '首次上课年级', '联系电话', '紧急联系人', '状态', '备注', '小学学校', '初中学校', '高中学校'],
         ['张三', '男', '六年级', '六年级奥数-周五18:00', '白老师', '2025-09-01', '2025-09-01', '六年级', '13800138001', '13900139001', 'active', '数学基础扎实', 'XX小学', '', ''],
-    ]);
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(templateRows);
+    formatExcelSheet(ws, templateRows, { maxWidth: 36 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '学员数据');
 
-    const instrWs = XLSX.utils.aoa_to_sheet([
+    const instructionRows = [
         ['学员导入模板 - 填写说明'],
         ['字段', '说明', '必填', '格式/示例'],
         ['姓名', '学员真实姓名', '是', '如：张三'],
@@ -1254,7 +1257,9 @@ function downloadStudentTemplate() {
         ['2. 班级名称如不匹配现有班级，会以"未分班"状态导入'],
         ['3. 状态：active/在读=正常在读，inactive/停课，renewalPending/待续费，withdrawn/已退费，graduated/已毕业，无法识别会导入失败并跳过'],
         ['4. 当前学校不用填写，系统会根据当前年级自动显示小学/初中/高中对应学校'],
-    ]);
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
+    formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 50 });
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '学员导入模板.xlsx');
     showToast('模板已下载');

@@ -246,6 +246,7 @@ function exportFeeRows(fees, filename) {
     const headers = ['学员', '缴费金额', '课时单价', '购买课时', '缴费日期', '套餐', '付款方式', '状态'];
     const rows = fees.map(f => [f.studentName, f.amount, f.pricePerHour, f.hours, f.paymentDate, f.package, f.paymentMethod, f.status === 'paid' ? '已缴' : '欠费']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    formatExcelSheet(ws, [headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '收费记录');
     XLSX.writeFile(wb, filename);
@@ -253,15 +254,17 @@ function exportFeeRows(fees, filename) {
 }
 
 function downloadFeeTemplate() {
-    const ws = XLSX.utils.aoa_to_sheet([
+    const templateRows = [
         ['学员姓名 *', '缴费金额 *', '课时单价', '购买课时', '缴费日期', '套餐', '付款方式', '状态', '备注'],
         ['张三', '8000', '200', '40', '2025-10-01', '秋季班40课时', '微信转账', '已缴', ''],
         ['李四', '6000', '200', '30', '2025-10-01', '秋季班30课时', '支付宝', '已缴', ''],
-    ]);
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(templateRows);
+    formatExcelSheet(ws, templateRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '收费数据');
 
-    const instrWs = XLSX.utils.aoa_to_sheet([
+    const instructionRows = [
         ['收费记录导入模板 - 填写说明'],
         ['字段', '说明', '必填', '格式/示例'],
         ['学员姓名', '学员真实姓名', '是', '如：张三'],
@@ -279,7 +282,9 @@ function downloadFeeTemplate() {
         ['2. 状态：已缴/paid=已缴费，欠费/pending=未缴费，无法识别会导入失败并跳过'],
         ['3. 导入时通过学员姓名匹配，找到则录入，找不到则跳过'],
         ['4. 金额和课时须为数字，异常值会被跳过'],
-    ]);
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
+    formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 42 });
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '收费记录导入模板.xlsx');
     showToast('模板已下载');

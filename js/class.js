@@ -142,6 +142,7 @@ function exportClassStudents(classId) {
     const statusMap = { active: '在读', renewalPending: '待续费' };
     const rows = students.map(s => [s.name, s.gender, s.grade, s.teacher, s.phone || '', s.school || '', statusMap[s.status] || '在读', s.remark || '']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    formatExcelSheet(ws, [headers, ...rows], { maxWidth: 32 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '班级学员');
     XLSX.writeFile(wb, `${cls?.name || '班级学员'}.xlsx`);
@@ -613,14 +614,16 @@ async function permanentlyDeleteArchivedClass(classId) {
 
 // 班级导入模板下载（含填写说明）
 function downloadClassTemplate() {
-    const ws = XLSX.utils.aoa_to_sheet([
+    const templateRows = [
         ['班级名称', '年级', '班型', '上课时间', '学期', '满班人数', '状态', '计划课次', '暑假排课'],
         ['初一基础-周四18:00', '初一', '基础', '周四 18:00-20:00', '2025秋季', '10', 'active', '16', '周一至周五上午'],
-    ]);
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(templateRows);
+    formatExcelSheet(ws, templateRows, { maxWidth: 34 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '班级数据');
 
-    const instrWs = XLSX.utils.aoa_to_sheet([
+    const instructionRows = [
         ['班级导入模板 - 填写说明'],
         ['字段', '说明', '必填', '格式/示例'],
         ['班级名称', '班级完整名称', '是', '如：初一基础-周四18:00'],
@@ -637,7 +640,9 @@ function downloadClassTemplate() {
         ['1. 状态：active/正常=进行中，forming/组班中=组班中，finished/已结课=已结课，无法识别会导入失败并跳过'],
         ['2. 计划课次用于首页显示计划课次/已进行课次'],
         ['3. 旧模板（无计划课次列）导入时计划课次默认为 16'],
-    ]);
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
+    formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 46 });
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '班级导入模板.xlsx');
     showToast('模板已下载');

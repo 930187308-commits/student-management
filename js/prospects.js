@@ -123,6 +123,7 @@ function exportSelectedProspects() {
     const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '录入日期'];
     const rows = selected.map(p => [p.name, p.grade || '', p.phone || '', p.wechat || '', p.source || '', p.intent || '', p.trialDate || '', statusMap[p.trialStatus] || '', p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交', p.remark || '', p.createDate || '']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    formatExcelSheet(ws, [headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '选中意向学员');
     XLSX.writeFile(wb, `选中意向学员_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -288,14 +289,16 @@ async function convertProspect(id) {
 }
 
 function downloadProspectTemplate() {
-    const ws = XLSX.utils.aoa_to_sheet([
+    const templateRows = [
         ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注'],
         ['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '校内80左右', '2025-10-01', '试课中', '未成交', '计算薄弱'],
-    ]);
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(templateRows);
+    formatExcelSheet(ws, templateRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '意向数据');
 
-    const instrWs = XLSX.utils.aoa_to_sheet([
+    const instructionRows = [
         ['意向学员导入模板 - 填写说明'],
         ['字段', '说明', '必填', '格式/示例'],
         ['姓名', '意向学员姓名', '是', '如：张三'],
@@ -313,7 +316,9 @@ function downloadProspectTemplate() {
         ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-01'],
         ['2. 试课状态写"组班中"表示在组班中'],
         ['3. 导入时按姓名匹配，找到则录入，找不到则新建'],
-    ]);
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
+    formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 42 });
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '意向学员导入模板.xlsx');
     showToast('模板已下载');

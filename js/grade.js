@@ -204,15 +204,17 @@ async function deleteGrade(id) {
 
 // 下载成绩导入模板（含填写说明）
 function downloadGradeTemplate() {
-    const ws = XLSX.utils.aoa_to_sheet([
+    const templateRows = [
         ['学员姓名 *', '测试名称 *', '测试日期 *', '得分 *', '满分', '班级排名', '成绩类型', '薄弱点', '备注'],
         ['张三', '期中数学测试', '2025-10-15', '85', '100', '5', '校内', '计算准确性', ''],
         ['李四', '奥数杯赛模拟', '2025-11-20', '78', '100', '8', '校外', '数论', '获得二等奖'],
-    ]);
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(templateRows);
+    formatExcelSheet(ws, templateRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '成绩数据');
 
-    const instrWs = XLSX.utils.aoa_to_sheet([
+    const instructionRows = [
         ['成绩导入模板 - 填写说明'],
         ['字段', '说明', '必填', '格式/示例'],
         ['学员姓名', '学员真实姓名', '是', '如：张三'],
@@ -229,7 +231,9 @@ function downloadGradeTemplate() {
         ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-15'],
         ['2. 成绩类型写"校内"表示校内成绩，"校外"或不填表示校外成绩'],
         ['3. 导入时通过学员姓名匹配，找到则更新，找不到则跳过'],
-    ]);
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
+    formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 42 });
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '成绩导入模板.xlsx');
     showToast('模板已下载');
@@ -423,6 +427,7 @@ function exportGradeRows(grades, filename) {
     const headers = ['学员', '测试名称', '测试日期', '得分', '满分', '班级排名', '备注', '薄弱点'];
     const rows = grades.map(g => [g.studentName, g.testName, g.testDate, g.score, g.fullScore, g.ranking != null && g.ranking !== '' ? `第${g.ranking}名` : '未知', g.remark || '', g.weakPoints || '']);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    formatExcelSheet(ws, [headers, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '成绩记录');
     XLSX.writeFile(wb, filename);

@@ -306,6 +306,31 @@ function normalizeExcelDate(value) {
     return '';
 }
 
+// 统一优化导入模板/导出 Excel 的列宽和筛选栏
+function formatExcelSheet(ws, rows, options = {}) {
+    if (!ws || !Array.isArray(rows) || rows.length === 0) return ws;
+    const minWidth = options.minWidth || 8;
+    const maxWidth = options.maxWidth || 28;
+    const columnCount = rows.reduce((max, row) => Math.max(max, Array.isArray(row) ? row.length : 0), 0);
+    ws['!cols'] = Array.from({ length: columnCount }, (_, colIndex) => {
+        const width = rows.reduce((max, row) => {
+            const text = row && row[colIndex] !== undefined && row[colIndex] !== null ? String(row[colIndex]) : '';
+            const charWidth = Array.from(text).reduce((sum, ch) => sum + (/[\u4e00-\u9fa5]/.test(ch) ? 2 : 1), 0);
+            return Math.max(max, charWidth + 2);
+        }, minWidth);
+        return { wch: Math.min(maxWidth, Math.max(minWidth, width)) };
+    });
+    if (options.autoFilter !== false && columnCount > 0) {
+        ws['!autofilter'] = {
+            ref: XLSX.utils.encode_range({
+                s: { r: 0, c: 0 },
+                e: { r: Math.max(0, rows.length - 1), c: columnCount - 1 }
+            })
+        };
+    }
+    return ws;
+}
+
 // ========== 本地服务器同步 ==========
 
 // 检查是否配置了本地服务器（默认使用）

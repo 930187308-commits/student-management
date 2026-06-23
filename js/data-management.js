@@ -493,6 +493,7 @@ function exportAllStudents() {
         ];
     });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    formatExcelSheet(ws, [headers, ...rows], { maxWidth: 36 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '所有学员');
     XLSX.writeFile(wb, `所有学员_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -505,6 +506,7 @@ function exportAllExcel() {
         const feeHeaders = ['学员', '金额', '单价', '课时', '缴费日期', '套餐', '缴费方式', '状态', '备注'];
         const feeRows = data.fees.map(f => [f.studentName, f.amount, f.pricePerHour, f.hours, f.paymentDate, f.package, f.paymentMethod, f.status === 'paid' ? '已缴' : '欠费', f.remark || '']);
         const feeWs = XLSX.utils.aoa_to_sheet([feeHeaders, ...feeRows]);
+        formatExcelSheet(feeWs, [feeHeaders, ...feeRows]);
         const feeWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(feeWb, feeWs, '收费记录');
         XLSX.writeFile(feeWb, `收费记录_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -515,6 +517,7 @@ function exportAllExcel() {
         const gradeHeaders = ['学员', '测试名称', '日期', '类型', '得分', '满分', '排名', '薄弱点', '备注'];
         const gradeRows = data.grades.map(g => [g.studentName, g.testName, g.testDate, g.examType === 'school' ? '校内' : '校外', g.score, g.fullScore, `第${g.ranking}名`, g.weakPoints || '', g.remark || '']);
         const gradeWs = XLSX.utils.aoa_to_sheet([gradeHeaders, ...gradeRows]);
+        formatExcelSheet(gradeWs, [gradeHeaders, ...gradeRows]);
         const gradeWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(gradeWb, gradeWs, '成绩记录');
         XLSX.writeFile(gradeWb, `成绩记录_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -528,6 +531,7 @@ function exportAllExcel() {
                 const stuHeaders = ['姓名', '性别', '年级', '授课老师', '联系电话', '就读学校', '状态', '备注'];
                 const stuRows = students.map(s => [s.name, s.gender, s.grade, s.teacher, s.phone || '', s.school || '', s.status === 'active' ? '在读' : s.status, s.remark || '']);
                 const stuWs = XLSX.utils.aoa_to_sheet([stuHeaders, ...stuRows]);
+                formatExcelSheet(stuWs, [stuHeaders, ...stuRows], { maxWidth: 34 });
                 const stuWb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(stuWb, stuWs, cls.name);
                 XLSX.writeFile(stuWb, `班级学员_${cls.name}_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -543,6 +547,7 @@ function exportAllExcel() {
             return [c.studentName, topic?.name || '', c.contactDate, c.contactType, c.contactPerson, c.status === 'pending' ? '待沟通' : '已完成', c.content, c.followUp || ''];
         });
         const commWs = XLSX.utils.aoa_to_sheet([commHeaders, ...commRows]);
+        formatExcelSheet(commWs, [commHeaders, ...commRows], { maxWidth: 36 });
         const commWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(commWb, commWs, '沟通记录');
         XLSX.writeFile(commWb, `沟通记录_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -553,6 +558,7 @@ function exportAllExcel() {
         const proHeaders = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '录入日期'];
         const proRows = data.prospects.map(p => [p.name, p.grade || '', p.phone || '', p.wechat || '', p.source || '', p.intent || '', p.trialDate || '', { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' }[p.trialStatus] || '', p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交', p.remark || '', p.createDate || '']);
         const proWs = XLSX.utils.aoa_to_sheet([proHeaders, ...proRows]);
+        formatExcelSheet(proWs, [proHeaders, ...proRows]);
         const proWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(proWb, proWs, '意向学员');
         XLSX.writeFile(proWb, `意向学员_${new Date().toISOString().split('T')[0]}.xlsx`);

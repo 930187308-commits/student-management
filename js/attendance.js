@@ -620,6 +620,7 @@ function exportAttendance() {
     });
 
     const ws = XLSX.utils.aoa_to_sheet([sessionHeader, dateHeader, ...rows]);
+    formatExcelSheet(ws, [sessionHeader, dateHeader, ...rows], { maxWidth: 18 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '考勤记录');
     XLSX.writeFile(wb, `${cls?.name || '考勤记录'}.xlsx`);
@@ -628,16 +629,18 @@ function exportAttendance() {
 
 // 下载考勤导入模板（含填写说明）
 function downloadAttendanceTemplate() {
-    const ws = XLSX.utils.aoa_to_sheet([
+    const templateRows = [
         ['学员姓名', '第1次', '第2次', '第3次', '第4次'],
         ['上课日期', '2026-05-01', '2026-05-08', '2026-05-15', '2026-05-22'],
         ['张三', '1', '1', '0', ''],
         ['李四', '1', '', '1', '1'],
-    ]);
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(templateRows);
+    formatExcelSheet(ws, templateRows, { maxWidth: 18 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '考勤数据');
 
-    const instrWs = XLSX.utils.aoa_to_sheet([
+    const instructionRows = [
         ['考勤导入模板 - 填写说明'],
         ['字段', '说明', '必填', '格式/示例'],
         ['第1行', '课次名称', '是', '第1次 / 第2次，也可写课程名'],
@@ -651,7 +654,9 @@ function downloadAttendanceTemplate() {
         ['3. 如果日期为空，则按当前班级已有课次顺序匹配第N次，不会自动新建'],
         ['4. 学员姓名只在当前班级在读学员中匹配，姓名空格会自动忽略'],
         ['5. 如果已有同学同课次记录，预检查中会提示重复，可选择保留或替换'],
-    ]);
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
+    formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 54 });
     XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
     XLSX.writeFile(wb, '考勤导入模板.xlsx');
     showToast('模板已下载');

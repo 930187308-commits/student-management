@@ -426,7 +426,9 @@ function exportMonthlyRevenue() {
             }
         });
     });
-    const ws = XLSX.utils.aoa_to_sheet([['月份', '已消课时', '估算课消金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, getPrivacyVal(monthlyConsumption[month].sessions), getPrivacyAmount(monthlyConsumption[month].amount)])]);
+    const rows = [['月份', '已消课时', '估算课消金额'], ...Object.keys(monthlyConsumption).sort().reverse().map(month => [month, getPrivacyVal(monthlyConsumption[month].sessions), getPrivacyAmount(monthlyConsumption[month].amount)])];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    formatExcelSheet(ws, rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '课消统计');
     XLSX.writeFile(wb, '课消统计.xlsx');
@@ -438,7 +440,9 @@ function exportClassStats() {
         const count = data.students.filter(s => s.classId === c.id && s.status === 'active').length;
         return [c.name, `${count}/${c.maxStudents}`, (count / c.maxStudents * 100).toFixed(0) + '%'];
     });
-    const ws = XLSX.utils.aoa_to_sheet([['班级', '人数/满班', '满班率'], ...classStats]);
+    const rows = [['班级', '人数/满班', '满班率'], ...classStats];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    formatExcelSheet(ws, rows, { maxWidth: 32 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '班级统计');
     XLSX.writeFile(wb, '班级统计.xlsx');
@@ -497,7 +501,9 @@ function exportConsumptionSummary() {
     );
 
     if (filtered.length === 0) { showToast('当前筛选条件下无数据可导出'); return; }
-    const ws = XLSX.utils.aoa_to_sheet([['学员', '年级', '已缴课时', '已消课时', '请假次数', '剩余课时', '状态'], ...filtered]);
+    const rows = [['学员', '年级', '已缴课时', '已消课时', '请假次数', '剩余课时', '状态'], ...filtered];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    formatExcelSheet(ws, rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '课消统计');
     XLSX.writeFile(wb, '课消统计.xlsx');
