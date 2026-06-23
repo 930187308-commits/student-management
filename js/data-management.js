@@ -71,7 +71,7 @@ function openOperationLogModal() {
         .slice(0, 100);
     const rows = logs.map(log => `
         <tr>
-            <td style="white-space:nowrap;">${escapeHtml(formatOperationLogTime(log.createdAt))}</td>
+            <td class="operation-log-time">${escapeHtml(formatOperationLogTime(log.createdAt))}</td>
             <td>${escapeHtml(log.module || '-')}</td>
             <td>${escapeHtml(log.targetName || '-')}</td>
             <td>${escapeHtml(log.summary || '-')}</td>
@@ -378,30 +378,30 @@ async function cleanSafeHealthIssues() {
 
 async function openBackupManager() {
     document.getElementById('modalTitle').textContent = '备份列表';
-    document.getElementById('modalBody').innerHTML = '<div style="padding:16px;color:#888;">正在读取备份列表...</div>';
+    document.getElementById('modalBody').innerHTML = '<div class="modal-loading-text">正在读取备份列表...</div>';
     document.getElementById('modal').classList.add('show');
 
     try {
         const backups = await loadServerBackups();
         document.getElementById('modalBody').innerHTML = `
-            <div style="font-size:14px;line-height:1.7;">
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <div class="backup-manager-modal">
+                <div class="backup-manager-toolbar">
                     <button class="btn btn-success btn-sm" onclick="createManualServerBackup()">立即创建备份</button>
                     <button class="btn btn-secondary btn-sm" onclick="openBackupManager()">刷新</button>
                 </div>
-                <div style="padding:10px;background:#fff3cd;border-radius:8px;color:#856404;margin-bottom:12px;">
+                <div class="backup-manager-note">
                     恢复备份会覆盖当前系统数据。系统会在恢复前自动再创建一份"恢复前备份"，用于反悔回退。
                 </div>
                 ${backups.length === 0 ? '<div class="empty-state">暂无服务器备份</div>' : `
-                    <div class="table-wrapper" style="max-height:420px;overflow:auto;">
-                        <table>
+                    <div class="table-wrapper backup-table-wrap">
+                        <table class="backup-table">
                             <thead><tr><th>时间</th><th>原因</th><th>JSON 文件</th><th>操作</th></tr></thead>
                             <tbody>
                                 ${backups.map(b => `
                                     <tr>
-                                        <td style="white-space:nowrap;">${new Date(b.createdAt).toLocaleString()}</td>
+                                        <td class="backup-time-cell">${new Date(b.createdAt).toLocaleString()}</td>
                                         <td>${escapeHtml(formatBackupReason(b.reason))}</td>
-                                        <td style="font-size:12px;color:#888;">${escapeHtml((b.jsonBackupPath || '').split('/').pop() || '-')}</td>
+                                        <td class="backup-file-cell">${escapeHtml((b.jsonBackupPath || '').split('/').pop() || '-')}</td>
                                         <td><button class="btn btn-warning btn-xs" onclick="restoreBackupFromList(${b.id})">恢复</button></td>
                                     </tr>
                                 `).join('')}
@@ -414,7 +414,7 @@ async function openBackupManager() {
         `;
     } catch (error) {
         document.getElementById('modalBody').innerHTML = `
-            <div style="padding:16px;color:#e74c3c;">读取备份列表失败：${escapeHtml(error.message)}</div>
+            <div class="backup-error-message">读取备份列表失败：${escapeHtml(error.message)}</div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
         `;
     }

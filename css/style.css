@@ -2926,9 +2926,60 @@ body.dark-mode .student-timeline-row.is-good {
     font-size: 12px;
     vertical-align: top;
 }
+.operation-log-time {
+    white-space: nowrap;
+}
 .modal-loading-text {
     padding: 16px;
     color: var(--text-muted);
+}
+.backup-manager-modal {
+    font-size: 13px;
+    line-height: 1.55;
+}
+.backup-manager-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.backup-manager-note {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(243, 156, 18, 0.32);
+    border-radius: 8px;
+    background: rgba(243, 156, 18, 0.1);
+    color: #8a5a00;
+}
+.backup-table-wrap {
+    max-height: 420px;
+    overflow: auto;
+}
+.backup-table th,
+.backup-table td {
+    font-size: 12px;
+    vertical-align: top;
+}
+.backup-time-cell {
+    white-space: nowrap;
+}
+.backup-file-cell {
+    max-width: 260px;
+    color: var(--text-muted);
+    font-size: 12px;
+    word-break: break-all;
+}
+.backup-error-message {
+    padding: 16px;
+    color: #e74c3c;
+}
+body.dark-mode .backup-manager-note {
+    border-color: rgba(251, 191, 36, 0.28);
+    background: rgba(251, 191, 36, 0.11);
+    color: #fde68a;
+}
+body.dark-mode .backup-error-message {
+    color: #fca5a5;
 }
 .data-manager-modal {
     display: grid;
