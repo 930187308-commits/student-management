@@ -586,6 +586,9 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 .record-batch-bar:not(:has(*)) {
     display: none;
 }
+.record-batch-toggle {
+    padding: 2px 8px;
+}
 .record-summary-row {
     display: flex;
     gap: 18px;
@@ -595,6 +598,12 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 }
 .record-summary-row span {
     color: var(--text-muted);
+}
+.record-amount-paid {
+    color: #27ae60;
+}
+.record-amount-pending {
+    color: #e74c3c;
 }
 .record-card .table-wrapper {
     border: 1px solid var(--table-border);
@@ -608,6 +617,27 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 .record-card th,
 .record-card td {
     padding: 8px 8px;
+}
+.record-empty-row {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 24px;
+}
+.record-date-cell {
+    white-space: nowrap;
+}
+.record-note-cell {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.record-ai-action {
+    background: #9b59b6;
+    color: white;
+}
+.record-ai-action:hover {
+    background: #8e44ad;
+    color: white;
 }
 .record-footer-actions {
     margin-top: 12px;

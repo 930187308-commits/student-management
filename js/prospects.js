@@ -32,7 +32,7 @@ function renderProspects() {
             </div>
             <div id="prospectCountBar" class="record-meta-bar"></div>
             <div id="prospectBatchBar" class="record-batch-bar">
-                ${prospectBatchMode ? `<span>已选择 <strong id="prospectSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllProspectSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
+                ${prospectBatchMode ? `<span>已选择 <strong id="prospectSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs record-batch-toggle" onclick="toggleAllProspectSelection(this)">全选</button>` : ''}
             </div>
             <div class="table-wrapper">
                 <table>
@@ -80,16 +80,16 @@ function renderProspectList() {
             <td>${p.trialDate || '-'}</td>
             <td><span class="badge ${trialBadge}">${statusMap[p.trialStatus] || '待跟进'}</span></td>
             <td><span class="badge ${dealBadge}">${p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交'}</span></td>
-            <td title="${escapeHtml(remark)}" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(shortRemark || '-')}</td>
+            <td title="${escapeHtml(remark)}" class="record-note-cell">${escapeHtml(shortRemark || '-')}</td>
             <td>${p.createDate || '-'}</td>
             <td>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
                 <button class="btn btn-success btn-xs" onclick="convertProspect('${p.id}')">转正式</button>
-                <button class="btn btn-xs" style="background:#9b59b6;color:white;" onclick="jumpToAIAgent('recruit-agent','follow-reminder','prospect','${p.id}')">AI 话术</button>
+                <button class="btn btn-xs record-ai-action" onclick="jumpToAIAgent('recruit-agent','follow-reminder','prospect','${p.id}')">AI 话术</button>
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
             </td>
         </tr>`;
-    }).join('') || `<tr><td colspan="${prospectBatchMode ? 12 : 11}" style="text-align:center;color:#888;">暂无意向学员</td></tr>`;
+    }).join('') || `<tr><td colspan="${prospectBatchMode ? 12 : 11}" class="record-empty-row">暂无意向学员</td></tr>`;
 }
 
 function toggleProspectBatchMode() {

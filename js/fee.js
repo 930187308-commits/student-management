@@ -27,11 +27,11 @@ function renderFees() {
 	            </div>
             <div id="feeCountBar" class="record-meta-bar"></div>
             <div id="feeBatchBar" class="record-batch-bar">
-                ${feeBatchMode ? `<span>已选择 <strong id="feeSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllFeeSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
+                ${feeBatchMode ? `<span>已选择 <strong id="feeSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs record-batch-toggle" onclick="toggleAllFeeSelection(this)">全选</button>` : ''}
             </div>
             <div class="record-summary-row">
-                <div><span>已缴合计：</span><strong style="color: #27ae60;">¥${totalPaid.toLocaleString()}</strong></div>
-                <div><span>欠费合计：</span><strong style="color: #e74c3c;">¥${totalPending.toLocaleString()}</strong></div>
+                <div><span>已缴合计：</span><strong class="record-amount-paid">¥${totalPaid.toLocaleString()}</strong></div>
+                <div><span>欠费合计：</span><strong class="record-amount-pending">¥${totalPending.toLocaleString()}</strong></div>
             </div>
             <div class="table-wrapper">
 	                <table><thead><tr>${feeBatchMode ? '<th><input type="checkbox" onchange="toggleAllFeeSelection(this)"></th>' : ''}<th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
@@ -66,7 +66,7 @@ function renderFeeTable() {
     const tbody = document.getElementById('feeTableBody');
     tbody.innerHTML = filtered.length > 0
         ? filtered.map(f => `<tr>${feeBatchMode ? `<td><input type="checkbox" class="fee-select" value="${f.id}" onchange="updateFeeSelectionCount()"></td>` : ''}<td><button type="button" class="record-link-btn" onclick="openStudentDetailFromRecord('${escapeHtml(f.studentId || '')}', '${escapeHtml(f.studentName)}')">${escapeHtml(f.studentName)}</button></td><td>¥${Number(f.amount || 0).toLocaleString()}</td><td>¥${f.pricePerHour}</td><td>${f.hours}</td><td>${f.paymentDate || '-'}</td><td>${escapeHtml(f.package)}</td><td><span class="badge ${f.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${f.status === 'paid' ? '已缴' : '欠费'}</span></td><td><button class="btn btn-secondary btn-xs" onclick="openFeeModal('${f.id}')">编辑</button>${f.status === 'pending' ? `<button class="btn btn-success btn-xs" onclick="markFeePaid('${f.id}')">转已缴</button><button class="btn btn-primary btn-xs" onclick="openStudentAIQuestion('${escapeHtml(f.studentId || '')}', 'renewal')">话术</button>` : ''}<button class="btn btn-danger btn-xs" onclick="deleteFee('${f.id}')">删除</button></td></tr>`).join('')
-        : `<tr><td colspan="${feeBatchMode ? 9 : 8}" style="text-align:center;color:#888;padding:24px;">暂无收费记录</td></tr>`;
+        : `<tr><td colspan="${feeBatchMode ? 9 : 8}" class="record-empty-row">暂无收费记录</td></tr>`;
 }
 
 function toggleFeeBatchMode() {

@@ -25,7 +25,7 @@ function renderCommunications() {
             </div>
             <div id="commCountBar" class="record-meta-bar"></div>
             <div id="commBatchBar" class="record-batch-bar">
-                ${communicationBatchMode ? `<span>已选择 <strong id="commSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllCommunicationSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
+                ${communicationBatchMode ? `<span>已选择 <strong id="commSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs record-batch-toggle" onclick="toggleAllCommunicationSelection(this)">全选</button>` : ''}
             </div>
             <div class="table-wrapper">
                 <table><thead><tr>${communicationBatchMode ? '<th><input type="checkbox" onchange="toggleAllCommunicationSelection(this)"></th>' : ''}<th>主题</th><th>学员</th><th>日期</th><th>方式</th><th>状态</th><th>沟通对象</th><th>操作</th></tr></thead><tbody id="commTableBody"></tbody></table>
@@ -66,7 +66,7 @@ function renderCommTable() {
             <td>${escapeHtml(c.contactPerson)}</td>
             <td>${c.status === 'pending' ? `<button class="btn btn-success btn-xs" onclick="markCommDone('${c.id}')">完成</button><button class="btn btn-primary btn-xs" onclick="addCommFollowupTodo('${c.id}')">待办</button>` : ''}<button class="btn btn-secondary btn-xs" onclick="openCommModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
         </tr>`;
-    }).join('') || `<tr><td colspan="${communicationBatchMode ? 8 : 7}" style="text-align:center;color:#888;padding:24px;">暂无沟通记录</td></tr>`;
+    }).join('') || `<tr><td colspan="${communicationBatchMode ? 8 : 7}" class="record-empty-row">暂无沟通记录</td></tr>`;
 }
 
 function toggleCommunicationBatchMode() {

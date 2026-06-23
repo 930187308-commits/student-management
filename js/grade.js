@@ -33,10 +33,10 @@ function renderGrades() {
             </div>
             <div id="gradeCountBar" class="record-meta-bar"></div>
             <div id="gradeBatchBar" class="record-batch-bar">
-                ${gradeBatchMode ? `<span>已选择 <strong id="gradeSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs" onclick="toggleAllGradeSelection(this)" style="padding: 2px 8px;">全选</button>` : ''}
+                ${gradeBatchMode ? `<span>已选择 <strong id="gradeSelectedCount">0</strong> 条</span><button class="btn btn-secondary btn-xs record-batch-toggle" onclick="toggleAllGradeSelection(this)">全选</button>` : ''}
             </div>
             <div class="table-wrapper">
-                <table><thead><tr>${gradeBatchMode ? '<th><input type="checkbox" onchange="toggleAllGradeSelection(this)"></th>' : ''}<th>学员</th><th>测试名称</th><th style="white-space:nowrap;">日期</th><th>类型</th><th>得分</th><th>排名</th><th>备注</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
+                <table><thead><tr>${gradeBatchMode ? '<th><input type="checkbox" onchange="toggleAllGradeSelection(this)"></th>' : ''}<th>学员</th><th>测试名称</th><th class="record-date-cell">日期</th><th>类型</th><th>得分</th><th>排名</th><th>备注</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
             </div>
             <div class="record-footer-actions">
                 <button class="btn btn-secondary" onclick="exportGrades()">导出Excel</button>
@@ -74,9 +74,9 @@ function renderGradeTable() {
         ? filtered.map(g => {
             const student = getGradeRecordStudent(g);
             const studentId = student?.id || g.studentId || '';
-            return `<tr>${gradeBatchMode ? `<td><input type="checkbox" class="grade-select" value="${g.id}" onchange="updateGradeSelectionCount()"></td>` : ''}<td><button type="button" class="record-link-btn" onclick="openStudentDetailFromRecord('${escapeHtml(studentId)}', '${escapeHtml(g.studentName)}')">${escapeHtml(g.studentName)}</button></td><td>${escapeHtml(g.testName)}</td><td style="white-space:nowrap;">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.remark || '-')}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-primary btn-xs" onclick="openStudentAIQuestion('${escapeHtml(studentId)}', 'feedback')">反馈</button><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`;
+            return `<tr>${gradeBatchMode ? `<td><input type="checkbox" class="grade-select" value="${g.id}" onchange="updateGradeSelectionCount()"></td>` : ''}<td><button type="button" class="record-link-btn" onclick="openStudentDetailFromRecord('${escapeHtml(studentId)}', '${escapeHtml(g.studentName)}')">${escapeHtml(g.studentName)}</button></td><td>${escapeHtml(g.testName)}</td><td class="record-date-cell">${g.testDate || '-'}</td><td><span class="badge ${g.examType === 'school' ? 'badge-active' : 'badge-normal'}">${g.examType === 'school' ? '校内' : '校外'}</span></td><td><span class="badge ${g.score >= 90 ? 'badge-active' : g.score >= 70 ? 'badge-trial' : 'badge-pending'}">${g.score}/${g.fullScore}</span></td><td>${g.ranking != null && g.ranking !== '' ? '第'+g.ranking+'名' : '未知'}</td><td>${escapeHtml(g.remark || '-')}</td><td>${escapeHtml(g.weakPoints || '-')}</td><td><button class="btn btn-primary btn-xs" onclick="openStudentAIQuestion('${escapeHtml(studentId)}', 'feedback')">反馈</button><button class="btn btn-secondary btn-xs" onclick="openGradeModal('${g.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteGrade('${g.id}')">删除</button></td></tr>`;
         }).join('')
-        : `<tr><td colspan="${gradeBatchMode ? 10 : 9}" style="text-align:center;color:#888;padding:24px;">暂无成绩记录</td></tr>`;
+        : `<tr><td colspan="${gradeBatchMode ? 10 : 9}" class="record-empty-row">暂无成绩记录</td></tr>`;
 }
 
 function getGradeRecordStudent(gradeRecord) {
