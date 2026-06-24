@@ -2,6 +2,57 @@
 
 let prospectBatchMode = false;
 
+const PROSPECT_CONTACT_TYPES = ['微信', '电话', '面谈', '试课', '家长转介绍', '其他'];
+const PROSPECT_CONTACT_STATUS = [
+    { value: 'pending', label: '待跟进' },
+    { value: 'done', label: '已沟通' },
+    { value: 'trialBooked', label: '已约试课' },
+    { value: 'noReply', label: '未回复' },
+    { value: 'closed', label: '已结束' }
+];
+
+function getProspectContactLogs(prospect) {
+    return Array.isArray(prospect?.contactLogs)
+        ? prospect.contactLogs
+            .filter(log => log && typeof log === 'object')
+            .map(log => ({ ...log }))
+            .sort((a, b) => String(b.contactDate || b.createdAt || '').localeCompare(String(a.contactDate || a.createdAt || '')))
+        : [];
+}
+
+function getProspectContactStatusLabel(status) {
+    return PROSPECT_CONTACT_STATUS.find(item => item.value === status)?.label || status || '待跟进';
+}
+
+function getProspectContactSummary(prospect) {
+    const logs = getProspectContactLogs(prospect);
+    if (!logs.length) return { count: 0, title: '暂无接触', detail: '可补一条接触记录' };
+    const latest = logs[0];
+    const pieces = [
+        latest.contactDate || '-',
+        latest.contactType || '接触',
+        getProspectContactStatusLabel(latest.status)
+    ].filter(Boolean);
+    return {
+        count: logs.length,
+        title: `${logs.length}次`,
+        detail: pieces.join(' · '),
+        tooltip: logs.map(log => `${log.contactDate || '-'} ${log.contactType || '接触'}：${log.content || log.nextAction || '-'}`).join('\n')
+    };
+}
+
+function prospectContactLogsText(prospect) {
+    return getProspectContactLogs(prospect)
+        .map(log => [
+            log.contactDate || '',
+            log.contactType || '',
+            getProspectContactStatusLabel(log.status),
+            log.content || '',
+            log.nextAction || ''
+        ].filter(Boolean).join(' '))
+        .join('\n');
+}
+
 function renderProspects() {
     const container = document.getElementById('tab-prospects');
 
@@ -36,7 +87,7 @@ function renderProspects() {
             </div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr>${prospectBatchMode ? '<th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th>' : ''}<th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
+                    <thead><tr>${prospectBatchMode ? '<th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th>' : ''}<th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>接触记录</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
                     <tbody id="prospectTableBody"></tbody>
                 </table>
             </div>
@@ -51,7 +102,8 @@ function renderProspectList() {
     const statusFilter = document.getElementById('prospectStatusFilter')?.value || '';
     const allData = data.prospects || [];
     const filtered = allData.filter(p => {
-        if (search && !p.name.toLowerCase().includes(search) && !(p.phone || '').includes(search) && !(p.wechat || '').includes(search)) return false;
+        const contactText = prospectContactLogsText(p).toLowerCase();
+        if (search && !(p.name || '').toLowerCase().includes(search) && !(p.phone || '').includes(search) && !(p.wechat || '').includes(search) && !contactText.includes(search)) return false;
         if (statusFilter && p.trialStatus !== statusFilter) return false;
         return true;
     }).sort((a, b) => (b.createDate || '').localeCompare(a.createDate || ''));
@@ -70,6 +122,7 @@ function renderProspectList() {
         const dealBadge = p.dealStatus === 'deal' ? 'badge-active' : p.dealStatus === 'lost' ? 'badge-danger' : 'badge-normal';
         const remark = p.remark || '';
         const shortRemark = remark.length > 16 ? `${remark.slice(0, 16)}...` : remark;
+        const contactSummary = getProspectContactSummary(p);
         return `<tr>
             ${prospectBatchMode ? `<td><input type="checkbox" class="prospect-select" value="${p.id}" onchange="updateProspectSelectionCount()"></td>` : ''}
             <td><strong>${escapeHtml(p.name)}</strong></td>
@@ -80,16 +133,23 @@ function renderProspectList() {
             <td>${p.trialDate || '-'}</td>
             <td><span class="badge ${trialBadge}">${statusMap[p.trialStatus] || '待跟进'}</span></td>
             <td><span class="badge ${dealBadge}">${p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交'}</span></td>
+            <td class="prospect-contact-cell" title="${escapeHtml(contactSummary.tooltip || contactSummary.detail)}">
+                <button class="prospect-contact-chip" onclick="openProspectContactModal('${p.id}')">
+                    <strong>${escapeHtml(contactSummary.title)}</strong>
+                    <span>${escapeHtml(contactSummary.detail)}</span>
+                </button>
+            </td>
             <td title="${escapeHtml(remark)}" class="record-note-cell">${escapeHtml(shortRemark || '-')}</td>
             <td>${p.createDate || '-'}</td>
             <td>
+                <button class="btn btn-primary btn-xs" onclick="openProspectContactModal('${p.id}')">接触</button>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
                 <button class="btn btn-success btn-xs" onclick="convertProspect('${p.id}')">转正式</button>
                 <button class="btn btn-xs record-ai-action" onclick="jumpToAIAgent('recruit-agent','follow-reminder','prospect','${p.id}')">AI 话术</button>
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
             </td>
         </tr>`;
-    }).join('') || `<tr><td colspan="${prospectBatchMode ? 12 : 11}" class="record-empty-row">暂无意向学员</td></tr>`;
+    }).join('') || `<tr><td colspan="${prospectBatchMode ? 13 : 12}" class="record-empty-row">暂无意向学员</td></tr>`;
 }
 
 function toggleProspectBatchMode() {
@@ -120,8 +180,30 @@ function exportSelectedProspects() {
     if (ids.length === 0) { showToast('请先勾选意向学员'); return; }
     const selected = (data.prospects || []).filter(p => ids.includes(p.id));
     const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
-    const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '录入日期'];
-    const rows = selected.map(p => [p.name, p.grade || '', p.phone || '', p.wechat || '', p.source || '', p.intent || '', p.trialDate || '', statusMap[p.trialStatus] || '', p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交', p.remark || '', p.createDate || '']);
+    const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触次数', '最近接触', '接触记录', '备注', '录入日期'];
+    const rows = selected.map(p => {
+        const logs = getProspectContactLogs(p);
+        const latest = logs[0] || {};
+        const latestContact = logs.length
+            ? [latest.contactDate || '', latest.contactType || '', getProspectContactStatusLabel(latest.status)].filter(Boolean).join(' · ')
+            : '';
+        return [
+            p.name,
+            p.grade || '',
+            p.phone || '',
+            p.wechat || '',
+            p.source || '',
+            p.intent || '',
+            p.trialDate || '',
+            statusMap[p.trialStatus] || '',
+            p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交',
+            logs.length,
+            latestContact,
+            prospectContactLogsText(p),
+            p.remark || '',
+            p.createDate || ''
+        ];
+    });
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     formatExcelSheet(ws, [headers, ...rows]);
     const wb = XLSX.utils.book_new();
@@ -217,10 +299,126 @@ function openProspectModal(id = null) {
     document.getElementById('modal').classList.add('show');
 }
 
+function openProspectContactModal(prospectId, logId = null) {
+    const prospect = (data.prospects || []).find(p => String(p.id) === String(prospectId));
+    if (!prospect) {
+        showToast('意向学员不存在');
+        return;
+    }
+    const logs = getProspectContactLogs(prospect);
+    const editingLog = logId ? logs.find(log => String(log.id) === String(logId)) : null;
+    const typeOptions = PROSPECT_CONTACT_TYPES.map(type => `<option value="${escapeHtml(type)}" ${editingLog?.contactType === type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('');
+    const statusOptions = PROSPECT_CONTACT_STATUS.map(item => `<option value="${escapeHtml(item.value)}" ${(editingLog?.status || 'pending') === item.value ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('');
+    const listHtml = logs.map(log => `
+        <div class="prospect-contact-item">
+            <div class="prospect-contact-item-main">
+                <div class="prospect-contact-item-head">
+                    <strong>${escapeHtml(log.contactDate || '-')}</strong>
+                    <span>${escapeHtml(log.contactType || '接触')}</span>
+                    <span class="badge badge-normal">${escapeHtml(getProspectContactStatusLabel(log.status))}</span>
+                </div>
+                <div class="prospect-contact-item-content">${escapeHtml(log.content || '-')}</div>
+                ${log.nextAction ? `<div class="prospect-contact-next">下一步：${escapeHtml(log.nextAction)}</div>` : ''}
+            </div>
+            <div class="prospect-contact-item-actions">
+                <button class="btn btn-secondary btn-xs" onclick="openProspectContactModal('${prospectId}', '${log.id}')">编辑</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteProspectContactLog('${prospectId}', '${log.id}')">删除</button>
+            </div>
+        </div>
+    `).join('');
+
+    document.getElementById('modalTitle').textContent = `${prospect.name || '意向学员'} · 接触记录`;
+    document.getElementById('modalBody').innerHTML = `
+        <div class="prospect-contact-modal">
+            <div class="prospect-contact-summary-bar">
+                <strong>${escapeHtml(prospect.name || '-')}</strong>
+                <span>${escapeHtml(prospect.grade || '-')}</span>
+                <span>${escapeHtml(prospect.wechat || prospect.phone || '未填联系方式')}</span>
+            </div>
+            <div class="prospect-contact-list">
+                ${listHtml || '<div class="record-empty-row">暂无接触记录，可以先补一条。</div>'}
+            </div>
+            <form onsubmit="saveProspectContactLog(event, '${prospectId}', '${logId || ''}')">
+                <div class="form-row">
+                    <div class="form-group"><label>接触日期</label><input type="date" name="contactDate" value="${editingLog?.contactDate || new Date().toISOString().split('T')[0]}"></div>
+                    <div class="form-group"><label>接触方式</label><select name="contactType">${typeOptions}</select></div>
+                    <div class="form-group"><label>处理状态</label><select name="status">${statusOptions}</select></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;"><label>接触内容 *</label><textarea name="content" rows="3" required placeholder="例如：微信沟通小升初衔接，家长关注计算和应用题。">${escapeHtml(editingLog?.content || '')}</textarea></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;"><label>下一步动作</label><input type="text" name="nextAction" value="${escapeHtml(editingLog?.nextAction || '')}" placeholder="例如：周五前发诊断题 / 下周约试课"></div>
+                </div>
+                <div class="modal-footer">
+                    ${editingLog ? `<button type="button" class="btn btn-secondary" onclick="openProspectContactModal('${prospectId}')">取消编辑</button>` : ''}
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button>
+                    <button type="submit" class="btn btn-primary">${editingLog ? '保存修改' : '+ 新增记录'}</button>
+                </div>
+            </form>
+        </div>
+    `;
+    document.getElementById('modal').classList.add('show');
+}
+
+async function saveProspectContactLog(e, prospectId, logId = '') {
+    e.preventDefault();
+    const prospect = (data.prospects || []).find(p => String(p.id) === String(prospectId));
+    if (!prospect) {
+        showToast('意向学员不存在');
+        return;
+    }
+    const form = e.target;
+    const logs = getProspectContactLogs(prospect);
+    const contactLog = {
+        id: logId || generateId(),
+        contactDate: form.contactDate.value,
+        contactType: form.contactType.value,
+        status: form.status.value,
+        content: form.content.value.trim(),
+        nextAction: form.nextAction.value.trim(),
+        createdAt: logId ? (logs.find(log => String(log.id) === String(logId))?.createdAt || new Date().toISOString()) : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    const nextLogs = logId
+        ? logs.map(log => String(log.id) === String(logId) ? contactLog : log)
+        : [contactLog, ...logs];
+    const updatedProspect = { ...prospect, contactLogs: nextLogs };
+    try {
+        await saveCollectionItemToApi('prospects', updatedProspect);
+    } catch (error) {
+        showToast('保存接触记录失败：' + error.message);
+        return;
+    }
+    showToast(logId ? '接触记录已更新' : '接触记录已添加');
+    renderProspects();
+    openProspectContactModal(prospectId);
+}
+
+async function deleteProspectContactLog(prospectId, logId) {
+    const prospect = (data.prospects || []).find(p => String(p.id) === String(prospectId));
+    if (!prospect) return;
+    if (!confirm('确定删除这条接触记录吗？')) return;
+    const updatedProspect = {
+        ...prospect,
+        contactLogs: getProspectContactLogs(prospect).filter(log => String(log.id) !== String(logId))
+    };
+    try {
+        await saveCollectionItemToApi('prospects', updatedProspect);
+    } catch (error) {
+        showToast('删除接触记录失败：' + error.message);
+        return;
+    }
+    showToast('接触记录已删除');
+    renderProspects();
+    openProspectContactModal(prospectId);
+}
+
 async function saveProspect(e) {
     e.preventDefault();
     const form = e.target;
     const id = form.id.value || generateId();
+    const existingProspect = (data.prospects || []).find(p => p.id === id);
 
     // 脏数据清理：classId 和 trialStatus 关系
     // - 选了 classId → trialStatus 强制为 forming
@@ -243,7 +441,9 @@ async function saveProspect(e) {
         dealStatus: form.dealStatus.value,
         classId: finalClassId,
         remark: form.remark.value,
-        createDate: form.id.value ? (data.prospects || []).find(p => p.id === id)?.createDate : new Date().toISOString().split('T')[0]
+        createDate: form.id.value ? existingProspect?.createDate : new Date().toISOString().split('T')[0],
+        convertedStudentId: existingProspect?.convertedStudentId || '',
+        contactLogs: getProspectContactLogs(existingProspect)
     };
 
     try {
@@ -418,7 +618,9 @@ function buildProspectFromImportRow(v, id, existing = {}) {
         dealStatus: v.dealStatus,
         remark: String(v.row[v.hasNewFormat ? 9 : 7] || '').trim(),
         classId: existing.classId || '',
-        createDate: existing.createDate || new Date().toISOString().split('T')[0]
+        createDate: existing.createDate || new Date().toISOString().split('T')[0],
+        convertedStudentId: existing.convertedStudentId || '',
+        contactLogs: getProspectContactLogs(existing)
     };
 }
 

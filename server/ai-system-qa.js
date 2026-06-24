@@ -732,9 +732,18 @@ function buildCommunicationFacts({ question, students, communications, studentsB
     return { month: monthFilter.month, total: rows.length, matches: rows.slice(0, 50) };
 }
 
+function getProspectContactLogs(prospect) {
+    return Array.isArray(prospect?.contactLogs)
+        ? prospect.contactLogs
+            .filter(log => log && typeof log === 'object')
+            .slice()
+            .sort((a, b) => String(b.contactDate || b.createdAt || '').localeCompare(String(a.contactDate || a.createdAt || '')))
+        : [];
+}
+
 function buildProspectFacts({ question, prospects, classesById, privacyMode }) {
     const normalizedQuestion = normalizeComparableText(question);
-    if (!/(意向|线索|试听|成交|组班|来源|微信|咨询)/.test(normalizedQuestion)) return null;
+    if (!/(意向|线索|试听|成交|组班|来源|微信|咨询|接触|沟通|跟进)/.test(normalizedQuestion)) return null;
     let rows = prospects;
     const nameMatches = prospects.filter(item => normalizeComparableText(item.name) && normalizedQuestion.includes(normalizeComparableText(item.name)));
     if (nameMatches.length) rows = nameMatches;
@@ -743,22 +752,32 @@ function buildProspectFacts({ question, prospects, classesById, privacyMode }) {
     if (/(未成交|待跟进)/.test(normalizedQuestion)) rows = rows.filter(item => item.dealStatus !== 'deal');
     if (/(已成交|成交)/.test(normalizedQuestion) && !/(未成交)/.test(normalizedQuestion)) rows = rows.filter(item => item.dealStatus === 'deal');
     if (/(组班中|组班)/.test(normalizedQuestion)) rows = rows.filter(item => item.trialStatus === 'forming' || item.classId);
-    const sourceToken = normalizedQuestion.replace(/意向|线索|试听|成交|组班|来源|学生|学员|有哪些|多少|名单|的|微信|咨询/g, '');
+    const sourceToken = normalizedQuestion.replace(/意向|线索|试听|成交|组班|来源|学生|学员|有哪些|多少|名单|的|微信|咨询|接触|沟通|跟进/g, '');
     if (sourceToken) {
         const sourceFiltered = rows.filter(item => normalizeComparableText(item.source).includes(sourceToken));
         if (sourceFiltered.length) rows = sourceFiltered;
     }
-    const matches = rows.map(item => ({
-        name: displayName(item.name, privacyMode),
-        grade: item.grade || '',
-        source: item.source || '',
-        wechat: privacyMode === 'named' ? (item.wechat || '') : '',
-        trialStatus: item.trialStatus || '',
-        dealStatus: item.dealStatus || '',
-        className: classesById.get(item.classId)?.name || '',
-        intent: safeText(item.intent, 120),
-        remark: safeText(item.remark, 160)
-    }));
+    const matches = rows.map(item => {
+        const contactLogs = getProspectContactLogs(item);
+        const latestContact = contactLogs[0] || {};
+        return {
+            name: displayName(item.name, privacyMode),
+            grade: item.grade || '',
+            source: item.source || '',
+            wechat: privacyMode === 'named' ? (item.wechat || '') : '',
+            trialStatus: item.trialStatus || '',
+            dealStatus: item.dealStatus || '',
+            className: classesById.get(item.classId)?.name || '',
+            intent: safeText(item.intent, 120),
+            remark: safeText(item.remark, 160),
+            contactCount: contactLogs.length,
+            latestContactDate: latestContact.contactDate || '',
+            latestContactType: latestContact.contactType || '',
+            latestContactStatus: latestContact.status || '',
+            latestContactContent: safeText(latestContact.content || '', 120),
+            nextAction: safeText(latestContact.nextAction || '', 120)
+        };
+    });
     return { total: matches.length, matches: matches.slice(0, 50) };
 }
 
@@ -1083,19 +1102,28 @@ function buildSystemQAContext(data, payload, privacyMode) {
         communications: communicationRows,
         recentCommunications,
         queryFacts,
-        prospects: prospects.map(item => ({
-            name: displayName(item.name, privacyMode),
-            grade: item.grade || '',
-            phone: privacyMode === 'named' ? (item.phone || '') : '',
-            wechat: privacyMode === 'named' ? (item.wechat || '') : '',
-            source: item.source || '',
-            intent: safeText(item.intent, 120),
-            trialDate: item.trialDate || '',
-            trialStatus: item.trialStatus || '',
-            dealStatus: item.dealStatus || '',
-            className: classesById.get(item.classId)?.name || '',
-            remark: safeText(item.remark || item.intent, 120)
-        }))
+        prospects: prospects.map(item => {
+            const contactLogs = getProspectContactLogs(item);
+            const latestContact = contactLogs[0] || {};
+            return {
+                name: displayName(item.name, privacyMode),
+                grade: item.grade || '',
+                phone: privacyMode === 'named' ? (item.phone || '') : '',
+                wechat: privacyMode === 'named' ? (item.wechat || '') : '',
+                source: item.source || '',
+                intent: safeText(item.intent, 120),
+                trialDate: item.trialDate || '',
+                trialStatus: item.trialStatus || '',
+                dealStatus: item.dealStatus || '',
+                className: classesById.get(item.classId)?.name || '',
+                remark: safeText(item.remark || item.intent, 120),
+                contactCount: contactLogs.length,
+                latestContactDate: latestContact.contactDate || '',
+                latestContactType: latestContact.contactType || '',
+                latestContactContent: safeText(latestContact.content || '', 120),
+                nextAction: safeText(latestContact.nextAction || '', 120)
+            };
+        })
     };
 }
 
@@ -1303,8 +1331,8 @@ function buildSystemFactAnswer(context, options = {}) {
     if (facts.prospectMatches) {
         const fact = facts.prospectMatches;
         const list = formatShortList(fact.matches, item => detailed
-            ? `- ${item.name}：${item.grade || '-'}，来源 ${item.source || '-'}，试课状态 ${item.trialStatus || '-'}，成交状态 ${item.dealStatus || '-'}，组班 ${item.className || '-'}，备注：${item.remark || item.intent || '-'}`
-            : `- ${item.name}：${item.grade || '-'}，${item.source || '-'}，${item.trialStatus || '-'}，${item.dealStatus || '-'}`
+            ? `- ${item.name}：${item.grade || '-'}，来源 ${item.source || '-'}，试课状态 ${item.trialStatus || '-'}，成交状态 ${item.dealStatus || '-'}，接触 ${item.contactCount || 0} 次${item.latestContactDate ? `，最近 ${item.latestContactDate} ${item.latestContactType || ''}` : ''}${item.nextAction ? `，下一步：${item.nextAction}` : ''}，备注：${item.remark || item.intent || '-'}`
+            : `- ${item.name}：${item.grade || '-'}，${item.source || '-'}，${item.trialStatus || '-'}，接触 ${item.contactCount || 0} 次`
         , detailed ? 30 : 8);
         return `共找到 ${fact.total} 条意向学员记录。\n${list || '- 暂无匹配记录'}${tail}`;
     }
