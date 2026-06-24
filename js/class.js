@@ -35,9 +35,9 @@ function renderClasses() {
                     <button class="btn btn-secondary btn-sm" onclick="openArchivedClassManager()">归档班级</button>
                     <button class="btn btn-primary" onclick="openClassModal()">+ 新增班级</button>
                     <div class="divider"></div>
-                    <button class="btn btn-secondary" onclick="downloadClassTemplate()">下载导入模板</button>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadClassTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
-                        <button class="btn btn-warning">导入班级</button>
+                        <button class="btn btn-warning btn-sm">导入</button>
                         <input type="file" accept=".xlsx,.xls" onchange="importClasses(event)">
                     </div>
                 </div>

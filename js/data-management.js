@@ -29,8 +29,8 @@ function openDataManager() {
                 <div class="data-manager-debug-head">
                     <span>数据大小：${sizeStr}</span>
                     <div class="data-manager-action-row">
-                        <button class="btn btn-secondary btn-sm" onclick="copyJsonData()">复制JSON</button>
-                        <button class="btn btn-success btn-sm" onclick="saveJsonToFile()">保存JSON</button>
+                        <button class="btn btn-secondary btn-sm" onclick="copyJsonData()">复制 JSON</button>
+                        <button class="btn btn-success btn-sm" onclick="saveJsonToFile()">保存 JSON</button>
                     </div>
                 </div>
                 <textarea id="dataJsonPreview" class="data-manager-json-preview" readonly>${jsonStr}</textarea>

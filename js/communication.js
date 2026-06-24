@@ -330,8 +330,8 @@ function openCommDetail(id) {
             <div class="detail-item"><div class="label">方式</div><div class="value">${escapeHtml(comm.contactType)}</div></div>
             <div class="detail-item"><div class="label">沟通对象</div><div class="value">${escapeHtml(comm.contactPerson)}</div></div>
         </div>
-        <div style="margin-top: 16px;"><div class="label">沟通内容</div><div style="padding: 12px; background: var(--hover-bg); border-radius: 8px; margin-top: 4px; white-space: pre-wrap;">${escapeHtml(comm.content)}</div></div>
-        ${comm.followUp ? `<div style="margin-top: 16px;"><div class="label">后续跟进</div><div style="padding: 12px; background: #fff3cd; border-radius: 8px; margin-top: 4px; white-space: pre-wrap;">${escapeHtml(comm.followUp)}</div></div>` : ''}
+        <div class="communication-detail-block"><div class="label">沟通内容</div><div class="communication-detail-content">${escapeHtml(comm.content)}</div></div>
+        ${comm.followUp ? `<div class="communication-detail-block"><div class="label">后续跟进</div><div class="communication-detail-content is-followup">${escapeHtml(comm.followUp)}</div></div>` : ''}
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');

@@ -647,6 +647,25 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
     background: #8e44ad;
     color: white;
 }
+.communication-detail-block {
+    margin-top: 16px;
+}
+.communication-detail-content {
+    padding: 12px;
+    background: var(--hover-bg);
+    border-radius: 8px;
+    margin-top: 4px;
+    white-space: pre-wrap;
+    color: var(--text-primary);
+}
+.communication-detail-content.is-followup {
+    background: #fff3cd;
+    color: #856404;
+}
+body.dark-mode .communication-detail-content.is-followup {
+    background: #2f2b1f;
+    color: #fde68a;
+}
 .prospect-contact-cell {
     min-width: 130px;
 }
