@@ -566,8 +566,8 @@ function renderDashboard() {
                                 </td>
                                 <td>
                                     <button class="btn btn-secondary btn-xs" onclick="openClassModal('${escapeHtml(c.id)}')">编辑</button>
-                                    <button class="btn btn-xs" onclick="switchTab('students'); selectClass('${escapeHtml(c.id)}')">学员</button>
-                                    <button class="btn btn-xs" onclick="switchTab('attendance'); loadAttendanceClass('${escapeHtml(c.id)}')">考勤</button>
+                                    <button class="btn btn-secondary btn-xs" onclick="switchTab('students'); selectClass('${escapeHtml(c.id)}')">学员</button>
+                                    <button class="btn btn-primary btn-xs" onclick="switchTab('attendance'); loadAttendanceClass('${escapeHtml(c.id)}')">考勤</button>
                                 </td>
                             </tr>
                         `;

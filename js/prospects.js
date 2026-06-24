@@ -490,8 +490,8 @@ async function convertProspect(id) {
 
 function downloadProspectTemplate() {
     const templateRows = [
-        ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注'],
-        ['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '校内80左右', '2025-10-01', '试课中', '未成交', '计算薄弱'],
+        ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '初次接触日期', '接触方式', '接触状态', '接触内容', '下一步动作'],
+        ['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '校内80左右', '2025-10-01', '试课中', '未成交', '计算薄弱', '2025-09-20', '微信', '待跟进', '家长咨询小升初衔接，关注计算和应用题。', '周五前发诊断题'],
     ];
     const ws = XLSX.utils.aoa_to_sheet(templateRows);
     formatExcelSheet(ws, templateRows);
@@ -511,11 +511,17 @@ function downloadProspectTemplate() {
         ['试课状态', '当前状态', '选填', '待跟进 / 已联系 / 试课中 / 组班中 / 已成交 / 已流失'],
         ['成交状态', '成交状态', '选填', '未成交 / 已成交 / 已流失'],
         ['备注', '补充说明', '选填', '如：数学基础一般'],
+        ['初次接触日期', '第一条接触记录日期', '选填', 'yyyy-mm-dd，如 2025-09-20'],
+        ['接触方式', '第一条接触记录方式', '选填', '微信 / 电话 / 面谈 / 试课 / 家长转介绍 / 其他'],
+        ['接触状态', '第一条接触记录状态', '选填', '待跟进 / 已沟通 / 已约试课 / 未回复 / 已结束'],
+        ['接触内容', '第一条接触记录内容', '选填', '如：家长咨询小升初衔接'],
+        ['下一步动作', '第一条接触后的下一步动作', '选填', '如：周五前发诊断题'],
         [''],
         ['注意事项'],
         ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-01'],
         ['2. 试课状态写"组班中"表示在组班中'],
         ['3. 导入时按姓名匹配，找到则录入，找不到则新建'],
+        ['4. Excel 只适合导入第一条接触记录，多次接触建议进系统后逐条补充'],
     ];
     const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
     formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 42 });
@@ -551,6 +557,7 @@ function importProspects(event) {
 function precheckProspectImport(rows) {
     const statusMap = { 'pending': 'pending', '待跟进': 'pending', 'contacted': 'contacted', '已联系': 'contacted', 'trial': 'trial', '试课中': 'trial', 'forming': 'forming', '组班中': 'forming', 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
     const dealStatusMap = { '': '', 'none': '', '未成交': '', 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
+    const contactStatusMap = { '': 'pending', pending: 'pending', '待跟进': 'pending', done: 'done', '已沟通': 'done', trialBooked: 'trialBooked', '已约试课': 'trialBooked', noReply: 'noReply', '未回复': 'noReply', closed: 'closed', '已结束': 'closed' };
     if (!data.prospects) data.prospects = [];
 
     const validRows = [];
@@ -570,6 +577,13 @@ function precheckProspectImport(rows) {
         const wechat = hasNewFormat ? String(row[3] || '').trim() : '';
         const trialDateRaw = row[hasNewFormat ? 6 : 4];
         const trialDate = trialDateRaw ? normalizeExcelDate(trialDateRaw) || String(trialDateRaw).trim() : '';
+        const contactDateRaw = hasNewFormat ? row[10] : '';
+        const contactDate = contactDateRaw ? normalizeExcelDate(contactDateRaw) : '';
+        if (contactDateRaw && !contactDate) {
+            errors.push({ row: rowNum, msg: `初次接触日期"${contactDateRaw}"无法识别` });
+            failed++;
+            continue;
+        }
 
         const trialStatusRaw = String(row[hasNewFormat ? 7 : 5] || '').trim();
         const trialStatus = statusMap[trialStatusRaw];
@@ -585,6 +599,12 @@ function precheckProspectImport(rows) {
             failed++;
             continue;
         }
+        const contactStatusRaw = hasNewFormat ? String(row[12] || '').trim() : '';
+        if (contactStatusRaw && contactStatusMap[contactStatusRaw] === undefined) {
+            errors.push({ row: rowNum, msg: `接触状态"${contactStatusRaw}"无法识别` });
+            failed++;
+            continue;
+        }
 
         const normName = normalizeNameForMatch(name);
         const isDupe = data.prospects.some(p =>
@@ -596,12 +616,50 @@ function precheckProspectImport(rows) {
             duplicates.push({ row: rowNum, msg: `${name}${phone ? ` / ${phone}` : ''}${wechat ? ` / ${wechat}` : ''}` });
         }
 
-        validRows.push({ row, hasNewFormat, name, phone, wechat, trialDate, trialStatus: trialStatus || 'pending', dealStatus: dealStatusMap[dealStatusRaw] || '', isDupe });
+        validRows.push({
+            row,
+            hasNewFormat,
+            name,
+            phone,
+            wechat,
+            trialDate,
+            trialStatus: trialStatus || 'pending',
+            dealStatus: dealStatusMap[dealStatusRaw] || '',
+            contactDate,
+            contactType: hasNewFormat ? String(row[11] || '').trim() : '',
+            contactStatus: contactStatusMap[contactStatusRaw] || 'pending',
+            contactContent: hasNewFormat ? String(row[13] || '').trim() : '',
+            contactNextAction: hasNewFormat ? String(row[14] || '').trim() : '',
+            isDupe
+        });
     }
 
     const total = Math.max(rows.length - 1, 0);
     const dup = validRows.filter(v => v.isDupe).length;
     return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, duplicates, skippedDetails, validRows };
+}
+
+function getProspectImportContactLogs(v, existing = {}) {
+    const logs = getProspectContactLogs(existing);
+    const hasContact = v.contactDate || v.contactType || v.contactContent || v.contactNextAction;
+    if (!hasContact) return logs;
+    const contactLog = {
+        id: generateId(),
+        contactDate: v.contactDate || new Date().toISOString().split('T')[0],
+        contactType: v.contactType || '微信',
+        status: v.contactStatus || 'pending',
+        content: v.contactContent || '导入时补充接触记录',
+        nextAction: v.contactNextAction || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    const exists = logs.some(log =>
+        (log.contactDate || '') === contactLog.contactDate &&
+        (log.contactType || '') === contactLog.contactType &&
+        (log.content || '') === contactLog.content &&
+        (log.nextAction || '') === contactLog.nextAction
+    );
+    return exists ? logs : [contactLog, ...logs];
 }
 
 function buildProspectFromImportRow(v, id, existing = {}) {
@@ -620,7 +678,7 @@ function buildProspectFromImportRow(v, id, existing = {}) {
         classId: existing.classId || '',
         createDate: existing.createDate || new Date().toISOString().split('T')[0],
         convertedStudentId: existing.convertedStudentId || '',
-        contactLogs: getProspectContactLogs(existing)
+        contactLogs: getProspectImportContactLogs(v, existing)
     };
 }
 

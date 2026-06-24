@@ -223,15 +223,15 @@ body.dark-mode .btn.privacy-toggle.is-on {
     align-items: center;
     justify-content: center;
     text-align: left;
-    padding: 8px 12px;
-    gap: 10px;
+    padding: 8px 10px;
+    gap: 8px;
     min-width: 0;
 }
 
 .hours-overview-card .hours-ring {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 }
 
@@ -262,7 +262,7 @@ body.dark-mode .btn.privacy-toggle.is-on {
     flex: 1;
     text-align: center;
     border-right: 1px solid var(--border-color);
-    padding: 0 6px;
+    padding: 0 4px;
     min-width: 0;
 }
 
@@ -271,24 +271,26 @@ body.dark-mode .btn.privacy-toggle.is-on {
 }
 
 .hours-overview-card .metric-item .metric-val {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--text-primary);
     display: block;
     white-space: nowrap;
+    line-height: 1.15;
 }
 
 .hours-overview-card .metric-item .metric-lbl {
-    font-size: 9px;
+    font-size: 8.5px;
     color: var(--text-muted);
     display: block;
     margin-top: 1px;
+    white-space: nowrap;
 }
 
 @media (max-width: 1100px) {
     .stat-grid { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 6px; }
     .stat-card .value { font-size: 15px; }
-    .hours-overview-card .metric-item .metric-val { font-size: 13px; }
+    .hours-overview-card .metric-item .metric-val { font-size: 12px; }
 }
 @media (max-width: 900px) {
     .stat-grid { grid-template-columns: repeat(3, 1fr); }
@@ -1428,11 +1430,13 @@ body.dark-mode .student-status-badge.is-other {
 
 .student-panel-action-btn {
     width: 100%;
-    min-height: 19px;
+    height: 22px;
+    min-height: 22px;
     border-radius: 5px;
     font-size: 9.5px;
-    padding: 1px 4px;
+    padding: 0 6px;
     line-height: 1.1;
+    box-sizing: border-box;
 }
 
 .student-panel-file-action {
@@ -2642,7 +2646,7 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
 .workspace-reminders { min-width: 0; }
 .workspace-actions {
     display: grid;
-    grid-template-columns: repeat(7, minmax(72px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
     gap: 6px;
     width: 100%;
 }
