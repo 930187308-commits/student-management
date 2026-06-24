@@ -23,9 +23,9 @@ function renderGrades() {
                 <div class="toolbar">
                     <button class="btn btn-success" onclick="openGradeModal()">+ 新增成绩</button>
                     <div class="divider"></div>
-                    <button class="btn btn-secondary btn-sm" onclick="downloadGradeTemplate()">下载导入模板</button>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadGradeTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
-                        <button class="btn btn-warning btn-sm">导入Excel</button>
+                        <button class="btn btn-warning btn-sm">导入</button>
                         <input type="file" accept=".xlsx,.xls" onchange="importGrades(event)">
                     </div>
                     <button class="btn btn-secondary btn-sm" onclick="toggleGradeBatchMode()">${gradeBatchMode ? '退出多选' : '多选'}</button>
