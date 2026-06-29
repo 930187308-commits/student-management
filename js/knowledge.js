@@ -518,12 +518,18 @@ function renderKnowledge() {
                 list-style: none;
                 border: 1px solid var(--border-color);
                 border-radius: 999px;
-                padding: 4px 9px;
+                width: 28px;
+                height: 28px;
+                padding: 0;
                 background: var(--hover-bg);
                 color: var(--text-secondary);
-                font-size: 11px;
+                font-size: 18px;
                 font-weight: 700;
                 cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1;
             }
             .knowledge-item-menu summary::-webkit-details-marker {
                 display: none;
@@ -531,6 +537,7 @@ function renderKnowledge() {
             .knowledge-item-menu[open] summary {
                 border-color: var(--primary-color);
                 color: var(--primary-color);
+                background: rgba(52, 152, 219, 0.08);
             }
             .knowledge-item-menu-popover {
                 position: absolute;
@@ -691,7 +698,7 @@ function renderKnowledgeSources(sources) {
                     </div>
                 </div>
                 <details class="knowledge-item-menu">
-                    <summary>操作</summary>
+                    <summary title="资料操作" aria-label="资料操作">⋯</summary>
                     <div class="knowledge-item-menu-popover">
                         <button type="button" onclick="regenerateKnowledgeSummary('${escapeHtml(s.id)}')">重新摘要</button>
                         <button type="button" onclick="editKnowledgeSource('${escapeHtml(s.id)}')">编辑</button>

@@ -2111,12 +2111,12 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     flex-direction: column;
 }
 .system-qa-history-list {
-    margin-top: 8px;
+    margin-top: 6px;
     overflow-y: auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 .system-qa-history-row {
     width: 100%;
@@ -2125,7 +2125,7 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     border-radius: 8px;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 4px;
+    gap: 2px;
     align-items: center;
 }
 .system-qa-history-row.batch {
@@ -2152,15 +2152,16 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     background: transparent;
     color: var(--text-primary);
     border-radius: 8px;
-    padding: 8px 9px;
+    padding: 6px 7px;
     cursor: pointer;
     text-align: left;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
 }
 .system-qa-history-item span {
-    font-size: 13px;
+    font-size: 12px;
+    line-height: 1.3;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2172,21 +2173,21 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
 .system-qa-history-tools {
     display: flex;
     gap: 3px;
-    padding-right: 5px;
+    padding-right: 3px;
 }
 .system-qa-history-menu-wrap {
     position: relative;
     display: inline-flex;
 }
 .system-qa-history-more {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     border: none;
     background: transparent;
     color: var(--text-muted);
     border-radius: 7px;
     cursor: pointer;
-    font-size: 17px;
+    font-size: 16px;
     line-height: 1;
 }
 .system-qa-history-more:hover {
@@ -2196,7 +2197,7 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
 .system-qa-history-menu {
     position: absolute;
     right: 0;
-    top: 30px;
+    top: 28px;
     z-index: 20;
     min-width: 112px;
     padding: 5px;
