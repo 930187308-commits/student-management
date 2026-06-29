@@ -753,6 +753,23 @@ function renderAIRunStatus(response = {}) {
     return `<div class="system-qa-run-status">${parts.map(escapeHtml).join(' · ')}</div>`;
 }
 
+function updateTaskRecordInfo() {
+    const taskInfo = document.getElementById('taskRecordInfo');
+    if (!taskInfo) return;
+    const parts = [
+        lastTaskId ? `任务 ${lastTaskId}` : '',
+        getSystemQAModeLabel(lastTaskMode),
+        getSystemQAProviderLabel(lastTaskProvider)
+    ].filter(Boolean);
+    if (!parts.length) {
+        taskInfo.style.display = 'none';
+        taskInfo.textContent = '';
+        return;
+    }
+    taskInfo.textContent = parts.join(' · ');
+    taskInfo.style.display = 'inline-block';
+}
+
 function getSystemQAModeLabel(mode) {
     if (mode === 'system-facts') return '系统事实';
     if (mode === 'system-safe') return '安全提示';
