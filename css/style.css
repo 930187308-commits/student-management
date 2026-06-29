@@ -2104,11 +2104,19 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     color: var(--text-primary);
 }
 .system-qa-sidebar-actions {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border-color);
+}
+.system-qa-sidebar-actions .btn {
+    width: 100%;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+.system-qa-sidebar-actions .system-qa-toggle {
+    grid-column: 1 / -1;
 }
 .system-qa-sidebar-block {
     padding: 12px 0;
