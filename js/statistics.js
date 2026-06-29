@@ -274,7 +274,7 @@ function renderReports() {
                         <button class="btn btn-secondary btn-sm" onclick="exportConsumptionSummary()">导出</button>
                     </div>
                 </div>
-                <div class="table-wrapper">
+                <div class="table-wrapper report-detail-table">
                     <table><thead><tr><th>学员</th><th>年级</th><th>已缴课时</th><th>已消课时</th><th>请假次数</th><th>剩余课时</th><th>状态</th></tr></thead><tbody>
                         ${filteredConsumption.length > 0 ? filteredConsumption.map(s => {
                             const statusInfo = getConsumptionStatusInfo(s.consumptionStatus);

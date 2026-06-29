@@ -813,6 +813,18 @@ body.dark-mode .communication-detail-content.is-followup {
 .report-card-full {
     grid-column: 1 / -1;
 }
+.report-detail-table {
+    max-height: min(520px, calc(100vh - 260px));
+    overflow: auto;
+    border: 1px solid var(--table-border);
+    border-radius: 10px;
+}
+.report-detail-table table {
+    min-width: 760px;
+}
+.report-detail-table th {
+    z-index: 1;
+}
 .report-chart-box {
     height: 220px;
     min-width: 0;
