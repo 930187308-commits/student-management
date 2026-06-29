@@ -2,6 +2,41 @@ const http = require('node:http');
 
 const BASE_URL = process.env.STUDENT_CONSOLE_URL || 'http://localhost:3000';
 const TEST_ID = `runtime_check_${Date.now()}`;
+const INITIAL_CONTACT_LOGS = [
+    {
+        id: `${TEST_ID}_contact_1`,
+        contactDate: '2026-06-01',
+        contactType: '微信',
+        status: 'pending',
+        content: '第一次咨询小升初衔接',
+        nextAction: '发送诊断题',
+        createdAt: '2026-06-01T10:00:00.000Z',
+        updatedAt: '2026-06-01T10:00:00.000Z'
+    },
+    {
+        id: `${TEST_ID}_contact_2`,
+        contactDate: '2026-06-03',
+        contactType: '电话',
+        status: 'done',
+        content: '第二次确认试课时间',
+        nextAction: '周末试课',
+        createdAt: '2026-06-03T10:00:00.000Z',
+        updatedAt: '2026-06-03T10:00:00.000Z'
+    }
+];
+const PATCHED_CONTACT_LOGS = [
+    {
+        id: `${TEST_ID}_contact_3`,
+        contactDate: '2026-06-05',
+        contactType: '试课',
+        status: 'trialBooked',
+        content: '第三次记录试课反馈',
+        nextAction: '跟进是否报名',
+        createdAt: '2026-06-05T10:00:00.000Z',
+        updatedAt: '2026-06-05T10:00:00.000Z'
+    },
+    ...INITIAL_CONTACT_LOGS
+];
 
 function requestJson(path, options = {}) {
     const url = new URL(path, BASE_URL);
@@ -56,7 +91,8 @@ async function main() {
                 trialStatus: 'pending',
                 dealStatus: 'pending',
                 remark: 'temporary runtime check record',
-                createDate: new Date().toISOString().slice(0, 10)
+                createDate: new Date().toISOString().slice(0, 10),
+                contactLogs: INITIAL_CONTACT_LOGS
             }
         }
     });
@@ -66,7 +102,12 @@ async function main() {
     const patched = await requestJson(`/api/prospects/${encodeURIComponent(TEST_ID)}`, {
         method: 'PATCH',
         headers: { 'X-Base-Data-Updated-At': updatedAt },
-        body: { item: { remark: 'temporary runtime check record updated' } }
+        body: {
+            item: {
+                remark: 'temporary runtime check record updated',
+                contactLogs: PATCHED_CONTACT_LOGS
+            }
+        }
     });
     updatedAt = patched.headers['x-data-updated-at'] || patched.payload.updatedAt;
 
@@ -80,7 +121,12 @@ async function main() {
     const report = {
         ok: created.statusCode === 201 &&
             fetched.payload.item?.id === TEST_ID &&
+            Array.isArray(fetched.payload.item?.contactLogs) &&
+            fetched.payload.item.contactLogs.length === INITIAL_CONTACT_LOGS.length &&
             patched.payload.item?.remark === 'temporary runtime check record updated' &&
+            Array.isArray(patched.payload.item?.contactLogs) &&
+            patched.payload.item.contactLogs.length === PATCHED_CONTACT_LOGS.length &&
+            patched.payload.item.contactLogs[0]?.content === PATCHED_CONTACT_LOGS[0].content &&
             deleted.payload.deleted?.id === TEST_ID &&
             after.payload.prospects.length === beforeCount,
         checkedAt: new Date().toISOString(),
@@ -88,6 +134,10 @@ async function main() {
         beforeCount,
         afterCount: after.payload.prospects.length,
         createdStatus: created.statusCode,
+        contactLogCounts: {
+            created: fetched.payload.item?.contactLogs?.length || 0,
+            patched: patched.payload.item?.contactLogs?.length || 0
+        },
         updatedAtSeen: Boolean(updatedAt)
     };
     console.log(JSON.stringify(report, null, 2));
