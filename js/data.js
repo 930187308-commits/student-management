@@ -306,7 +306,7 @@ function normalizeExcelDate(value) {
     return '';
 }
 
-// 统一优化导入模板/导出 Excel 的列宽和筛选栏
+// 统一优化导入模板/导出 Excel 的列宽、筛选栏和基础阅读体验
 function formatExcelSheet(ws, rows, options = {}) {
     if (!ws || !Array.isArray(rows) || rows.length === 0) return ws;
     const minWidth = options.minWidth || 8;
@@ -327,6 +327,17 @@ function formatExcelSheet(ws, rows, options = {}) {
                 e: { r: Math.max(0, rows.length - 1), c: columnCount - 1 }
             })
         };
+    }
+    if (options.freezeHeader !== false && rows.length > 1 && columnCount > 0) {
+        ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
+    }
+    if (options.rowHeights !== false) {
+        ws['!rows'] = rows.map((row, index) => {
+            const cells = Array.isArray(row) ? row : [];
+            const hasLongText = cells.some(cell => String(cell ?? '').length > 36 || String(cell ?? '').includes('\n'));
+            if (index === 0) return { hpt: 22 };
+            return { hpt: hasLongText ? 34 : 19 };
+        });
     }
     return ws;
 }
