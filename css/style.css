@@ -655,6 +655,18 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 .record-action-cell .btn {
     margin: 2px 3px 2px 0;
 }
+.prospect-action-header,
+.prospect-action-cell {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: var(--bg-card);
+    box-shadow: -1px 0 0 var(--table-border);
+}
+.prospect-action-header {
+    z-index: 3;
+    background: var(--table-header-bg);
+}
 .record-ai-action {
     background: #9b59b6;
     color: white;

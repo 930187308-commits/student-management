@@ -91,7 +91,7 @@ function renderProspects() {
             </div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr>${prospectBatchMode ? '<th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th>' : ''}<th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>接触记录</th><th>备注</th><th>录入日期</th><th>操作</th></tr></thead>
+                    <thead><tr>${prospectBatchMode ? '<th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th>' : ''}<th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>接触记录</th><th>备注</th><th>录入日期</th><th class="prospect-action-header">操作</th></tr></thead>
                     <tbody id="prospectTableBody"></tbody>
                 </table>
             </div>
@@ -145,7 +145,7 @@ function renderProspectList() {
             </td>
             <td title="${escapeHtml(remark)}" class="record-note-cell">${escapeHtml(shortRemark || '-')}</td>
             <td>${p.createDate || '-'}</td>
-            <td class="record-action-cell">
+            <td class="record-action-cell prospect-action-cell">
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectContactModal('${p.id}')">+ 接触</button>
                 <button class="btn btn-success btn-xs" onclick="convertProspect('${p.id}')">转正式</button>
