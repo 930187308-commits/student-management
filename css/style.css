@@ -3541,6 +3541,9 @@ body.dark-mode .backup-error-message {
     flex-wrap: wrap;
     align-items: center;
 }
+.data-manager-debug .data-manager-action-row .btn {
+    min-width: 86px;
+}
 .data-manager-debug {
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -3950,6 +3953,12 @@ body.dark-mode .import-action-note {
     border-color: rgba(96, 165, 250, 0.28);
     background: rgba(96, 165, 250, 0.12);
     color: #bfdbfe;
+}
+body.dark-mode .import-detail-list,
+body.dark-mode .import-strategy-details,
+body.dark-mode .import-detail-card details,
+body.dark-mode .import-result-detail {
+    color: var(--text-secondary);
 }
 /* 移动端首页 */
 @media (max-width: 700px) {
