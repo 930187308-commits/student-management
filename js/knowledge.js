@@ -311,6 +311,8 @@ function renderKnowledge() {
                 padding: 13px 14px;
                 cursor: pointer;
                 min-height: 86px;
+                font-family: inherit;
+                font-size: 13px;
                 transition: border-color 0.15s, transform 0.15s, background 0.15s;
             }
             .knowledge-import-card:hover {
@@ -343,6 +345,7 @@ function renderKnowledge() {
                 border-radius: 8px;
                 background: var(--card-bg);
                 color: var(--text-primary);
+                font-size: 13px;
             }
             .knowledge-modal-scroll {
                 max-height: 560px;
