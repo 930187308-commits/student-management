@@ -729,18 +729,18 @@ function openSourceManager() {
     document.getElementById('modalTitle').textContent = '渠道管理';
     const sources = data.prospectSources || [];
     const sourceList = sources.map(s => `
-        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hover-bg); border-radius: 6px; margin-bottom: 8px;">
-            <span style="flex:1;">${s}</span>
-            <button class="btn btn-danger btn-xs" onclick="deleteSource('${s}')">删除</button>
+        <div class="simple-manager-row">
+            <span class="simple-manager-name">${escapeHtml(s)}</span>
+            <button class="btn btn-danger btn-xs" data-source="${escapeHtml(s)}" onclick="deleteSource(this.dataset.source)">删除</button>
         </div>
     `).join('');
 
     document.getElementById('modalBody').innerHTML = `
-        <div style="margin-bottom: 16px; display: flex; gap: 8px;">
-            <input type="text" id="newSourceName" placeholder="新渠道名称" style="flex:1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px;">
+        <div class="simple-manager-form">
+            <input type="text" id="newSourceName" class="simple-manager-input" placeholder="新渠道名称">
             <button class="btn btn-success btn-sm" onclick="addSource()">添加</button>
         </div>
-        <div>${sourceList || '<div class="empty-state">暂无渠道</div>'}</div>
+        <div class="simple-manager-list">${sourceList || '<div class="simple-manager-empty">暂无渠道</div>'}</div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');

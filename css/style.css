@@ -1183,6 +1183,88 @@ body.dark-mode textarea::placeholder {
 .modal-close:hover { color: var(--text-primary); }
 .modal-footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--table-border); }
 
+.simple-manager-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.simple-manager-input {
+    flex: 1;
+    min-width: 0;
+    height: 34px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.simple-manager-color {
+    width: 40px;
+    height: 34px;
+    padding: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    cursor: pointer;
+}
+
+.simple-manager-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.simple-manager-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.simple-manager-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.simple-manager-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.simple-manager-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.simple-manager-empty {
+    padding: 16px;
+    text-align: center;
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    background: var(--hover-bg);
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
 /* 标签徽章 */
 .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
 .badge-active { background: #d4edda; color: #155724; }

@@ -132,20 +132,22 @@ function exportCommunicationRows(comms, filename) {
 function openTopicManager() {
     document.getElementById('modalTitle').textContent = '沟通主题管理';
     const topicList = (data.communicationTopics || []).map(t => `
-        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hover-bg); border-radius: 6px; margin-bottom: 8px;">
-            <span class="badge" style="background:${t.color};color:white;">${t.name}</span>
-            <button class="btn btn-secondary btn-xs" onclick="editTopic('${t.id}')" style="margin-left: auto;">编辑</button>
-            <button class="btn btn-danger btn-xs" onclick="deleteTopic('${t.id}')">删除</button>
+        <div class="simple-manager-row">
+            <span class="simple-manager-badge" style="background:${escapeHtml(t.color)};">${escapeHtml(t.name)}</span>
+            <div class="simple-manager-actions">
+                <button class="btn btn-secondary btn-xs" onclick="editTopic('${t.id}')">编辑</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteTopic('${t.id}')">删除</button>
+            </div>
         </div>
     `).join('');
 
     document.getElementById('modalBody').innerHTML = `
-        <div style="margin-bottom: 16px;">
-            <input type="text" id="newTopicName" placeholder="新主题名称" style="padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; width: 200px;">
-            <input type="color" id="newTopicColor" value="#3498db" style="width: 40px; height: 36px; border: none; cursor: pointer;">
-            <button class="btn btn-success btn-sm" onclick="addTopic()" style="margin-left: 8px;">添加</button>
+        <div class="simple-manager-form">
+            <input type="text" id="newTopicName" class="simple-manager-input" placeholder="新主题名称">
+            <input type="color" id="newTopicColor" class="simple-manager-color" value="#3498db">
+            <button class="btn btn-success btn-sm" onclick="addTopic()">添加</button>
         </div>
-        <div>${topicList || '<div class="empty-state">暂无主题</div>'}</div>
+        <div class="simple-manager-list">${topicList || '<div class="simple-manager-empty">暂无主题</div>'}</div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');

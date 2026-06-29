@@ -188,18 +188,18 @@ function openClassBusinessReminder(classId) {
 function openClassTypeManager() {
     document.getElementById('modalTitle').textContent = '班型管理';
     const typeList = (data.classTypes || []).map((t, idx) => `
-        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hover-bg); border-radius: 6px; margin-bottom: 8px;">
-            <span style="flex:1;">${escapeHtml(t)}</span>
+        <div class="simple-manager-row">
+            <span class="simple-manager-name">${escapeHtml(t)}</span>
             <button class="btn btn-danger btn-xs" onclick="deleteClassTypeByIdx(${idx})">删除</button>
         </div>
     `).join('');
 
     document.getElementById('modalBody').innerHTML = `
-        <div style="margin-bottom: 16px; display: flex; gap: 8px;">
-            <input type="text" id="newClassTypeName" placeholder="新班型名称" style="flex:1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px;">
+        <div class="simple-manager-form">
+            <input type="text" id="newClassTypeName" class="simple-manager-input" placeholder="新班型名称">
             <button class="btn btn-success btn-sm" onclick="addClassType()">添加</button>
         </div>
-        <div>${typeList || '<div class="empty-state">暂无班型</div>'}</div>
+        <div class="simple-manager-list">${typeList || '<div class="simple-manager-empty">暂无班型</div>'}</div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');
@@ -238,18 +238,18 @@ function openGradeManager() {
     document.getElementById('modalTitle').textContent = '年级管理';
     const grades = getGradeOptions();
     const gradeList = grades.map(g => `
-        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--hover-bg); border-radius: 6px; margin-bottom: 8px;">
-            <span style="flex:1;">${escapeHtml(g)}</span>
+        <div class="simple-manager-row">
+            <span class="simple-manager-name">${escapeHtml(g)}</span>
             <button class="btn btn-danger btn-xs" data-grade="${escapeHtml(g)}" onclick="deleteGradeByName(this.dataset.grade)">删除</button>
         </div>
     `).join('');
 
     document.getElementById('modalBody').innerHTML = `
-        <div style="margin-bottom: 16px; display: flex; gap: 8px;">
-            <input type="text" id="newGradeName" placeholder="新年级名称" style="flex:1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px;">
+        <div class="simple-manager-form">
+            <input type="text" id="newGradeName" class="simple-manager-input" placeholder="新年级名称">
             <button class="btn btn-success btn-sm" onclick="addGrade()">添加</button>
         </div>
-        <div>${gradeList || '<div class="empty-state">暂无年级</div>'}</div>
+        <div class="simple-manager-list">${gradeList || '<div class="simple-manager-empty">暂无年级</div>'}</div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
     `;
     document.getElementById('modal').classList.add('show');
