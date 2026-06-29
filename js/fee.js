@@ -17,12 +17,14 @@ function renderFees() {
                 <div class="toolbar">
                     <button class="btn btn-success btn-sm" onclick="openFeeModal()">+ 新增缴费</button>
                     <div class="divider"></div>
+                    <button class="btn btn-secondary btn-sm" onclick="exportFees()">导出</button>
 	                    <button class="btn btn-secondary btn-sm" onclick="downloadFeeTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
                         <button class="btn btn-warning btn-sm">导入</button>
 	                        <input type="file" accept=".xlsx,.xls" onchange="importFees(event)">
 	                    </div>
 	                    <button class="btn btn-secondary btn-sm" onclick="toggleFeeBatchMode()">${feeBatchMode ? '退出多选' : '多选'}</button>
+                    ${feeBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedFees()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedFees()">删除选中</button>' : ''}
 	                </div>
 	            </div>
             <div id="feeCountBar" class="record-meta-bar"></div>
@@ -35,10 +37,6 @@ function renderFees() {
             </div>
             <div class="table-wrapper">
 	                <table><thead><tr>${feeBatchMode ? '<th><input type="checkbox" onchange="toggleAllFeeSelection(this)"></th>' : ''}<th>学员</th><th>金额</th><th>单价</th><th>课时</th><th>日期</th><th>套餐</th><th>状态</th><th>操作</th></tr></thead><tbody id="feeTableBody"></tbody></table>
-	            </div>
-	            <div class="record-footer-actions">
-	                <button class="btn btn-secondary" onclick="exportFees()">导出Excel</button>
-	                ${feeBatchMode ? '<button class="btn btn-secondary" onclick="exportSelectedFees()">导出选中</button><button class="btn btn-danger" onclick="deleteSelectedFees()">删除选中</button>' : ''}
 	            </div>
         </div>
     `;

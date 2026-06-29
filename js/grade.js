@@ -23,12 +23,14 @@ function renderGrades() {
                 <div class="toolbar">
                     <button class="btn btn-success btn-sm" onclick="openGradeModal()">+ 新增成绩</button>
                     <div class="divider"></div>
+                    <button class="btn btn-secondary btn-sm" onclick="exportGrades()">导出</button>
                     <button class="btn btn-secondary btn-sm" onclick="downloadGradeTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
                         <button class="btn btn-warning btn-sm">导入</button>
                         <input type="file" accept=".xlsx,.xls" onchange="importGrades(event)">
                     </div>
                     <button class="btn btn-secondary btn-sm" onclick="toggleGradeBatchMode()">${gradeBatchMode ? '退出多选' : '多选'}</button>
+                    ${gradeBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedGrades()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedGrades()">删除选中</button>' : ''}
                 </div>
             </div>
             <div id="gradeCountBar" class="record-meta-bar"></div>
@@ -37,10 +39,6 @@ function renderGrades() {
             </div>
             <div class="table-wrapper">
                 <table><thead><tr>${gradeBatchMode ? '<th><input type="checkbox" onchange="toggleAllGradeSelection(this)"></th>' : ''}<th>学员</th><th>测试名称</th><th class="record-date-cell">日期</th><th>类型</th><th>得分</th><th>排名</th><th>备注</th><th>薄弱点</th><th>操作</th></tr></thead><tbody id="gradeTableBody"></tbody></table>
-            </div>
-            <div class="record-footer-actions">
-                <button class="btn btn-secondary" onclick="exportGrades()">导出Excel</button>
-                ${gradeBatchMode ? '<button class="btn btn-secondary" onclick="exportSelectedGrades()">导出选中</button><button class="btn btn-danger" onclick="deleteSelectedGrades()">删除选中</button>' : ''}
             </div>
         </div>
     `;
