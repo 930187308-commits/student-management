@@ -338,11 +338,70 @@ function renderKnowledge() {
             }
             .knowledge-filter-row input,
             .knowledge-filter-row select {
-                padding: 7px 8px;
+                padding: 8px 10px;
                 border: 1px solid var(--border-color);
-                border-radius: 4px;
+                border-radius: 8px;
                 background: var(--card-bg);
                 color: var(--text-primary);
+            }
+            .knowledge-modal-scroll {
+                max-height: 560px;
+                overflow-y: auto;
+            }
+            .knowledge-modal-note {
+                background: var(--hover-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px 12px;
+                margin-bottom: 12px;
+                font-size: 12px;
+                color: var(--text-secondary);
+                line-height: 1.6;
+            }
+            .knowledge-modal-field {
+                margin-bottom: 12px;
+            }
+            .knowledge-modal-field label {
+                display: block;
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--text-secondary);
+                margin-bottom: 4px;
+            }
+            .knowledge-modal-control {
+                width: 100%;
+                padding: 8px 12px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                background: var(--input-bg);
+                color: var(--text-primary);
+                font-size: 13px;
+            }
+            .knowledge-modal-control:focus {
+                outline: none;
+                border-color: var(--primary-color);
+            }
+            textarea.knowledge-modal-control {
+                resize: vertical;
+            }
+            .knowledge-modal-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .knowledge-modal-inline-actions {
+                margin-top: 6px;
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .knowledge-modal-actions {
+                display: flex;
+                gap: 12px;
+                justify-content: center;
+                flex-wrap: wrap;
+                margin-top: 16px;
             }
             .knowledge-source-note {
                 font-size: 11px;
@@ -657,28 +716,28 @@ function openSourceModal(sourceId) {
     titleEl.textContent = isEdit ? '编辑资料' : '新增资料';
 
     bodyEl.innerHTML = `
-        <div style="max-height:560px;overflow-y:auto;">
-            <div style="background:var(--hover-bg);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--text-secondary);line-height:1.6;">
+        <div class="knowledge-modal-scroll">
+            <div class="knowledge-modal-note">
                 <div>只填路径不会自动读取文件内容；AI 主要读取摘要和原文内容。</div>
                 <div>Obsidian Markdown 可通过导入功能读取正文；PDF、Word、网页链接第一版只作为来源记录。</div>
             </div>
-            <div style="margin-bottom:12px;">
-                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">标题 *</label>
-                <input type="text" id="ksTitle" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="例如：2026 深圳中考政策变化整理">
+            <div class="knowledge-modal-field">
+                <label>标题 *</label>
+                <input type="text" id="ksTitle" class="knowledge-modal-control" placeholder="例如：2026 深圳中考政策变化整理">
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-                <div>
-                    <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">来源类型</label>
-                    <select id="ksSourceType" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;">
+            <div class="knowledge-modal-grid">
+                <div class="knowledge-modal-field">
+                    <label>来源类型</label>
+                    <select id="ksSourceType" class="knowledge-modal-control">
                         <option value="manual">手动录入</option>
                         <option value="obsidian">Obsidian</option>
                         <option value="file">本地文件</option>
                         <option value="url">网页链接</option>
                     </select>
                 </div>
-                <div>
-                    <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">适用年级</label>
-                    <select id="ksGrade" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;">
+                <div class="knowledge-modal-field">
+                    <label>适用年级</label>
+                    <select id="ksGrade" class="knowledge-modal-control">
                         <option value="">不限</option>
                         <option value="五年级">五年级</option>
                         <option value="六年级">六年级</option>
@@ -691,27 +750,27 @@ function openSourceModal(sourceId) {
                     </select>
                 </div>
             </div>
-            <div style="margin-bottom:12px;">
-                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">标签（逗号或换行分隔）</label>
-                <input type="text" id="ksTags" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="小升初, 政策, 升学规划">
+            <div class="knowledge-modal-field">
+                <label>标签（逗号或换行分隔）</label>
+                <input type="text" id="ksTags" class="knowledge-modal-control" placeholder="小升初, 政策, 升学规划">
             </div>
-            <div style="margin-bottom:12px;">
-                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">来源路径 / 链接</label>
-                <input type="text" id="ksSourceRef" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="/Users/.../资料.md 或 https://...">
+            <div class="knowledge-modal-field">
+                <label>来源路径 / 链接</label>
+                <input type="text" id="ksSourceRef" class="knowledge-modal-control" placeholder="/Users/.../资料.md 或 https://...">
             </div>
-            <div style="margin-bottom:12px;">
-                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">摘要（建议填写）</label>
-                <textarea id="ksSummary" rows="4" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="写给 AI 看的资料摘要：关键信息、结论、适用场景..."></textarea>
-                <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+            <div class="knowledge-modal-field">
+                <label>摘要（建议填写）</label>
+                <textarea id="ksSummary" rows="4" class="knowledge-modal-control" placeholder="写给 AI 看的资料摘要：关键信息、结论、适用场景..."></textarea>
+                <div class="knowledge-modal-inline-actions">
                     <button class="btn btn-secondary btn-xs" type="button" onclick="generateSourceSummaryDraft()">AI 生成摘要</button>
                     <button class="btn btn-secondary btn-xs" type="button" onclick="readSourceReferenceDraft()">读取路径/链接并生成摘要</button>
                 </div>
             </div>
-            <div style="margin-bottom:12px;">
-                <label style="font-size:13px;font-weight:600;margin-bottom:4px;display:block;">原文 / 关键内容（可选但更有用）</label>
-                <textarea id="ksRawText" rows="6" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="粘贴资料正文、关键段落或可被 AI 引用的原文..."></textarea>
+            <div class="knowledge-modal-field">
+                <label>原文 / 关键内容（可选但更有用）</label>
+                <textarea id="ksRawText" rows="6" class="knowledge-modal-control" placeholder="粘贴资料正文、关键段落或可被 AI 引用的原文..."></textarea>
             </div>
-            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
+            <div class="knowledge-modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal()">取消</button>
                 <button class="btn btn-primary" onclick="saveKnowledgeSource('${sourceId || ''}')">保存</button>
             </div>
@@ -913,34 +972,34 @@ function openKnowledgeImportModal(type) {
         .map(item => `<option value="${item === '不限' ? '' : item}">${item}</option>`).join('');
     const isBatch = type === 'folder' || type === 'obsidian';
     bodyEl.innerHTML = `
-        <div style="max-height:560px;overflow-y:auto;">
-            <div style="background:var(--hover-bg);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--text-secondary);line-height:1.6;">
+        <div class="knowledge-modal-scroll">
+            <div class="knowledge-modal-note">
                 ${isBatch ? '先预览扫描结果，确认后再写入资料库；写入前会自动备份。' : '导入会读取原文并尝试生成摘要；摘要是草稿，保存后仍可编辑。'}
             </div>
             ${type === 'text' ? `
-                <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;">标题</label><input id="kiTitle" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="资料标题"></div>
-                <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;">原文</label><textarea id="kiRawText" rows="10" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;resize:vertical;" placeholder="粘贴资料正文..."></textarea></div>
+                <div class="knowledge-modal-field"><label>标题</label><input id="kiTitle" class="knowledge-modal-control" placeholder="资料标题"></div>
+                <div class="knowledge-modal-field"><label>原文</label><textarea id="kiRawText" rows="10" class="knowledge-modal-control" placeholder="粘贴资料正文..."></textarea></div>
             ` : ''}
             ${type === 'url' ? `
-                <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;">网页地址</label><input id="kiUrl" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="https://..."></div>
-                <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;">标题（可选）</label><input id="kiTitle" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="不填则尝试读取网页标题"></div>
+                <div class="knowledge-modal-field"><label>网页地址</label><input id="kiUrl" class="knowledge-modal-control" placeholder="https://..."></div>
+                <div class="knowledge-modal-field"><label>标题（可选）</label><input id="kiTitle" class="knowledge-modal-control" placeholder="不填则尝试读取网页标题"></div>
             ` : ''}
             ${type === 'file' ? `
-                <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;">本地文件路径（.md / .txt）</label><input id="kiFilePath" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="/Users/.../资料.md"></div>
-                <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;">标题（可选）</label><input id="kiTitle" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="不填则使用文件标题"></div>
+                <div class="knowledge-modal-field"><label>本地文件路径（.md / .txt）</label><input id="kiFilePath" class="knowledge-modal-control" placeholder="/Users/.../资料.md"></div>
+                <div class="knowledge-modal-field"><label>标题（可选）</label><input id="kiTitle" class="knowledge-modal-control" placeholder="不填则使用文件标题"></div>
             ` : ''}
             ${type === 'folder' ? `
-                <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;">文件夹路径</label><input id="kiFolderPath" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="/Users/.../资料文件夹"></div>
+                <div class="knowledge-modal-field"><label>文件夹路径</label><input id="kiFolderPath" class="knowledge-modal-control" placeholder="/Users/.../资料文件夹"></div>
             ` : ''}
             ${type === 'obsidian' ? `
-                <div style="margin-bottom:10px;"><label style="font-size:13px;font-weight:600;">Obsidian 库路径</label><input id="kiFolderPath" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" value="/Users/bzx/Library/Mobile Documents/com~apple~CloudDocs/ObsidianVaults/AI 教培工作台"></div>
+                <div class="knowledge-modal-field"><label>Obsidian 库路径</label><input id="kiFolderPath" class="knowledge-modal-control" value="/Users/bzx/Library/Mobile Documents/com~apple~CloudDocs/ObsidianVaults/AI 教培工作台"></div>
             ` : ''}
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                <div><label style="font-size:13px;font-weight:600;">适用年级</label><select id="kiGrade" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;">${gradeOptions}</select></div>
-                <div><label style="font-size:13px;font-weight:600;">标签</label><input id="kiTags" style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;" placeholder="多个用逗号分隔"></div>
+            <div class="knowledge-modal-grid">
+                <div class="knowledge-modal-field"><label>适用年级</label><select id="kiGrade" class="knowledge-modal-control">${gradeOptions}</select></div>
+                <div class="knowledge-modal-field"><label>标签</label><input id="kiTags" class="knowledge-modal-control" placeholder="多个用逗号分隔"></div>
             </div>
             <div id="knowledgeImportPreview" class="knowledge-import-preview is-hidden"></div>
-            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px;">
+            <div class="knowledge-modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal()">取消</button>
                 ${isBatch ? `<button class="btn btn-secondary" onclick="previewKnowledgeBatchImport('${type}')">预览</button><button class="btn btn-primary" onclick="applyKnowledgeBatchImport('${type}')">确认导入</button>` : `<button class="btn btn-primary" onclick="submitKnowledgeSingleImport('${type}')">导入并生成摘要</button>`}
             </div>

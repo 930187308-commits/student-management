@@ -35,7 +35,7 @@ let data = {
         { id: 't4', name: '投诉处理', color: '#e74c3c' },
         { id: 't5', name: '其他', color: '#95a5a6' }
     ],
-    prospects: [], // 意向学员: { id, name, phone, source, intent, trialDate, trialStatus, dealStatus, remark, createDate }
+    prospects: [], // 意向学员: { id, name, phone, source, intent, trialDate, trialStatus, dealStatus, remark, createDate, contactLogs: [{ contactDate, contactType, status, content, nextAction }] }
     prospectSources: ['家长推荐', '朋友圈', '抖音', '小红书', '百度', '地推', '其他'], // 意向来源渠道
     classTypes: ['基础', '拔高', '奥数', '中考', '自主招生', '短期班'], // 班型可选项
     gradeOptions: ['五年级', '六年级', '初一', '初二', '初三', '高一', '高二', '高三'], // 年级可选项

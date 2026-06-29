@@ -793,7 +793,7 @@ function buildSystemCapabilityFacts({ question }) {
             { name: '考勤', fields: ['出勤', '请假', '课消', '月份课次', '班级课次统计'] },
             { name: '成绩', fields: ['测试名称', '日期', '分数', '满分', '排名', '薄弱点', '备注'] },
             { name: '沟通', fields: ['沟通日期', '沟通状态', '内容摘要', '后续跟进'] },
-            { name: '意向学员', fields: ['来源', '年级', '微信', '试课状态', '成交状态', '组班', '备注'] },
+            { name: '意向学员', fields: ['来源', '年级', '微信', '试课状态', '成交状态', '组班', '多次接触记录', '最近接触', '下一步动作', '备注'] },
             { name: '资料库', fields: ['已导入 Obsidian/资料库的摘要和原文；未导入文件不能直接搜索'] }
         ],
         unsupported: [
@@ -861,13 +861,30 @@ function buildBusinessReviewFacts({ question, summary, classRows, studentRows, p
         .filter(item => item.dealStatus !== 'deal')
         .filter(item => ['pending', 'contacted', 'trial', 'forming', '待沟通', '已联系', '试课中', '组班中'].includes(String(item.trialStatus || '')) || !item.trialStatus)
         .map(item => ({
-            name: displayName(item.name || '', privacyMode),
-            grade: item.grade || '',
-            source: item.source || '',
-            trialStatus: item.trialStatus || '',
-            className: classesById.get(item.classId)?.name || '',
-            remark: safeText(item.remark || item.intent, 100)
+            ...(() => {
+                const contactLogs = getProspectContactLogs(item);
+                const latestContact = contactLogs[0] || {};
+                return {
+                    name: displayName(item.name || '', privacyMode),
+                    grade: item.grade || '',
+                    source: item.source || '',
+                    trialStatus: item.trialStatus || '',
+                    className: classesById.get(item.classId)?.name || '',
+                    remark: safeText(item.remark || item.intent, 100),
+                    contactCount: contactLogs.length,
+                    latestContactDate: latestContact.contactDate || '',
+                    latestContactType: latestContact.contactType || '',
+                    latestContactStatus: latestContact.status || '',
+                    latestContactContent: safeText(latestContact.content, 100),
+                    nextAction: safeText(latestContact.nextAction, 100)
+                };
+            })()
         }))
+        .sort((a, b) => {
+            if (!a.contactCount && b.contactCount) return -1;
+            if (a.contactCount && !b.contactCount) return 1;
+            return String(a.latestContactDate || '').localeCompare(String(b.latestContactDate || ''));
+        })
         .slice(0, 8);
     return {
         type: /(周报|本周)/.test(normalizedQuestion) ? 'weekly' : /(月报|本月)/.test(normalizedQuestion) ? 'monthly' : 'review',
@@ -1168,8 +1185,12 @@ function buildSystemFactAnswer(context, options = {}) {
             `- ${item.name}：已登记 ${item.recordedSessions}/${item.plannedSessions || '-'} 次${item.remainingSessions !== '' ? `，剩余 ${item.remainingSessions} 次` : ''}`,
             detailed ? 10 : 5
         );
-        const prospectList = formatShortList(fact.prospectFollowups || [], item =>
-            `- ${item.name}：${item.grade || '-'}，${item.source || '-'}，${item.trialStatus || '待跟进'}${item.className ? `，${item.className}` : ''}`,
+        const prospectList = formatShortList(fact.prospectFollowups || [], item => {
+            const contactText = item.contactCount
+                ? `，接触 ${item.contactCount} 次${item.latestContactDate ? `，最近 ${item.latestContactDate}` : ''}${item.nextAction ? `，下一步：${item.nextAction}` : ''}`
+                : '，暂无接触记录';
+            return `- ${item.name}：${item.grade || '-'}，${item.source || '-'}，${item.trialStatus || '待跟进'}${item.className ? `，${item.className}` : ''}${contactText}`;
+        },
             detailed ? 10 : 5
         );
         return [

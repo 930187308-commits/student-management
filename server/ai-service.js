@@ -70,10 +70,10 @@ const TASK_DATA_RANGES = {
     'consumption-analysis': ['班级课次', '学员课时余额', '出勤统计'],
     'tuition-warning': ['欠费记录', '待续费学员', '课时不足摘要'],
     'fee-warning': ['欠费记录', '待续费学员', '课时不足摘要'],
-    'follow-reminder': ['意向学员状态', '来源', '年级', '备注摘要'],
-    'trial-report': ['意向学员信息', '试课状态', '备注摘要'],
-    'conversion-script': ['意向学员信息', '试课状态', '成交状态', '备注摘要'],
-    'trial-conversion': ['意向学员信息', '试课状态', '成交状态', '备注摘要'],
+    'follow-reminder': ['意向学员状态', '来源', '年级', '多次接触记录', '下一步动作'],
+    'trial-report': ['意向学员信息', '试课状态', '多次接触记录', '备注摘要'],
+    'conversion-script': ['意向学员信息', '试课状态', '成交状态', '多次接触记录'],
+    'trial-conversion': ['意向学员信息', '试课状态', '成交状态', '多次接触记录'],
     'moment-content': ['招生摘要', '课程方向', '用户补充说明'],
     'social-content': ['招生摘要', '课程方向', '用户补充说明'],
     'schedule-conflict': ['班级上课时间', '学员班级归属', '用户补充说明'],
@@ -204,6 +204,15 @@ function maskStudentName(name) {
 
 function displayName(name, privacyMode) {
     return privacyMode === 'named' ? String(name || '') : maskStudentName(name);
+}
+
+function getProspectContactLogs(prospect) {
+    return Array.isArray(prospect?.contactLogs)
+        ? prospect.contactLogs
+            .filter(log => log && typeof log === 'object')
+            .slice()
+            .sort((a, b) => String(b.contactDate || b.createdAt || '').localeCompare(String(a.contactDate || a.createdAt || '')))
+        : [];
 }
 
 function stripThinkTags(text) {
@@ -354,6 +363,8 @@ function buildProspectContext(data, payload, privacyMode) {
     if (!prospect) {
         return { type: 'prospect', found: false, summary };
     }
+    const contactLogs = getProspectContactLogs(prospect);
+    const latestContact = contactLogs[0] || {};
     return {
         type: 'prospect',
         found: true,
@@ -366,8 +377,23 @@ function buildProspectContext(data, payload, privacyMode) {
             trialStatus: prospect.trialStatus || '',
             dealStatus: prospect.dealStatus || '',
             intent: safeText(prospect.intent, 120),
-            remark: safeText(prospect.remark, 160)
-        }
+            remark: safeText(prospect.remark, 160),
+            contactCount: contactLogs.length,
+            latestContact: contactLogs.length ? {
+                contactDate: latestContact.contactDate || '',
+                contactType: latestContact.contactType || '',
+                status: latestContact.status || '',
+                content: safeText(latestContact.content, 180),
+                nextAction: safeText(latestContact.nextAction, 160)
+            } : null
+        },
+        contactLogs: contactLogs.slice(0, 8).map(log => ({
+            contactDate: log.contactDate || '',
+            contactType: log.contactType || '',
+            status: log.status || '',
+            content: safeText(log.content, 180),
+            nextAction: safeText(log.nextAction, 160)
+        }))
     };
 }
 
@@ -684,7 +710,11 @@ function buildLocalTemplate(context) {
     if (task === 'follow-reminder' || task === 'trial-report' || task === 'trial-conversion') {
         const item = context.context;
         const name = item.found ? item.prospect.name : '该意向学员';
-        return `【${taskName}｜本地模板】\n生成模式：${modeText}\n\n${name}跟进建议：\n1. 先确认家长当前最关心的问题。\n2. 再结合年级、试课状态和目前成绩说明课程匹配度。\n3. 最后给出明确下一步：约试听、反馈试听结果、确认入班安排。\n\n说明：当前为本地模板，未调用真实 AI，不会自动改变成交状态。`;
+        const latest = item.found ? item.prospect.latestContact : null;
+        const latestLine = latest
+            ? `\n最近接触：${latest.contactDate || '-'}，${latest.contactType || '接触'}，${latest.content || '-'}${latest.nextAction ? `；下一步：${latest.nextAction}` : ''}`
+            : '\n最近接触：暂无记录，建议先补一条接触记录。';
+        return `【${taskName}｜本地模板】\n生成模式：${modeText}\n\n${name}跟进建议：${latestLine}\n\n1. 先确认家长当前最关心的问题。\n2. 再结合年级、试课状态和目前成绩说明课程匹配度。\n3. 最后给出明确下一步：约试听、反馈试听结果、确认入班安排。\n\n说明：当前为本地模板，未调用真实 AI，不会自动改变成交状态。`;
     }
     const biz = context.context;
     return `【${taskName || 'AI 任务'}｜本地模板】\n生成模式：${modeText}\n\n当前业务摘要：\n- 在读学员：${biz.activeStudents || 0}人\n- 待续费学员：${biz.renewalPending || 0}人\n- 意向学员：${biz.prospects || 0}人\n- 正常班级：${biz.activeClasses || 0}个\n- 已登记课次：${biz.attendanceSessions || 0}次\n- 已缴金额：${biz.paidAmount || 0}元\n- 欠费金额：${biz.pendingAmount || 0}元\n\n建议：优先处理课时不足、待续费和未跟进意向学员。\n\n说明：当前为本地模板，未调用真实 AI，不会自动修改系统数据。`;
