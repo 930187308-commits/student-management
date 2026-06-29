@@ -15,7 +15,7 @@ function renderFees() {
                     <select id="feeStatusFilter"><option value="">全部状态</option><option value="paid">已缴</option><option value="pending">欠费</option></select>
                 </div>
                 <div class="toolbar">
-                    <button class="btn btn-success" onclick="openFeeModal()">+ 新增缴费</button>
+                    <button class="btn btn-success btn-sm" onclick="openFeeModal()">+ 新增缴费</button>
                     <div class="divider"></div>
 	                    <button class="btn btn-secondary btn-sm" onclick="downloadFeeTemplate()">下载模板</button>
                     <div class="file-input-wrapper">

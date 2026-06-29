@@ -61,7 +61,6 @@ body {
 .header { background: var(--bg-header); color: white; padding: 16px 24px; flex: 0 0 auto; overflow: visible; }
 .header h1 { font-size: 20px; font-weight: 600; }
 .header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
-.toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .theme-toggle {
     width: 34px;
     height: 30px;

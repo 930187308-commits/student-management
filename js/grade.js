@@ -21,7 +21,7 @@ function renderGrades() {
                     </select>
                 </div>
                 <div class="toolbar">
-                    <button class="btn btn-success" onclick="openGradeModal()">+ 新增成绩</button>
+                    <button class="btn btn-success btn-sm" onclick="openGradeModal()">+ 新增成绩</button>
                     <div class="divider"></div>
                     <button class="btn btn-secondary btn-sm" onclick="downloadGradeTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
