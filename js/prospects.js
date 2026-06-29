@@ -26,7 +26,7 @@ function getProspectContactStatusLabel(status) {
 
 function getProspectContactSummary(prospect) {
     const logs = getProspectContactLogs(prospect);
-    if (!logs.length) return { count: 0, title: '暂无接触', detail: '可补一条接触记录' };
+    if (!logs.length) return { count: 0, title: '0次', detail: '点此添加', tooltip: '暂无接触记录，点击添加第一条接触记录' };
     const latest = logs[0];
     const pieces = [
         latest.contactDate || '-',
@@ -35,7 +35,7 @@ function getProspectContactSummary(prospect) {
     ].filter(Boolean);
     return {
         count: logs.length,
-        title: `${logs.length}次`,
+        title: `${logs.length}次接触`,
         detail: pieces.join(' · '),
         tooltip: logs.map(log => `${log.contactDate || '-'} ${log.contactType || '接触'}：${log.content || log.nextAction || '-'}`).join('\n')
     };
@@ -142,7 +142,6 @@ function renderProspectList() {
             <td title="${escapeHtml(remark)}" class="record-note-cell">${escapeHtml(shortRemark || '-')}</td>
             <td>${p.createDate || '-'}</td>
             <td>
-                <button class="btn btn-primary btn-xs" onclick="openProspectContactModal('${p.id}')">接触</button>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
                 <button class="btn btn-success btn-xs" onclick="convertProspect('${p.id}')">转正式</button>
                 <button class="btn btn-xs record-ai-action" onclick="jumpToAIAgent('recruit-agent','follow-reminder','prospect','${p.id}')">AI 话术</button>
