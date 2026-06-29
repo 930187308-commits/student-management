@@ -227,6 +227,7 @@ function migrate() {
             remark TEXT,
             create_date TEXT,
             converted_student_id TEXT,
+            contact_logs_json TEXT,
             raw_json TEXT,
             updated_at TEXT,
             FOREIGN KEY(converted_student_id) REFERENCES students(id)
@@ -532,6 +533,7 @@ function ensureFieldColumns() {
     addColumnIfMissing('prospects', 'grade', 'TEXT');
     addColumnIfMissing('prospects', 'wechat', 'TEXT');
     addColumnIfMissing('prospects', 'class_id', 'TEXT');
+    addColumnIfMissing('prospects', 'contact_logs_json', 'TEXT');
 
     addColumnIfMissing('fees', 'student_name', 'TEXT');
     addColumnIfMissing('grades', 'student_name', 'TEXT');
@@ -767,6 +769,7 @@ function getCollectionFromEntityColumns(collectionName) {
             assignIfPresent(item, 'remark', row.remark || '');
             assignIfPresent(item, 'createDate', row.create_date || '');
             assignIfPresent(item, 'convertedStudentId', row.converted_student_id || '');
+            assignIfPresent(item, 'contactLogs', row.contact_logs_json ? parseJsonArray(row.contact_logs_json) : (Array.isArray(item.contactLogs) ? item.contactLogs : []));
             return item;
         });
     }
@@ -1066,6 +1069,7 @@ function buildEntityRows(data) {
         remark: p.remark || '',
         create_date: p.createDate || '',
         converted_student_id: p.convertedStudentId || null,
+        contact_logs_json: json(p.contactLogs || []),
         raw_json: json(p)
     }));
 
@@ -1140,10 +1144,10 @@ function insertEntityRows(database, rows, stamp) {
     rows.communications.forEach(row => insertCommunication.run(row.id, row.student_id, row.student_name, row.topic_id, row.contact_type, row.contact_person, row.contact_date, row.teacher, row.status, row.content, row.follow_up, row.raw_json, stamp));
 
     const insertProspect = database.prepare(`
-        INSERT INTO prospects (id, name, phone, source, grade, wechat, class_id, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO prospects (id, name, phone, source, grade, wechat, class_id, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, contact_logs_json, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    rows.prospects.forEach(row => insertProspect.run(row.id, row.name, row.phone, row.source, row.grade, row.wechat, row.class_id, row.intent, row.trial_date, row.trial_status, row.deal_status, row.remark, row.create_date, row.converted_student_id, row.raw_json, stamp));
+    rows.prospects.forEach(row => insertProspect.run(row.id, row.name, row.phone, row.source, row.grade, row.wechat, row.class_id, row.intent, row.trial_date, row.trial_status, row.deal_status, row.remark, row.create_date, row.converted_student_id, row.contact_logs_json, row.raw_json, stamp));
 }
 
 function syncEntityTables(data) {

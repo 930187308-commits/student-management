@@ -64,7 +64,8 @@ const FIELD_MAPPINGS = {
         dealStatus: 'prospects.deal_status',
         remark: 'prospects.remark',
         createDate: 'prospects.create_date',
-        convertedStudentId: 'prospects.converted_student_id'
+        convertedStudentId: 'prospects.converted_student_id',
+        contactLogs: 'prospects.contact_logs_json'
     },
     fees: {
         id: 'fees.id',
@@ -134,7 +135,8 @@ const NEXT_COLUMN_CANDIDATES = {
     prospects: [
         'grade',
         'wechat',
-        'classId'
+        'classId',
+        'contactLogs'
     ],
     fees: [
         'studentName'

@@ -59,7 +59,8 @@ const TABLE_CHECKS = {
             dealStatus: { column: 'deal_status', type: 'text' },
             remark: { column: 'remark', type: 'text' },
             createDate: { column: 'create_date', type: 'text' },
-            convertedStudentId: { column: 'converted_student_id', type: 'text' }
+            convertedStudentId: { column: 'converted_student_id', type: 'text' },
+            contactLogs: { column: 'contact_logs_json', type: 'json-array' }
         }
     },
     fees: {

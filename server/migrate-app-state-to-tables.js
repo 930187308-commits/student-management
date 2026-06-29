@@ -206,6 +206,7 @@ function buildMigrationPlan(data) {
         remark: p.remark || '',
         create_date: p.createDate || '',
         converted_student_id: p.convertedStudentId || null,
+        contact_logs_json: json(p.contactLogs || []),
         raw_json: json(p)
     }));
 
@@ -319,13 +320,13 @@ function insertRows(db, rows) {
     ));
 
     const insertProspect = db.prepare(`
-        INSERT INTO prospects (id, name, phone, source, grade, wechat, class_id, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, raw_json, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO prospects (id, name, phone, source, grade, wechat, class_id, intent, trial_date, trial_status, deal_status, remark, create_date, converted_student_id, contact_logs_json, raw_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     rows.prospects.forEach(row => insertProspect.run(
         row.id, row.name, row.phone, row.source, row.grade, row.wechat, row.class_id,
         row.intent, row.trial_date, row.trial_status, row.deal_status, row.remark,
-        row.create_date, row.converted_student_id, row.raw_json, stamp
+        row.create_date, row.converted_student_id, row.contact_logs_json, row.raw_json, stamp
     ));
 }
 
