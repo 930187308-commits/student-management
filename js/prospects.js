@@ -70,13 +70,13 @@ function renderProspects() {
                     </select>
                 </div>
                 <div class="toolbar">
+                    <button class="btn btn-primary btn-sm" onclick="openProspectModal()">+ 新增意向</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openSourceManager()">渠道管理</button>
                     <button class="btn btn-secondary btn-sm" onclick="downloadProspectTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
                         <button class="btn btn-warning btn-sm">导入</button>
                         <input type="file" accept=".xlsx,.xls" onchange="importProspects(event)">
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="openProspectModal()">+ 新增意向</button>
-                    <button class="btn btn-secondary btn-sm" onclick="openSourceManager()">渠道管理</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleProspectBatchMode()">${prospectBatchMode ? '退出多选' : '多选'}</button>
                     ${prospectBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedProspects()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedProspects()">删除选中</button>' : ''}
                 </div>

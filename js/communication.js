@@ -17,8 +17,8 @@ function renderCommunications() {
                     </select>
                 </div>
                 <div class="toolbar">
-                    <button class="btn btn-secondary btn-sm" onclick="openTopicManager()">管理主题</button>
                     <button class="btn btn-primary btn-sm" onclick="openCommModal()">+ 新增沟通</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openTopicManager()">管理主题</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleCommunicationBatchMode()">${communicationBatchMode ? '退出多选' : '多选'}</button>
                     ${communicationBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedCommunications()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedCommunications()">删除选中</button>' : ''}
                 </div>

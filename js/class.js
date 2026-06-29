@@ -30,10 +30,10 @@ function renderClasses() {
                     </select>
                 </div>
                 <div class="toolbar">
+                    <button class="btn btn-primary btn-sm" onclick="openClassModal()">+ 新增班级</button>
                     <button class="btn btn-secondary btn-sm" onclick="openClassTypeManager()">管理班型</button>
                     <button class="btn btn-secondary btn-sm" onclick="openGradeManager()">管理年级</button>
                     <button class="btn btn-secondary btn-sm" onclick="openArchivedClassManager()">归档班级</button>
-                    <button class="btn btn-primary" onclick="openClassModal()">+ 新增班级</button>
                     <div class="divider"></div>
                     <button class="btn btn-secondary btn-sm" onclick="downloadClassTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
