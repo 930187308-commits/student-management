@@ -705,7 +705,13 @@ function renderSystemQAConversation() {
 
 function getSystemQAVisibleContent(message = {}) {
     const content = String(message.content || '');
-    if (message.role === 'assistant' && content.includes('renderAIRunStatus is not defined')) {
+    if (
+        message.role === 'assistant'
+        && (
+            content.includes('renderAIRunStatus is not defined')
+            || content.includes('updateTaskRecordInfo is not defined')
+        )
+    ) {
         return '这条历史回答生成时前端显示出错，当前问题已修复。请重新发送上一条问题获取新回答。';
     }
     return content;

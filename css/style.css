@@ -832,6 +832,23 @@ body.dark-mode .communication-detail-content.is-followup {
 .report-detail-table table {
     min-width: 760px;
 }
+.report-compact-table {
+    overflow-x: hidden;
+}
+.report-compact-table table {
+    min-width: 0;
+    table-layout: fixed;
+}
+.report-compact-table th,
+.report-compact-table td {
+    padding: 9px 6px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.report-compact-table th:nth-child(3),
+.report-compact-table td:nth-child(3) {
+    text-align: right;
+}
 .report-detail-table th {
     z-index: 1;
 }
@@ -2059,7 +2076,7 @@ body.dark-mode .class-row-near-end {
     width: 28px;
     height: 28px;
     border-radius: 999px;
-    background: #3498db;
+    background: #2563eb;
     color: white;
     display: flex;
     align-items: center;
@@ -2068,7 +2085,7 @@ body.dark-mode .class-row-near-end {
     flex-shrink: 0;
 }
 .ai-chat-message.assistant .ai-chat-role {
-    background: #27ae60;
+    background: #15803d;
 }
 .ai-chat-bubble {
     max-width: 78%;

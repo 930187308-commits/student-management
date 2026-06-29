@@ -234,7 +234,7 @@ function renderReports() {
         <div class="report-grid">
             <div class="card">
                 <div class="card-header"><span class="card-title">月课消统计</span><button class="btn btn-secondary btn-sm" onclick="exportMonthlyRevenue()">导出</button></div>
-                <div class="table-wrapper">
+                <div class="table-wrapper report-compact-table">
                     <table><thead><tr><th>月份</th><th>已消课时</th><th>估算课消金额</th></tr></thead><tbody>
                         ${monthlyConsumption.length > 0 ? monthlyConsumption.map(row => `<tr><td>${escapeHtml(row.month)}</td><td><strong class="report-table-value-success">${getPrivacyVal(row.sessions)}</strong></td><td><strong class="report-table-value-success">${getPrivacyAmount(row.amount)}</strong></td></tr>`).join('') : '<tr><td colspan="3" class="report-empty-cell">暂无课消数据</td></tr>'}
                     </tbody></table>
