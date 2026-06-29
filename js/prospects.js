@@ -16,7 +16,11 @@ function getProspectContactLogs(prospect) {
         ? prospect.contactLogs
             .filter(log => log && typeof log === 'object')
             .map(log => ({ ...log }))
-            .sort((a, b) => String(b.contactDate || b.createdAt || '').localeCompare(String(a.contactDate || a.createdAt || '')))
+            .sort((a, b) => {
+                const left = `${a.contactDate || ''} ${a.updatedAt || a.createdAt || ''}`;
+                const right = `${b.contactDate || ''} ${b.updatedAt || b.createdAt || ''}`;
+                return right.localeCompare(left);
+            })
         : [];
 }
 
@@ -26,7 +30,7 @@ function getProspectContactStatusLabel(status) {
 
 function getProspectContactSummary(prospect) {
     const logs = getProspectContactLogs(prospect);
-    if (!logs.length) return { count: 0, title: '0次', detail: '点此添加', tooltip: '暂无接触记录，点击添加第一条接触记录' };
+    if (!logs.length) return { count: 0, title: '0次接触', detail: '+ 添加第一条', tooltip: '暂无接触记录，点击添加第一条接触记录' };
     const latest = logs[0];
     const pieces = [
         latest.contactDate || '-',
@@ -143,6 +147,7 @@ function renderProspectList() {
             <td>${p.createDate || '-'}</td>
             <td>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
+                <button class="btn btn-secondary btn-xs" onclick="openProspectContactModal('${p.id}')">+ 接触</button>
                 <button class="btn btn-success btn-xs" onclick="convertProspect('${p.id}')">转正式</button>
                 <button class="btn btn-xs record-ai-action" onclick="jumpToAIAgent('recruit-agent','follow-reminder','prospect','${p.id}')">AI 话术</button>
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
@@ -333,9 +338,10 @@ function openProspectContactModal(prospectId, logId = null) {
                 <strong>${escapeHtml(prospect.name || '-')}</strong>
                 <span>${escapeHtml(prospect.grade || '-')}</span>
                 <span>${escapeHtml(prospect.wechat || prospect.phone || '未填联系方式')}</span>
+                <span>共 ${logs.length} 条接触记录，可连续新增</span>
             </div>
             <div class="prospect-contact-list">
-                ${listHtml || '<div class="record-empty-row">暂无接触记录，可以先补一条。</div>'}
+                ${listHtml || '<div class="record-empty-row">暂无接触记录，可以在下方补充第一次沟通、试课或跟进情况。</div>'}
             </div>
             <form onsubmit="saveProspectContactLog(event, '${prospectId}', '${logId || ''}')">
                 <div class="form-row">
