@@ -145,7 +145,7 @@ function renderProspectList() {
             </td>
             <td title="${escapeHtml(remark)}" class="record-note-cell">${escapeHtml(shortRemark || '-')}</td>
             <td>${p.createDate || '-'}</td>
-            <td>
+            <td class="record-action-cell">
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
                 <button class="btn btn-secondary btn-xs" onclick="openProspectContactModal('${p.id}')">+ 接触</button>
                 <button class="btn btn-success btn-xs" onclick="convertProspect('${p.id}')">转正式</button>

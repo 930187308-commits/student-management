@@ -64,7 +64,7 @@ function renderCommTable() {
             <td>${escapeHtml(c.contactType)}</td>
             <td><span class="badge ${statusBadge}">${statusText}</span></td>
             <td>${escapeHtml(c.contactPerson)}</td>
-            <td>${c.status === 'pending' ? `<button class="btn btn-success btn-xs" onclick="markCommDone('${c.id}')">完成</button><button class="btn btn-primary btn-xs" onclick="addCommFollowupTodo('${c.id}')">待办</button>` : ''}<button class="btn btn-secondary btn-xs" onclick="openCommModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
+            <td class="record-action-cell">${c.status === 'pending' ? `<button class="btn btn-success btn-xs" onclick="markCommDone('${c.id}')">完成</button><button class="btn btn-primary btn-xs" onclick="addCommFollowupTodo('${c.id}')">待办</button>` : ''}<button class="btn btn-secondary btn-xs" onclick="openCommModal('${c.id}')">编辑</button><button class="btn btn-danger btn-xs" onclick="deleteComm('${c.id}')">删除</button></td>
         </tr>`;
     }).join('') || `<tr><td colspan="${communicationBatchMode ? 8 : 7}" class="record-empty-row">暂无沟通记录</td></tr>`;
 }
