@@ -1020,6 +1020,34 @@ body.dark-mode .attendance-input.absent {
 .btn-xs { min-height: 22px; padding: 3px 8px; border-radius: 7px; font-size: 11px; }
 .btn-warning { background: #f39c12; color: white; }
 .btn-warning:hover { background: #d68910; }
+body.dark-mode .btn-primary {
+    background: #2563eb;
+    color: #ffffff;
+}
+body.dark-mode .btn-primary:hover {
+    background: #1d4ed8;
+}
+body.dark-mode .btn-success {
+    background: #15803d;
+    color: #ffffff;
+}
+body.dark-mode .btn-success:hover {
+    background: #166534;
+}
+body.dark-mode .btn-warning {
+    background: #b45309;
+    color: #ffffff;
+}
+body.dark-mode .btn-warning:hover {
+    background: #92400e;
+}
+body.dark-mode .btn-danger {
+    background: #dc2626;
+    color: #ffffff;
+}
+body.dark-mode .btn-danger:hover {
+    background: #b91c1c;
+}
 body.dark-mode .btn:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-secondary):not(.btn-warning):not(.privacy-toggle) {
     background: #26324d;
     color: #e5edf7;
@@ -1163,9 +1191,23 @@ body.dark-mode textarea::placeholder {
 .badge-paid { background: #d4edda; color: #155724; }
 .badge-success { background: #d4edda; color: #155724; }
 .badge-normal { background: #e8f4fd; color: #1976d2; }
+body.dark-mode .badge-active,
+body.dark-mode .badge-paid,
+body.dark-mode .badge-success {
+    background: #14532d;
+    color: #dcfce7;
+}
+body.dark-mode .badge-trial {
+    background: #78350f;
+    color: #fef3c7;
+}
+body.dark-mode .badge-pending {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
 body.dark-mode .badge-normal {
-    background: #30384f;
-    color: #bfdbfe;
+    background: #1e3a5f;
+    color: #dbeafe;
 }
 
 /* 班级管理列表 */
@@ -1433,16 +1475,16 @@ body.dark-mode .class-prospect-chip {
     color: white;
 }
 body.dark-mode .student-status-badge.is-active {
-    background: rgba(74, 222, 128, 0.16);
-    color: #bbf7d0;
+    background: #14532d;
+    color: #dcfce7;
 }
 body.dark-mode .student-status-badge.is-renewal {
-    background: rgba(251, 191, 36, 0.18);
-    color: #fde68a;
+    background: #78350f;
+    color: #fef3c7;
 }
 body.dark-mode .student-status-badge.is-other {
-    background: rgba(148, 163, 184, 0.18);
-    color: #cbd5e1;
+    background: #334155;
+    color: #e2e8f0;
 }
 
 .student-panel-actions,
@@ -1519,12 +1561,25 @@ body.student-panel-resizing {
 }
 
 body.dark-mode .student-add-pill {
-    background: rgba(96, 165, 250, 0.16);
-    color: #bfdbfe;
+    background: #1e3a5f;
+    color: #dbeafe;
 }
 
 body.dark-mode .student-add-pill:hover {
-    background: rgba(96, 165, 250, 0.28);
+    background: #1d4ed8;
+    color: #ffffff;
+}
+
+body.dark-mode .knowledge-state-badge.ok {
+    background: #14532d;
+    border-color: #166534;
+    color: #dcfce7;
+}
+
+body.dark-mode .knowledge-state-badge.warn {
+    background: #78350f;
+    border-color: #92400e;
+    color: #fef3c7;
 }
 
 /* 明细卡片 */
