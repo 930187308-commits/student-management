@@ -72,13 +72,14 @@ function openOperationLogModal() {
     const rows = logs.map(log => {
         const canRollback = log.canUndo && log.undoStatus !== 'done';
         const hasRestorePoint = !!log.beforeBackupId;
-        const undoText = log.undoStatus === 'done' ? '已撤销此步' : (canRollback ? '撤销此步' : '不可单步撤销');
+        const isLegacyLog = !canRollback && !hasRestorePoint;
+        const undoText = log.undoStatus === 'done' ? '已撤销此步' : (isLegacyLog ? '旧日志' : (canRollback ? '撤销此步' : '不可单步撤销'));
         const undoAction = canRollback
             ? `<button type="button" class="btn btn-warning operation-log-rollback-btn" onclick="rollbackOperationLog('${escapeHtml(log.id)}')">撤销此步</button>`
             : `<span class="operation-log-undo-status">${escapeHtml(undoText)}</span>`;
         const restoreAction = hasRestorePoint
             ? `<button type="button" class="btn btn-secondary operation-log-restore-btn" onclick="restoreOperationLogPoint('${escapeHtml(log.id)}')">回到此前</button>`
-            : `<span class="operation-log-undo-status">无备份点</span>`;
+            : `<span class="operation-log-undo-status">${isLegacyLog ? '仅追溯' : '无备份点'}</span>`;
         return `
             <tr>
                 <td class="operation-log-time">${escapeHtml(formatOperationLogTime(log.createdAt))}</td>
@@ -94,7 +95,7 @@ function openOperationLogModal() {
     document.getElementById('modalBody').innerHTML = `
         <div class="operation-log-modal">
             <div class="operation-log-note">
-                记录核心业务的新增、编辑、删除和系统动作。“撤销此步”只反向处理这一条记录；“回到此前”会恢复到该操作前的整体备份点，等于撤销这一步以及之后所有操作。旧日志如果没有备份点，只能用于追溯。
+                记录核心业务的新增、编辑、删除和系统动作。“撤销此步”只反向处理这一条记录；“回到此前”会恢复到该操作前的整体备份点，等于撤销这一步以及之后所有操作。显示“旧日志 / 仅追溯”的记录，是该功能上线前产生的历史日志，不能补出回退点。
             </div>
             ${logs.length === 0 ? '<div class="empty-state">暂无操作记录。之后新增、编辑、删除核心数据会自动记录。</div>' : `
                 <div class="table-wrapper">
