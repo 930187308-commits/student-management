@@ -63,6 +63,15 @@ function getCommunicationStatusText(status = '') {
     return map[status] || status || '已记录';
 }
 
+function getStudentTabLabel(tab = currentStudentTab) {
+    const map = {
+        active: '在读',
+        renewalPending: '待续费',
+        inactive: '非在读'
+    };
+    return map[tab] || '当前分栏';
+}
+
 function syncStudentListFiltersFromDom() {
     studentListFilters = {
         grade: document.getElementById('studentGradeFilter')?.value || '',
@@ -256,6 +265,28 @@ function renderStudentList() {
     }
 
     const list = document.getElementById('studentList');
+    if (filtered.length === 0) {
+        const statusCounts = (data.students || []).reduce((counts, student) => {
+            const key = (student.status === 'active' || student.status === 'renewalPending') ? student.status : 'inactive';
+            counts[key] = (counts[key] || 0) + 1;
+            return counts;
+        }, {});
+        const suggestions = ['active', 'renewalPending', 'inactive']
+            .filter(tab => tab !== currentStudentTab && (statusCounts[tab] || 0) > 0)
+            .map(tab => `<button class="student-empty-switch" onclick="switchStudentTab('${tab}')">${getStudentTabLabel(tab)} ${statusCounts[tab]} 名</button>`)
+            .join('');
+        const hasFilter = Boolean(grade || classId || search);
+        list.innerHTML = `
+            <div class="student-list-empty">
+                <strong>${hasFilter ? '当前筛选没有学员' : `${getStudentTabLabel()}暂无学员`}</strong>
+                <span>${hasFilter ? '可以清空筛选，或切换其他分栏查看。' : '可以切换其他分栏，或新增学员。'}</span>
+                ${suggestions ? `<div class="student-empty-actions">${suggestions}</div>` : ''}
+            </div>
+        `;
+        if (studentBatchMode) updateStudentSelectionCount();
+        return;
+    }
+
     list.innerHTML = filtered.map(s => {
         const cls = data.classes.find(c => c.id === s.classId);
         const statusMap = { active: '在读', forming: '组班中（旧）', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业' };

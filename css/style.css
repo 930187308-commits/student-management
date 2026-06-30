@@ -1913,6 +1913,50 @@ body.dark-mode .archived-class-student-chip {
     height: clamp(300px, calc(100vh - 340px), 520px);
     overflow-y: auto;
 }
+.student-list-empty {
+    min-height: 150px;
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    background: var(--hover-bg);
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    padding: 14px;
+    text-align: center;
+}
+.student-list-empty strong {
+    color: var(--text-primary);
+    font-size: 13px;
+}
+.student-list-empty span {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.45;
+}
+.student-empty-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+.student-empty-switch {
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 6px 9px;
+}
+.student-empty-switch:hover {
+    border-color: #3498db;
+    color: #3498db;
+}
 .student-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: all 0.2s; color: var(--text-primary); }
 .student-item:hover { background: var(--hover-bg); }
 .student-item.active { background: #3498db; color: white; }
