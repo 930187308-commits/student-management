@@ -689,9 +689,11 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
     white-space: nowrap;
 }
 .record-note-cell {
+    width: 160px;
     max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .record-action-cell {
     min-width: 168px;
@@ -1909,24 +1911,24 @@ body.dark-mode .archived-class-student-chip {
 }
 
 .student-tab-actions .btn {
-    min-height: 18px;
-    padding: 1px 5px;
-    border-radius: 5px;
-    font-size: 9.5px;
-    line-height: 1.1;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 7px;
+    font-size: 11px;
+    line-height: 1.15;
     white-space: nowrap;
 }
 
 .student-add-pill {
     border: none;
     border-radius: 999px;
-    padding: 1px 7px;
-    min-height: 18px;
+    padding: 3px 9px;
+    min-height: 24px;
     background: rgba(52, 152, 219, 0.12);
     color: #1976d2;
-    font-size: 9.5px;
+    font-size: 11px;
     font-weight: 700;
-    line-height: 1;
+    line-height: 1.15;
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s;
@@ -2089,12 +2091,12 @@ body.dark-mode .student-status-badge.is-other {
 
 .student-panel-action-btn {
     width: 100%;
-    height: 22px;
-    min-height: 22px;
-    border-radius: 5px;
-    font-size: 9.5px;
-    padding: 0 6px;
-    line-height: 1.1;
+    height: 26px;
+    min-height: 26px;
+    border-radius: 7px;
+    font-size: 11px;
+    padding: 2px 7px;
+    line-height: 1.15;
     box-sizing: border-box;
 }
 
