@@ -43,12 +43,7 @@ function loadAttendanceClass(classId) {
 
     const cls = data.classes.find(c => c.id === classId);
     const sessions = data.attendance.filter(a => a.classId === classId).sort((a, b) => a.date.localeCompare(b.date));
-    const recordStudentIds = new Set();
-    sessions.forEach(sess => Object.keys(sess.records || {}).forEach(id => recordStudentIds.add(id)));
-    const students = data.students.filter(s =>
-        (s.classId === classId && s.status === 'active') ||
-        recordStudentIds.has(s.id)
-    );
+    const students = getAttendanceStudentsForClass(classId, sessions);
 
     // 补齐旧记录缺失的 id
     let patchedSessionIds = false;
@@ -148,6 +143,16 @@ function loadAttendanceClass(classId) {
     const tempStudentsSection = sessions.length > 0 && allDates.length > 0 ? renderTemporaryStudentsSection(classId, sessions, allDates) : '';
 
     content.innerHTML = classInfoBar + tableHtml + tempStudentsSection;
+}
+
+function getAttendanceStudentsForClass(classId, sessions = null) {
+    const classSessions = sessions || data.attendance.filter(a => a.classId === classId);
+    const recordStudentIds = new Set();
+    classSessions.forEach(sess => Object.keys(sess.records || {}).forEach(id => recordStudentIds.add(id)));
+    return data.students.filter(s =>
+        (s.classId === classId && s.status === 'active') ||
+        recordStudentIds.has(s.id)
+    );
 }
 
 function getStudentJoinSessionForClass(student, classId) {
@@ -598,8 +603,8 @@ function exportAttendance() {
     if (!currentAttendanceClassId) return;
 
     const cls = data.classes.find(c => c.id === currentAttendanceClassId);
-    const students = data.students.filter(s => s.classId === currentAttendanceClassId && s.status === 'active');
     const sessions = data.attendance.filter(a => a.classId === currentAttendanceClassId).sort((a, b) => a.date.localeCompare(b.date));
+    const students = getAttendanceStudentsForClass(currentAttendanceClassId, sessions);
     const allDates = [...new Set(sessions.map(s => s.date))].sort();
 
     const sessionHeader = ['学员姓名', ...allDates.map((d, i) => {
