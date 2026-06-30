@@ -781,6 +781,45 @@ async function executeClassImport(checkResult, strategies = {}) {
     });
 }
 
+function renderClassMemberEmpty(text) {
+    return `<div class="class-member-empty">${escapeHtml(text)}</div>`;
+}
+
+function renderClassMemberChip(item, classId, mode, action) {
+    const safeId = escapeHtml(item.id);
+    const safeClassId = escapeHtml(classId);
+    const safeName = escapeHtml(item.name || '');
+    const isProspect = mode === 'forming';
+    const isRenewal = item.status === 'renewalPending';
+    const baseClass = `class-member-chip${isProspect ? ' class-prospect-chip' : ''}${isRenewal ? ' is-renewal' : ''}`;
+
+    if (action === 'add') {
+        const handler = isProspect ? 'addProspectToClass' : 'addStudentToClass';
+        return `<button type="button" class="${baseClass} class-member-add-chip" onclick="${handler}('${safeId}', '${safeClassId}')">
+            ${safeName}<span class="class-member-add-icon">+</span>
+        </button>`;
+    }
+
+    const handler = isProspect ? 'removeProspectFromClass' : 'removeStudentFromClass';
+    return `<span class="${baseClass}">
+        ${!isProspect ? '<span class="class-member-dot"></span>' : ''}
+        ${safeName}
+        ${isRenewal ? '<span class="class-member-status">待续费</span>' : ''}
+        <button type="button" class="class-member-remove" onclick="${handler}('${safeId}', '${safeClassId}')">×</button>
+    </span>`;
+}
+
+function renderClassMemberGroup(title, items, classId, mode, action, options = {}) {
+    if (!items.length) return '';
+    const titleClass = options.primary ? ' class-member-group-title is-primary' : 'class-member-group-title';
+    return `<div class="class-member-group">
+        <div class="${titleClass}">${escapeHtml(title)} (${items.length}人)</div>
+        <div class="class-member-list class-member-scroll-list">
+            ${items.map(item => renderClassMemberChip(item, classId, mode, action)).join('')}
+        </div>
+    </div>`;
+}
+
 function openClassMemberManager(classId) {
     const cls = data.classes.find(c => c.id === classId);
     if (!cls) return;
@@ -795,27 +834,20 @@ function openClassMemberManager(classId) {
 
         document.getElementById('modalTitle').textContent = '管理组班成员';
         document.getElementById('modalBody').innerHTML = `
-            <div style="margin-bottom: 16px;">
-                <input type="text" id="memberSearchInput" placeholder="搜索意向学员姓名..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 12px;">
-                <div style="font-weight: 600; margin-bottom: 8px;">已在组班 (${inClass.length}人)</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">
-                    ${inClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可移出成员</div>' : inClass.map(p => `
-                        <span style="padding: 6px 12px; background: #fff3cd; border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-                            ${escapeHtml(p.name)}
-                            <button onclick="removeProspectFromClass('${p.id}', '${classId}')" style="background: none; border: none; cursor: pointer; color: #e74c3c; font-size: 12px; padding: 0 2px;">×</button>
-                        </span>
-                    `).join('')}
+            <div class="class-member-manager">
+                <input type="text" id="memberSearchInput" class="class-member-search" placeholder="搜索意向学员姓名...">
+                <div class="class-member-block">
+                    <div class="class-member-section-title">已在组班 (${inClass.length}人)</div>
+                    <div class="class-member-list class-member-scroll-list">
+                        ${inClass.length === 0 ? renderClassMemberEmpty('暂无可移出成员') : inClass.map(p => renderClassMemberChip(p, classId, 'forming', 'remove')).join('')}
+                    </div>
                 </div>
-            </div>
-            <div id="notInClassSection">
-                <div style="font-weight: 600; margin-bottom: 8px;">可选意向学员 (点击加入组班)</div>
-                <div id="memberSameGrade" style="margin-bottom: 12px;">
-                    ${sameGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #27ae60; font-size: 13px;">同年级 (${sameGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${sameGrade.map(p => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">${escapeHtml(p.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : ''}
+                <div id="notInClassSection" class="class-member-block">
+                    <div class="class-member-section-title">可选意向学员（点击加入组班）</div>
+                    <div id="memberSameGrade">${renderClassMemberGroup('同年级', sameGrade, classId, 'forming', 'add', { primary: true })}</div>
+                    <div id="memberOtherGrade">${renderClassMemberGroup('其他年级', otherGrade, classId, 'forming', 'add')}</div>
+                    ${notInClass.length === 0 ? renderClassMemberEmpty('暂无可加入成员') : ''}
                 </div>
-                <div id="memberOtherGrade">
-                    ${otherGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #888; font-size: 13px;">其他年级 (${otherGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${otherGrade.map(p => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">${escapeHtml(p.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : ''}
-                </div>
-                ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入成员</div>' : ''}
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
         `;
@@ -829,28 +861,20 @@ function openClassMemberManager(classId) {
 
         document.getElementById('modalTitle').textContent = '管理班级成员';
         document.getElementById('modalBody').innerHTML = `
-            <div style="margin-bottom: 16px;">
-                <input type="text" id="memberSearchInput" placeholder="搜索学员姓名..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 12px;">
-                <div style="font-weight: 600; margin-bottom: 8px;">班级成员 (${inClass.length}人)</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">
-                    ${inClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无成员</div>' : inClass.map(s => `
-                        <span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-                            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${s.status === 'renewalPending' ? '#f39c12' : '#27ae60'};"></span>
-                            ${escapeHtml(s.name)}
-                            ${s.status === 'renewalPending' ? '<span style="font-size: 11px; color: #f39c12;">待续费</span>' : ''}
-                            <button onclick="removeStudentFromClass('${s.id}', '${classId}')" style="background: none; border: none; cursor: pointer; color: #e74c3c; font-size: 12px; padding: 0 2px;">×</button>
-                        </span>
-                    `).join('')}
+            <div class="class-member-manager">
+                <input type="text" id="memberSearchInput" class="class-member-search" placeholder="搜索学员姓名...">
+                <div class="class-member-block">
+                    <div class="class-member-section-title">班级成员 (${inClass.length}人)</div>
+                    <div class="class-member-list class-member-scroll-list">
+                        ${inClass.length === 0 ? renderClassMemberEmpty('暂无成员') : inClass.map(s => renderClassMemberChip(s, classId, 'active', 'remove')).join('')}
+                    </div>
                 </div>
-            </div>
-            <div id="notInClassSection">
-                <div id="memberSameGrade" style="margin-bottom: 12px;">
-                    ${sameGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #27ae60; font-size: 13px;">同年级 (${sameGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${sameGrade.map(s => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">${escapeHtml(s.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : ''}
+                <div id="notInClassSection" class="class-member-block">
+                    <div class="class-member-section-title">可选在读学员（点击加入班级）</div>
+                    <div id="memberSameGrade">${renderClassMemberGroup('同年级', sameGrade, classId, 'active', 'add', { primary: true })}</div>
+                    <div id="memberOtherGrade">${renderClassMemberGroup('其他年级', otherGrade, classId, 'active', 'add')}</div>
+                    ${notInClass.length === 0 ? renderClassMemberEmpty('暂无可加入学员') : ''}
                 </div>
-                <div id="memberOtherGrade">
-                    ${otherGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #888; font-size: 13px;">其他年级 (${otherGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${otherGrade.map(s => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">${escapeHtml(s.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : ''}
-                </div>
-                ${notInClass.length === 0 ? '<div style="color:#888;font-size:13px;">暂无可加入学员</div>' : ''}
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">关闭</button></div>
         `;
@@ -879,10 +903,11 @@ function filterClassMemberList(classId, mode) {
         const sameEl = document.getElementById('memberSameGrade');
         const otherEl = document.getElementById('memberOtherGrade');
         if (sameEl) {
-            sameEl.innerHTML = sameGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #27ae60; font-size: 13px;">${search ? '符合条件' : '同年级'} (${sameGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${sameGrade.map(p => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">${escapeHtml(p.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : (search ? `<div style="color:#888;font-size:13px;margin-bottom:8px;">无符合条件学员</div>` : '');
+            sameEl.innerHTML = renderClassMemberGroup(search ? '符合条件' : '同年级', sameGrade, classId, 'forming', 'add', { primary: true })
+                || (search ? renderClassMemberEmpty('无符合条件学员') : '');
         }
         if (otherEl) {
-            otherEl.innerHTML = otherGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #888; font-size: 13px;">${search ? '符合条件' : '其他年级'} (${otherGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${otherGrade.map(p => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addProspectToClass('${p.id}', '${classId}')">${escapeHtml(p.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : '';
+            otherEl.innerHTML = renderClassMemberGroup(search ? '符合条件' : '其他年级', otherGrade, classId, 'forming', 'add');
         }
     } else {
         const notInClass = data.students.filter(s => s.classId !== classId && s.status === 'active');
@@ -898,10 +923,11 @@ function filterClassMemberList(classId, mode) {
         const sameEl = document.getElementById('memberSameGrade');
         const otherEl = document.getElementById('memberOtherGrade');
         if (sameEl) {
-            sameEl.innerHTML = sameGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #27ae60; font-size: 13px;">${search ? '符合条件' : '同年级'} (${sameGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${sameGrade.map(s => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">${escapeHtml(s.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : (search ? `<div style="color:#888;font-size:13px;margin-bottom:8px;">无符合条件学员</div>` : '');
+            sameEl.innerHTML = renderClassMemberGroup(search ? '符合条件' : '同年级', sameGrade, classId, 'active', 'add', { primary: true })
+                || (search ? renderClassMemberEmpty('无符合条件学员') : '');
         }
         if (otherEl) {
-            otherEl.innerHTML = otherGrade.length > 0 ? `<div style="font-weight: 600; margin-bottom: 8px; color: #888; font-size: 13px;">${search ? '符合条件' : '其他年级'} (${otherGrade.length}人)</div><div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto;">${otherGrade.map(s => `<span style="padding: 6px 12px; background: var(--hover-bg); border-radius: 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;" onclick="addStudentToClass('${s.id}', '${classId}')">${escapeHtml(s.name)}<span style="color:#27ae60; font-size: 12px;">+</span></span>`).join('')}</div>` : '';
+            otherEl.innerHTML = renderClassMemberGroup(search ? '符合条件' : '其他年级', otherGrade, classId, 'active', 'add');
         }
     }
 }

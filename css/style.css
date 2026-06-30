@@ -1468,11 +1468,90 @@ body.dark-mode .badge-normal {
     font-size: 11px;
     color: var(--text-muted);
 }
+.class-member-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.class-member-search {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    outline: none;
+}
+.class-member-search:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.14);
+}
+.class-member-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.class-member-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.class-member-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.class-member-group-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.class-member-group-title.is-primary {
+    color: #27ae60;
+}
+.class-member-scroll-list {
+    max-height: 160px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+.class-member-empty {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 6px 0;
+}
+button.class-member-chip {
+    font-family: inherit;
+}
+.class-member-add-chip {
+    cursor: pointer;
+}
+.class-member-add-icon {
+    color: #27ae60;
+    font-size: 12px;
+    font-weight: 700;
+}
+.class-member-remove {
+    border: 0;
+    background: transparent;
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0 2px;
+}
+.class-member-remove:hover {
+    color: #c0392b;
+}
 body.dark-mode .class-expand-toggle:hover {
     background: rgba(255,255,255,0.08);
 }
 body.dark-mode .class-prospect-chip {
     background: rgba(251, 191, 36, 0.14);
+}
+body.dark-mode .class-member-group-title.is-primary,
+body.dark-mode .class-member-add-icon {
+    color: #86efac;
 }
 
 .archived-class-manager {

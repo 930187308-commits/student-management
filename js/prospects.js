@@ -30,7 +30,7 @@ function getProspectContactStatusLabel(status) {
 
 function getProspectContactSummary(prospect) {
     const logs = getProspectContactLogs(prospect);
-    if (!logs.length) return { count: 0, title: '0次接触', detail: '+ 添加第一条', tooltip: '暂无接触记录，点击添加第一条接触记录' };
+    if (!logs.length) return { count: 0, title: '0条记录', detail: '+ 添加第一条', tooltip: '暂无接触/沟通记录，点击添加第一条记录' };
     const latest = logs[0];
     const pieces = [
         latest.contactDate || '-',
@@ -39,7 +39,7 @@ function getProspectContactSummary(prospect) {
     ].filter(Boolean);
     return {
         count: logs.length,
-        title: `${logs.length}次接触`,
+        title: `${logs.length}条记录`,
         detail: pieces.join(' · '),
         tooltip: logs.map(log => `${log.contactDate || '-'} ${log.contactType || '接触'}：${log.content || log.nextAction || '-'}`).join('\n')
     };
@@ -91,7 +91,7 @@ function renderProspects() {
             </div>
             <div class="table-wrapper">
                 <table>
-                    <thead><tr>${prospectBatchMode ? '<th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th>' : ''}<th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>接触记录</th><th>备注</th><th>录入日期</th><th class="prospect-action-header">操作</th></tr></thead>
+                    <thead><tr>${prospectBatchMode ? '<th><input type="checkbox" onchange="toggleAllProspectSelection(this)"></th>' : ''}<th>姓名</th><th>年级</th><th>微信</th><th>来源</th><th>目前成绩</th><th>试课日期</th><th>试课状态</th><th>成交状态</th><th>接触/沟通记录</th><th>备注</th><th>录入日期</th><th class="prospect-action-header">操作</th></tr></thead>
                     <tbody id="prospectTableBody"></tbody>
                 </table>
             </div>
@@ -147,7 +147,7 @@ function renderProspectList() {
             <td>${p.createDate || '-'}</td>
             <td class="record-action-cell prospect-action-cell">
                 <button class="btn btn-secondary btn-xs" onclick="openProspectModal('${p.id}')">编辑</button>
-                <button class="btn btn-secondary btn-xs" onclick="openProspectContactModal('${p.id}')">+ 接触</button>
+                <button class="btn btn-secondary btn-xs" onclick="openProspectContactModal('${p.id}')">+ 记录</button>
                 <button class="btn btn-success btn-xs" onclick="convertProspect('${p.id}')">转正式</button>
                 <button class="btn btn-xs record-ai-action" onclick="jumpToAIAgent('recruit-agent','follow-reminder','prospect','${p.id}')">AI 话术</button>
                 <button class="btn btn-danger btn-xs" onclick="deleteProspect('${p.id}')">删除</button>
@@ -184,7 +184,7 @@ function exportSelectedProspects() {
     if (ids.length === 0) { showToast('请先勾选意向学员'); return; }
     const selected = (data.prospects || []).filter(p => ids.includes(p.id));
     const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
-    const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触次数', '最近接触', '接触记录', '备注', '录入日期'];
+    const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触/沟通条数', '最近接触/沟通', '接触/沟通记录', '备注', '录入日期'];
     const rows = selected.map(p => {
         const logs = getProspectContactLogs(p);
         const latest = logs[0] || {};
@@ -331,26 +331,26 @@ function openProspectContactModal(prospectId, logId = null) {
         </div>
     `).join('');
 
-    document.getElementById('modalTitle').textContent = `${prospect.name || '意向学员'} · 接触记录`;
+    document.getElementById('modalTitle').textContent = `${prospect.name || '意向学员'} · 接触/沟通记录`;
     document.getElementById('modalBody').innerHTML = `
         <div class="prospect-contact-modal">
             <div class="prospect-contact-summary-bar">
                 <strong>${escapeHtml(prospect.name || '-')}</strong>
                 <span>${escapeHtml(prospect.grade || '-')}</span>
                 <span>${escapeHtml(prospect.wechat || prospect.phone || '未填联系方式')}</span>
-                <span>共 ${logs.length} 条接触记录，可连续新增</span>
+                <span>共 ${logs.length} 条接触/沟通记录，可连续新增</span>
             </div>
             <div class="prospect-contact-list">
-                ${listHtml || '<div class="record-empty-row">暂无接触记录，可以在下方补充第一次沟通、试课或跟进情况。</div>'}
+                ${listHtml || '<div class="record-empty-row">暂无接触/沟通记录，可以在下方补充第一次微信沟通、试课或跟进情况。</div>'}
             </div>
             <form onsubmit="saveProspectContactLog(event, '${prospectId}', '${logId || ''}')">
                 <div class="form-row">
-                    <div class="form-group"><label>接触日期</label><input type="date" name="contactDate" value="${editingLog?.contactDate || new Date().toISOString().split('T')[0]}"></div>
-                    <div class="form-group"><label>接触方式</label><select name="contactType">${typeOptions}</select></div>
+                    <div class="form-group"><label>接触/沟通日期</label><input type="date" name="contactDate" value="${editingLog?.contactDate || new Date().toISOString().split('T')[0]}"></div>
+                    <div class="form-group"><label>接触/沟通方式</label><select name="contactType">${typeOptions}</select></div>
                     <div class="form-group"><label>处理状态</label><select name="status">${statusOptions}</select></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group" style="flex:2;"><label>接触内容 *</label><textarea name="content" rows="3" required placeholder="例如：微信沟通小升初衔接，家长关注计算和应用题。">${escapeHtml(editingLog?.content || '')}</textarea></div>
+                    <div class="form-group" style="flex:2;"><label>沟通内容 *</label><textarea name="content" rows="3" required placeholder="例如：微信沟通小升初衔接，家长关注计算和应用题。">${escapeHtml(editingLog?.content || '')}</textarea></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="flex:2;"><label>下一步动作</label><input type="text" name="nextAction" value="${escapeHtml(editingLog?.nextAction || '')}" placeholder="例如：周五前发诊断题 / 下周约试课"></div>
@@ -392,10 +392,10 @@ async function saveProspectContactLog(e, prospectId, logId = '') {
     try {
         await saveCollectionItemToApi('prospects', updatedProspect);
     } catch (error) {
-        showToast('保存接触记录失败：' + error.message);
+        showToast('保存接触/沟通记录失败：' + error.message);
         return;
     }
-    showToast(logId ? '接触记录已更新' : '接触记录已添加');
+    showToast(logId ? '接触/沟通记录已更新' : '接触/沟通记录已添加');
     renderProspects();
     openProspectContactModal(prospectId);
 }
@@ -403,7 +403,7 @@ async function saveProspectContactLog(e, prospectId, logId = '') {
 async function deleteProspectContactLog(prospectId, logId) {
     const prospect = (data.prospects || []).find(p => String(p.id) === String(prospectId));
     if (!prospect) return;
-    if (!confirm('确定删除这条接触记录吗？')) return;
+    if (!confirm('确定删除这条接触/沟通记录吗？')) return;
     const updatedProspect = {
         ...prospect,
         contactLogs: getProspectContactLogs(prospect).filter(log => String(log.id) !== String(logId))
@@ -411,10 +411,10 @@ async function deleteProspectContactLog(prospectId, logId) {
     try {
         await saveCollectionItemToApi('prospects', updatedProspect);
     } catch (error) {
-        showToast('删除接触记录失败：' + error.message);
+        showToast('删除接触/沟通记录失败：' + error.message);
         return;
     }
-    showToast('接触记录已删除');
+    showToast('接触/沟通记录已删除');
     renderProspects();
     openProspectContactModal(prospectId);
 }
@@ -495,7 +495,7 @@ async function convertProspect(id) {
 
 function downloadProspectTemplate() {
     const templateRows = [
-        ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '初次接触日期', '接触方式', '接触状态', '接触内容', '下一步动作'],
+        ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '初次接触/沟通日期', '接触/沟通方式', '接触/沟通状态', '接触/沟通内容', '下一步动作'],
         ['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '校内80左右', '2025-10-01', '试课中', '未成交', '计算薄弱', '2025-09-20', '微信', '待跟进', '家长咨询小升初衔接，关注计算和应用题。', '周五前发诊断题'],
     ];
     const ws = XLSX.utils.aoa_to_sheet(templateRows);
@@ -516,17 +516,17 @@ function downloadProspectTemplate() {
         ['试课状态', '当前状态', '选填', '待跟进 / 已联系 / 试课中 / 组班中 / 已成交 / 已流失'],
         ['成交状态', '成交状态', '选填', '未成交 / 已成交 / 已流失'],
         ['备注', '补充说明', '选填', '如：数学基础一般'],
-        ['初次接触日期', '第一条接触记录日期', '选填', 'yyyy-mm-dd，如 2025-09-20'],
-        ['接触方式', '第一条接触记录方式', '选填', '微信 / 电话 / 面谈 / 试课 / 家长转介绍 / 其他'],
-        ['接触状态', '第一条接触记录状态', '选填', '待跟进 / 已沟通 / 已约试课 / 未回复 / 已结束'],
-        ['接触内容', '第一条接触记录内容', '选填', '如：家长咨询小升初衔接'],
-        ['下一步动作', '第一条接触后的下一步动作', '选填', '如：周五前发诊断题'],
+        ['初次接触/沟通日期', '第一条接触/沟通记录日期', '选填', 'yyyy-mm-dd，如 2025-09-20'],
+        ['接触/沟通方式', '第一条接触/沟通记录方式', '选填', '微信 / 电话 / 面谈 / 试课 / 家长转介绍 / 其他'],
+        ['接触/沟通状态', '第一条接触/沟通记录状态', '选填', '待跟进 / 已沟通 / 已约试课 / 未回复 / 已结束'],
+        ['接触/沟通内容', '第一条接触/沟通记录内容', '选填', '如：家长咨询小升初衔接'],
+        ['下一步动作', '第一条接触/沟通后的下一步动作', '选填', '如：周五前发诊断题'],
         [''],
         ['注意事项'],
         ['1. 日期必须为 yyyy-mm-dd 格式，如 2025-10-01'],
         ['2. 试课状态写"组班中"表示在组班中'],
         ['3. 导入时按姓名匹配，找到则录入，找不到则新建'],
-        ['4. Excel 只适合导入第一条接触记录，多次接触建议进系统后逐条补充'],
+        ['4. Excel 只适合导入第一条接触/沟通记录，多次接触建议进系统后逐条补充'],
     ];
     const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
     formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 42 });
