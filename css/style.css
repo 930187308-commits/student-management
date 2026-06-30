@@ -1475,6 +1475,79 @@ body.dark-mode .class-prospect-chip {
     background: rgba(251, 191, 36, 0.14);
 }
 
+.archived-class-manager {
+    line-height: 1.7;
+    font-size: 14px;
+}
+
+.archived-class-note {
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(243, 156, 18, 0.28);
+    border-radius: 8px;
+    background: rgba(243, 156, 18, 0.1);
+    color: #856404;
+}
+
+body.dark-mode .archived-class-note {
+    background: rgba(251, 191, 36, 0.12);
+    color: #fde68a;
+    border-color: rgba(251, 191, 36, 0.26);
+}
+
+.archived-class-search-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.archived-class-search-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.archived-class-search-row span {
+    color: var(--text-muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.archived-class-table-wrap {
+    max-height: 420px;
+    overflow: auto;
+}
+
+.archived-class-expand-cell {
+    text-align: center;
+}
+
+.archived-class-expand-button {
+    border: 0;
+    border-radius: 999px;
+    padding: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.archived-class-expand-button:hover {
+    background: var(--hover-bg);
+    color: var(--primary-color);
+}
+
+.archived-class-expanded-cell {
+    padding: 14px;
+    background: var(--bg-card);
+}
+
 /* Toast */
 .toast { position: fixed; bottom: 20px; right: 20px; background: var(--text-primary); color: var(--bg-primary); padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.3s; }
 .toast.show { opacity: 1; }

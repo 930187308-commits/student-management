@@ -420,16 +420,16 @@ function openArchivedClassManager() {
     const totalArchived = (data.classes || []).filter(c => c.archived).length;
     document.getElementById('modalTitle').textContent = '归档班级管理';
     document.getElementById('modalBody').innerHTML = `
-        <div style="line-height:1.7;font-size:14px;">
-            <div style="padding:10px;background:#fff3cd;border-radius:8px;color:#856404;margin-bottom:12px;">
+        <div class="archived-class-manager">
+            <div class="archived-class-note">
                 归档班级用于保留历史考勤、收费和学员学习轨迹。只有确认是测试数据或误建班级时，才建议彻底删除。
             </div>
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-                <input id="archivedClassSearch" type="text" placeholder="搜索班级名称、年级、班型、时间..." value="${escapeHtml(search)}" oninput="openArchivedClassManager()" style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;">
-                <span style="color:#888;font-size:13px;white-space:nowrap;">${archivedClasses.length}/${totalArchived} 个</span>
+            <div class="archived-class-search-row">
+                <input id="archivedClassSearch" type="text" placeholder="搜索班级名称、年级、班型、时间..." value="${escapeHtml(search)}" oninput="openArchivedClassManager()">
+                <span>${archivedClasses.length}/${totalArchived} 个</span>
             </div>
             ${archivedClasses.length === 0 ? `<div class="empty-state">${totalArchived === 0 ? '暂无已归档班级' : '没有匹配的归档班级'}</div>` : `
-                <div class="table-wrapper" style="max-height:420px;overflow:auto;">
+                <div class="table-wrapper archived-class-table-wrap">
                     <table>
                         <thead><tr><th style="width:40px;"></th><th>班级名称</th><th>状态</th><th>年级</th><th>上课时间</th><th>历史考勤</th><th>关联学员</th><th>归档时间</th><th>操作</th></tr></thead>
                         <tbody>
@@ -439,8 +439,8 @@ function openArchivedClassManager() {
                                 const isExpanded = expandedArchivedClassIds.has(c.id);
                                 return `
                                     <tr>
-                                        <td style="text-align:center;">
-                                            <button onclick="toggleArchivedClassExpand('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:#666;padding:4px;">
+                                        <td class="archived-class-expand-cell">
+                                            <button class="archived-class-expand-button" onclick="toggleArchivedClassExpand('${c.id}')">
                                                 ${isExpanded ? '▼' : '▶'}
                                             </button>
                                         </td>
@@ -458,7 +458,7 @@ function openArchivedClassManager() {
                                     </tr>
                                     ${isExpanded ? `
                                         <tr>
-                                            <td colspan="9" style="padding:14px;background:var(--bg-card);">
+                                            <td colspan="9" class="archived-class-expanded-cell">
                                                 ${renderArchivedClassStudentList(c.id)}
                                             </td>
                                         </tr>
