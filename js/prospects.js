@@ -35,13 +35,14 @@ function getProspectContactSummary(prospect) {
     const pieces = [
         latest.contactDate || '-',
         latest.contactType || '接触',
+        latest.contactPerson || '',
         getProspectContactStatusLabel(latest.status)
     ].filter(Boolean);
     return {
         count: logs.length,
         title: `${logs.length}条记录`,
         detail: pieces.join(' · '),
-        tooltip: logs.map(log => `${log.contactDate || '-'} ${log.contactType || '接触'}：${log.content || log.nextAction || '-'}`).join('\n')
+        tooltip: logs.map(log => `${log.contactDate || '-'} ${log.contactType || '接触'}${log.contactPerson ? ` · ${log.contactPerson}` : ''}：${log.content || log.nextAction || '-'}`).join('\n')
     };
 }
 
@@ -50,6 +51,7 @@ function prospectContactLogsText(prospect) {
         .map(log => [
             log.contactDate || '',
             log.contactType || '',
+            log.contactPerson || '',
             getProspectContactStatusLabel(log.status),
             log.content || '',
             log.nextAction || ''
@@ -184,12 +186,12 @@ function exportSelectedProspects() {
     if (ids.length === 0) { showToast('请先勾选意向学员'); return; }
     const selected = (data.prospects || []).filter(p => ids.includes(p.id));
     const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
-    const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触/沟通条数', '最近接触/沟通', '接触/沟通记录', '备注', '录入日期'];
+    const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触/沟通条数', '最近接触/沟通', '最近沟通对象', '接触/沟通记录', '备注', '录入日期'];
     const rows = selected.map(p => {
         const logs = getProspectContactLogs(p);
         const latest = logs[0] || {};
         const latestContact = logs.length
-            ? [latest.contactDate || '', latest.contactType || '', getProspectContactStatusLabel(latest.status)].filter(Boolean).join(' · ')
+            ? [latest.contactDate || '', latest.contactType || '', latest.contactPerson || '', getProspectContactStatusLabel(latest.status)].filter(Boolean).join(' · ')
             : '';
         return [
             p.name,
@@ -203,6 +205,7 @@ function exportSelectedProspects() {
             p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交',
             logs.length,
             latestContact,
+            latest.contactPerson || '',
             prospectContactLogsText(p),
             p.remark || '',
             p.createDate || ''
@@ -319,6 +322,7 @@ function openProspectContactModal(prospectId, logId = null) {
                 <div class="prospect-contact-item-head">
                     <strong>${escapeHtml(log.contactDate || '-')}</strong>
                     <span>${escapeHtml(log.contactType || '接触')}</span>
+                    ${log.contactPerson ? `<span>${escapeHtml(log.contactPerson)}</span>` : ''}
                     <span class="badge badge-normal">${escapeHtml(getProspectContactStatusLabel(log.status))}</span>
                 </div>
                 <div class="prospect-contact-item-content">${escapeHtml(log.content || '-')}</div>
@@ -347,6 +351,7 @@ function openProspectContactModal(prospectId, logId = null) {
                 <div class="form-row">
                     <div class="form-group"><label>接触/沟通日期</label><input type="date" name="contactDate" value="${editingLog?.contactDate || new Date().toISOString().split('T')[0]}"></div>
                     <div class="form-group"><label>接触/沟通方式</label><select name="contactType">${typeOptions}</select></div>
+                    <div class="form-group"><label>沟通对象</label><input type="text" name="contactPerson" value="${escapeHtml(editingLog?.contactPerson || '')}" placeholder="如：妈妈 / 爸爸 / 学生"></div>
                     <div class="form-group"><label>处理状态</label><select name="status">${statusOptions}</select></div>
                 </div>
                 <div class="form-row">
@@ -379,6 +384,7 @@ async function saveProspectContactLog(e, prospectId, logId = '') {
         id: logId || generateId(),
         contactDate: form.contactDate.value,
         contactType: form.contactType.value,
+        contactPerson: form.contactPerson.value.trim(),
         status: form.status.value,
         content: form.content.value.trim(),
         nextAction: form.nextAction.value.trim(),
@@ -495,8 +501,8 @@ async function convertProspect(id) {
 
 function downloadProspectTemplate() {
     const templateRows = [
-        ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '初次接触/沟通日期', '接触/沟通方式', '接触/沟通状态', '接触/沟通内容', '下一步动作'],
-        ['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '校内80左右', '2025-10-01', '试课中', '未成交', '计算薄弱', '2025-09-20', '微信', '待跟进', '家长咨询小升初衔接，关注计算和应用题。', '周五前发诊断题'],
+        ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '初次接触/沟通日期', '接触/沟通方式', '沟通对象', '接触/沟通状态', '接触/沟通内容', '下一步动作'],
+        ['张三', '六年级', '13800138001', 'ZhaoSan_2025', '家长推荐', '校内80左右', '2025-10-01', '试课中', '未成交', '计算薄弱', '2025-09-20', '微信', '妈妈', '待跟进', '家长咨询小升初衔接，关注计算和应用题。', '周五前发诊断题'],
     ];
     const ws = XLSX.utils.aoa_to_sheet(templateRows);
     formatExcelSheet(ws, templateRows);
@@ -518,6 +524,7 @@ function downloadProspectTemplate() {
         ['备注', '补充说明', '选填', '如：数学基础一般'],
         ['初次接触/沟通日期', '第一条接触/沟通记录日期', '选填', 'yyyy-mm-dd，如 2025-09-20'],
         ['接触/沟通方式', '第一条接触/沟通记录方式', '选填', '微信 / 电话 / 面谈 / 试课 / 家长转介绍 / 其他'],
+        ['沟通对象', '本次接触对象', '选填', '如：妈妈 / 爸爸 / 学生'],
         ['接触/沟通状态', '第一条接触/沟通记录状态', '选填', '待跟进 / 已沟通 / 已约试课 / 未回复 / 已结束'],
         ['接触/沟通内容', '第一条接触/沟通记录内容', '选填', '如：家长咨询小升初衔接'],
         ['下一步动作', '第一条接触/沟通后的下一步动作', '选填', '如：周五前发诊断题'],
@@ -564,6 +571,17 @@ function precheckProspectImport(rows) {
     const dealStatusMap = { '': '', 'none': '', '未成交': '', 'deal': 'deal', '已成交': 'deal', 'lost': 'lost', '已流失': 'lost' };
     const contactStatusMap = { '': 'pending', pending: 'pending', '待跟进': 'pending', done: 'done', '已沟通': 'done', trialBooked: 'trialBooked', '已约试课': 'trialBooked', noReply: 'noReply', '未回复': 'noReply', closed: 'closed', '已结束': 'closed' };
     if (!data.prospects) data.prospects = [];
+    const headers = (rows[0] || []).map(item => String(item || '').trim());
+    const headerIndex = (...names) => {
+        const index = headers.findIndex(header => names.includes(header));
+        return index >= 0 ? index : null;
+    };
+    const contactDateIndex = headerIndex('初次接触/沟通日期', '接触/沟通日期') ?? 10;
+    const contactTypeIndex = headerIndex('接触/沟通方式', '沟通方式') ?? 11;
+    const contactPersonIndex = headerIndex('沟通对象', '接触/沟通对象', '联系人');
+    const contactStatusIndex = headerIndex('接触/沟通状态', '处理状态') ?? (contactPersonIndex !== null ? 13 : 12);
+    const contactContentIndex = headerIndex('接触/沟通内容', '沟通内容') ?? (contactPersonIndex !== null ? 14 : 13);
+    const contactNextActionIndex = headerIndex('下一步动作', '后续跟进') ?? (contactPersonIndex !== null ? 15 : 14);
 
     const validRows = [];
     const errors = [];
@@ -582,7 +600,7 @@ function precheckProspectImport(rows) {
         const wechat = hasNewFormat ? String(row[3] || '').trim() : '';
         const trialDateRaw = row[hasNewFormat ? 6 : 4];
         const trialDate = trialDateRaw ? normalizeExcelDate(trialDateRaw) || String(trialDateRaw).trim() : '';
-        const contactDateRaw = hasNewFormat ? row[10] : '';
+        const contactDateRaw = hasNewFormat ? row[contactDateIndex] : '';
         const contactDate = contactDateRaw ? normalizeExcelDate(contactDateRaw) : '';
         if (contactDateRaw && !contactDate) {
             errors.push({ row: rowNum, msg: `初次接触日期"${contactDateRaw}"无法识别` });
@@ -604,7 +622,7 @@ function precheckProspectImport(rows) {
             failed++;
             continue;
         }
-        const contactStatusRaw = hasNewFormat ? String(row[12] || '').trim() : '';
+        const contactStatusRaw = hasNewFormat ? String(row[contactStatusIndex] || '').trim() : '';
         if (contactStatusRaw && contactStatusMap[contactStatusRaw] === undefined) {
             errors.push({ row: rowNum, msg: `接触状态"${contactStatusRaw}"无法识别` });
             failed++;
@@ -631,10 +649,11 @@ function precheckProspectImport(rows) {
             trialStatus: trialStatus || 'pending',
             dealStatus: dealStatusMap[dealStatusRaw] || '',
             contactDate,
-            contactType: hasNewFormat ? String(row[11] || '').trim() : '',
+            contactType: hasNewFormat ? String(row[contactTypeIndex] || '').trim() : '',
+            contactPerson: hasNewFormat && contactPersonIndex !== null ? String(row[contactPersonIndex] || '').trim() : '',
             contactStatus: contactStatusMap[contactStatusRaw] || 'pending',
-            contactContent: hasNewFormat ? String(row[13] || '').trim() : '',
-            contactNextAction: hasNewFormat ? String(row[14] || '').trim() : '',
+            contactContent: hasNewFormat ? String(row[contactContentIndex] || '').trim() : '',
+            contactNextAction: hasNewFormat ? String(row[contactNextActionIndex] || '').trim() : '',
             isDupe
         });
     }
@@ -646,12 +665,13 @@ function precheckProspectImport(rows) {
 
 function getProspectImportContactLogs(v, existing = {}) {
     const logs = getProspectContactLogs(existing);
-    const hasContact = v.contactDate || v.contactType || v.contactContent || v.contactNextAction;
+    const hasContact = v.contactDate || v.contactType || v.contactPerson || v.contactContent || v.contactNextAction;
     if (!hasContact) return logs;
     const contactLog = {
         id: generateId(),
         contactDate: v.contactDate || new Date().toISOString().split('T')[0],
         contactType: v.contactType || '微信',
+        contactPerson: v.contactPerson || '',
         status: v.contactStatus || 'pending',
         content: v.contactContent || '导入时补充接触记录',
         nextAction: v.contactNextAction || '',
@@ -661,6 +681,7 @@ function getProspectImportContactLogs(v, existing = {}) {
     const exists = logs.some(log =>
         (log.contactDate || '') === contactLog.contactDate &&
         (log.contactType || '') === contactLog.contactType &&
+        (log.contactPerson || '') === contactLog.contactPerson &&
         (log.content || '') === contactLog.content &&
         (log.nextAction || '') === contactLog.nextAction
     );

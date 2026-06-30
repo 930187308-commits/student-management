@@ -382,6 +382,7 @@ function buildProspectContext(data, payload, privacyMode) {
             latestContact: contactLogs.length ? {
                 contactDate: latestContact.contactDate || '',
                 contactType: latestContact.contactType || '',
+                contactPerson: latestContact.contactPerson || '',
                 status: latestContact.status || '',
                 content: safeText(latestContact.content, 180),
                 nextAction: safeText(latestContact.nextAction, 160)
@@ -390,6 +391,7 @@ function buildProspectContext(data, payload, privacyMode) {
         contactLogs: contactLogs.slice(0, 8).map(log => ({
             contactDate: log.contactDate || '',
             contactType: log.contactType || '',
+            contactPerson: log.contactPerson || '',
             status: log.status || '',
             content: safeText(log.content, 180),
             nextAction: safeText(log.nextAction, 160)
