@@ -2421,8 +2421,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .mc-cell { text-align: center; padding: 6px 2px; font-size: 12px; color: var(--text-primary); border-radius: 4px; cursor: pointer; }
 .mc-cell:not(.mc-empty):hover { background: var(--hover-bg); cursor: pointer; }
 .mc-empty { cursor: default; }
-.mc-today { background: #3498db; color: white; font-weight: 600; }
-.mc-today:hover { background: #2980b9; }
+.mc-today { background: #2563eb; color: white; font-weight: 700; }
+.mc-today:hover { background: #1d4ed8; }
 .mc-selected { background: #2ecc71; color: white; }
 .mc-selected:hover { background: #27ae60; }
 .mc-day-num { display: block; }
@@ -4008,13 +4008,14 @@ body.dark-mode .student-timeline-row.is-good {
     color: #1f78bd;
 }
 body.dark-mode .record-link-btn {
-    background: rgba(96, 165, 250, 0.14);
-    color: #bfdbfe;
+    border-color: rgba(147, 197, 253, 0.22);
+    background: rgba(96, 165, 250, 0.08);
+    color: #e0f2fe;
 }
 body.dark-mode .record-link-btn:hover {
-    border-color: rgba(147, 197, 253, 0.5);
-    background: rgba(96, 165, 250, 0.22);
-    color: #dbeafe;
+    border-color: rgba(147, 197, 253, 0.58);
+    background: rgba(96, 165, 250, 0.18);
+    color: #ffffff;
 }
 .operation-log-note {
     margin-bottom: 12px;
