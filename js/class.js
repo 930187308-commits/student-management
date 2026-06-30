@@ -327,7 +327,7 @@ function openClassModal(id = null) {
                     </select>
                 </div>
                 <div class="form-group"><label>本学期计划课次</label><input type="number" name="plannedSessions" value="${cls?.plannedSessions || 16}" min="1" placeholder="如：16"></div>
-                <div class="form-group" style="flex:2;"><label>暑假排课</label><input type="text" name="summerSchedule" value="${cls?.summerSchedule || ''}" placeholder="如：周一至周五上午"></div>
+                <div class="form-group form-group-wide"><label>暑假排课</label><input type="text" name="summerSchedule" value="${cls?.summerSchedule || ''}" placeholder="如：周一至周五上午"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
@@ -431,7 +431,7 @@ function openArchivedClassManager() {
             ${archivedClasses.length === 0 ? `<div class="empty-state">${totalArchived === 0 ? '暂无已归档班级' : '没有匹配的归档班级'}</div>` : `
                 <div class="table-wrapper archived-class-table-wrap">
                     <table>
-                        <thead><tr><th style="width:40px;"></th><th>班级名称</th><th>状态</th><th>年级</th><th>上课时间</th><th>历史考勤</th><th>关联学员</th><th>归档时间</th><th>操作</th></tr></thead>
+                        <thead><tr><th class="archived-class-narrow-col"></th><th>班级名称</th><th>状态</th><th>年级</th><th>上课时间</th><th>历史考勤</th><th>关联学员</th><th>归档时间</th><th>操作</th></tr></thead>
                         <tbody>
                             ${archivedClasses.map(c => {
                                 const attendanceCount = (data.attendance || []).filter(a => a.classId === c.id).length;
@@ -450,7 +450,7 @@ function openArchivedClassManager() {
                                         <td>${escapeHtml(c.schedule || '')}</td>
                                         <td>${attendanceCount}</td>
                                         <td>${archivedStudents.length}</td>
-                                        <td style="white-space:nowrap;">${c.archivedAt ? new Date(c.archivedAt).toLocaleString() : '-'}</td>
+                                        <td class="archived-class-date-cell">${c.archivedAt ? new Date(c.archivedAt).toLocaleString() : '-'}</td>
                                         <td>
                                             <button class="btn btn-secondary btn-xs" onclick="unarchiveClass('${c.id}')">放回列表</button>
                                             <button class="btn btn-danger btn-xs" onclick="permanentlyDeleteArchivedClass('${c.id}')">彻底删除</button>
@@ -551,23 +551,29 @@ function getArchivedClassStudents(classId) {
 function renderArchivedClassStudentList(classId) {
     const students = getArchivedClassStudents(classId);
     if (students.length === 0) {
-        return '<div class="empty-state" style="padding:16px;">暂无关联学员或考勤记录</div>';
+        return '<div class="empty-state archived-class-history-empty">暂无关联学员或考勤记录</div>';
     }
     const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业' };
     return `
-        <div style="font-weight:600;margin-bottom:10px;">历史学员 / 上课记录</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <div class="archived-class-history-title">历史学员 / 上课记录</div>
+        <div class="archived-class-history-list">
             ${students.map(s => `
-                <span style="padding:6px 12px;background:var(--hover-bg);border-radius:16px;font-size:13px;display:flex;align-items:center;gap:6px;">
-                    <span style="width:8px;height:8px;border-radius:50%;background:${s.status === 'active' ? '#27ae60' : s.status === 'renewalPending' ? '#f39c12' : '#95a5a6'};"></span>
+                <span class="archived-class-student-chip">
+                    <span class="archived-class-student-dot ${getArchivedClassStudentStatusClass(s.status)}"></span>
                     ${escapeHtml(s.name)}
-                    ${s.grade ? `<span style="font-size:11px;color:#888;">${escapeHtml(s.grade)}</span>` : ''}
-                    <span style="font-size:11px;color:#888;">${statusMap[s.status] || s.status || '未知状态'}</span>
-                    <span style="font-size:11px;color:#888;">记录 ${s.attendanceCount} / 出勤 ${s.presentCount}</span>
+                    ${s.grade ? `<span class="archived-class-student-meta">${escapeHtml(s.grade)}</span>` : ''}
+                    <span class="archived-class-student-meta">${statusMap[s.status] || s.status || '未知状态'}</span>
+                    <span class="archived-class-student-meta">记录 ${s.attendanceCount} / 出勤 ${s.presentCount}</span>
                 </span>
             `).join('')}
         </div>
     `;
+}
+
+function getArchivedClassStudentStatusClass(status) {
+    if (status === 'active') return 'is-active';
+    if (status === 'renewalPending') return 'is-renewal';
+    return 'is-muted';
 }
 
 async function unarchiveClass(classId) {

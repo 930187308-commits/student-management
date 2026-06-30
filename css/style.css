@@ -1608,6 +1608,14 @@ body.dark-mode .archived-class-note {
     overflow: auto;
 }
 
+.archived-class-narrow-col {
+    width: 40px;
+}
+
+.archived-class-date-cell {
+    white-space: nowrap;
+}
+
 .archived-class-expand-cell {
     text-align: center;
 }
@@ -1631,6 +1639,64 @@ body.dark-mode .archived-class-note {
 .archived-class-expanded-cell {
     padding: 14px;
     background: var(--bg-card);
+}
+
+.archived-class-history-empty {
+    padding: 16px;
+}
+
+.archived-class-history-title {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.archived-class-history-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.archived-class-student-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.archived-class-student-dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    border-radius: 50%;
+    background: #95a5a6;
+}
+
+.archived-class-student-dot.is-active {
+    background: #27ae60;
+}
+
+.archived-class-student-dot.is-renewal {
+    background: #f39c12;
+}
+
+.archived-class-student-dot.is-muted {
+    background: #95a5a6;
+}
+
+.archived-class-student-meta {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+body.dark-mode .archived-class-student-chip {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
 }
 
 /* Toast */
