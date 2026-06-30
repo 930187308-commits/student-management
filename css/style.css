@@ -1404,9 +1404,11 @@ body.dark-mode textarea::placeholder {
     min-height: 22px;
     padding: 3px 8px;
     border-radius: 999px;
+    background: var(--topic-color, #3498db);
     color: #ffffff;
     font-size: 11px;
     font-weight: 700;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12);
 }
 
 .simple-manager-empty {
@@ -1421,6 +1423,11 @@ body.dark-mode textarea::placeholder {
 
 /* 标签徽章 */
 .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+.communication-topic-badge {
+    background: var(--topic-color, #3498db);
+    color: #ffffff;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
 .badge-active { background: #d4edda; color: #155724; }
 .badge-trial { background: #fff3cd; color: #856404; }
 .badge-pending { background: #f8d7da; color: #721c24; }

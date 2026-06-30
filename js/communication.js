@@ -2,6 +2,14 @@
 
 let communicationBatchMode = false;
 
+function normalizeCommunicationTopicColor(color = '') {
+    return /^#[0-9A-Fa-f]{6}$/.test(String(color || '').trim()) ? String(color).trim() : '#3498db';
+}
+
+function getCommunicationTopicStyle(color = '') {
+    return `--topic-color:${normalizeCommunicationTopicColor(color)}`;
+}
+
 function renderCommunications() {
     const container = document.getElementById('tab-communications');
 
@@ -58,7 +66,7 @@ function renderCommTable() {
         const statusText = c.status === 'pending' ? '待沟通' : '已完成';
         return `<tr>
             ${communicationBatchMode ? `<td><input type="checkbox" class="communication-select" value="${c.id}" onchange="updateCommunicationSelectionCount()"></td>` : ''}
-            <td>${topic ? `<span class="badge" style="background:${escapeHtml(topic.color)};color:white;">${escapeHtml(topic.name)}</span>` : '-'}</td>
+            <td>${topic ? `<span class="badge communication-topic-badge" style="${getCommunicationTopicStyle(topic.color)}">${escapeHtml(topic.name)}</span>` : '-'}</td>
             <td><button type="button" class="record-link-btn" onclick="openStudentDetailFromRecord('${escapeHtml(c.studentId || '')}', '${escapeHtml(c.studentName)}')">${escapeHtml(c.studentName)}</button></td>
             <td>${c.contactDate || '-'}</td>
             <td>${escapeHtml(c.contactType)}</td>
@@ -133,7 +141,7 @@ function openTopicManager() {
     document.getElementById('modalTitle').textContent = '沟通主题管理';
     const topicList = (data.communicationTopics || []).map(t => `
         <div class="simple-manager-row">
-            <span class="simple-manager-badge" style="background:${escapeHtml(t.color)};">${escapeHtml(t.name)}</span>
+            <span class="simple-manager-badge" style="${getCommunicationTopicStyle(t.color)}">${escapeHtml(t.name)}</span>
             <div class="simple-manager-actions">
                 <button class="btn btn-secondary btn-xs" onclick="editTopic('${t.id}')">编辑</button>
                 <button class="btn btn-danger btn-xs" onclick="deleteTopic('${t.id}')">删除</button>
@@ -326,7 +334,7 @@ function openCommDetail(id) {
     document.getElementById('modalTitle').textContent = '沟通详情';
     document.getElementById('modalBody').innerHTML = `
         <div class="detail-grid">
-            ${topic ? `<div class="detail-item"><div class="label">主题</div><div class="value"><span class="badge" style="background:${escapeHtml(topic.color)};color:white;">${escapeHtml(topic.name)}</span></div></div>` : ''}
+            ${topic ? `<div class="detail-item"><div class="label">主题</div><div class="value"><span class="badge communication-topic-badge" style="${getCommunicationTopicStyle(topic.color)}">${escapeHtml(topic.name)}</span></div></div>` : ''}
             <div class="detail-item"><div class="label">学员</div><div class="value">${escapeHtml(comm.studentName)}</div></div>
             <div class="detail-item"><div class="label">日期</div><div class="value">${comm.contactDate}</div></div>
             <div class="detail-item"><div class="label">方式</div><div class="value">${escapeHtml(comm.contactType)}</div></div>
