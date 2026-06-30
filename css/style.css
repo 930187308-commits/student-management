@@ -701,6 +701,7 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
 }
 .record-action-cell .btn {
     margin: 2px 3px 2px 0;
+    vertical-align: middle;
 }
 .prospect-action-header,
 .prospect-action-cell {
@@ -1167,7 +1168,13 @@ body.dark-mode .attendance-input.absent {
 .btn-secondary { background: #95a5a6; color: white; }
 .btn-secondary:hover { background: #7f8c8d; }
 .btn-sm { min-height: 28px; padding: 5px 10px; font-size: 12px; }
-.btn-xs { min-height: 22px; padding: 3px 8px; border-radius: 7px; font-size: 11px; }
+.btn-xs {
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 7px;
+    font-size: 11.5px;
+    line-height: 1.2;
+}
 .btn-warning { background: #f39c12; color: white; }
 .btn-warning:hover { background: #d68910; }
 body.dark-mode .btn-primary {
@@ -4010,17 +4017,20 @@ body.dark-mode .student-timeline-row.is-good {
 .record-link-btn {
     border: 1px solid transparent;
     border-radius: 999px;
-    padding: 2px 8px;
+    min-height: 24px;
+    padding: 3px 8px;
     background: rgba(52, 152, 219, 0.1);
     color: #2d8ed6;
     font: inherit;
+    font-size: 11.5px;
     font-weight: 700;
     cursor: pointer;
-    line-height: 1.25;
+    line-height: 1.2;
     max-width: 132px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    vertical-align: middle;
 }
 .record-link-btn:hover {
     border-color: rgba(52, 152, 219, 0.45);
