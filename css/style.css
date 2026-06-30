@@ -249,6 +249,27 @@ body.dark-mode .btn.privacy-toggle.is-on {
     flex-direction: column;
 }
 
+.hours-ring-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.hours-ring-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.05;
+}
+
+.hours-ring-label {
+    font-size: 8px;
+    color: var(--text-muted);
+    line-height: 1.05;
+}
+
 .hours-overview-card .hours-info .total-label {
     font-size: 10px;
     color: var(--text-muted);

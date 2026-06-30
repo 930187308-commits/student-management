@@ -1381,9 +1381,9 @@ function renderStats() {
             <div class="hours-ring">
                 <div style="position: relative; width: 60px; height: 60px; flex-shrink: 0;">
                     <canvas id="hoursRingChart" width="120" height="120" style="width: 60px; height: 60px;"></canvas>
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                        <div style="font-size: 12px; font-weight: 700; color: #2c3e50;">${getPrivacyVal(remainingHours)}</div>
-                        <div style="font-size: 8px; color: #888;">剩余</div>
+                    <div class="hours-ring-center">
+                        <div class="hours-ring-value">${getPrivacyVal(remainingHours)}</div>
+                        <div class="hours-ring-label">剩余</div>
                     </div>
                 </div>
                 <div class="hours-info">
