@@ -2541,6 +2541,14 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     gap: 3px;
     padding-right: 3px;
 }
+.system-qa-hidden,
+.system-qa-manage-bar.is-hidden,
+.system-qa-prompt-tools.is-hidden,
+.system-qa-history-tools.is-hidden,
+.system-qa-help.is-hidden,
+.ai-task-record.is-hidden {
+    display: none;
+}
 .system-qa-history-menu-wrap {
     position: relative;
     display: inline-flex;
@@ -2658,6 +2666,7 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     gap: 4px;
 }
 .system-qa-manage-bar {
+    display: flex;
     align-items: center;
     gap: 6px;
     margin-top: 8px;
@@ -3155,6 +3164,14 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     display: inline-block;
 }
 
+#agentStatus.is-real-ai {
+    background: #27ae60;
+}
+
+#agentStatus.is-local-template {
+    background: #95a5a6;
+}
+
 /* AI 配置状态 */
 .ai-config-status {
     font-size: 12px;
@@ -3163,6 +3180,32 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     border-radius: 6px;
     margin-bottom: 12px;
     color: var(--text-secondary);
+}
+.ai-config-dot.is-real {
+    color: #27ae60;
+}
+.ai-config-dot.is-warning {
+    color: #f39c12;
+}
+.ai-config-dot.is-muted {
+    color: #95a5a6;
+}
+.ai-config-missing,
+.system-qa-related-hint {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+.ai-context-ref-group {
+    margin-bottom: 10px;
+}
+.ai-context-ref-heading {
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+}
+.ai-context-extra-list {
+    margin-top: 6px;
 }
 
 /* ==================== 首页工作台样式 ==================== */

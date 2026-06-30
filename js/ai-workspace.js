@@ -100,28 +100,29 @@ function updateAIStatusUI(info) {
     const modeLabelEl = document.getElementById('aiModeLabel');
     const configStatusEl = document.getElementById('aiConfigStatus');
     if (!statusEl || !modeLabelEl) return;
+    statusEl.classList.remove('is-real-ai', 'is-local-template');
 
     if (info.mode === 'real-ai' && info.enabled) {
         statusEl.textContent = '真实 AI';
-        statusEl.style.background = '#27ae60';
+        statusEl.classList.add('is-real-ai');
         modeLabelEl.textContent = info.provider ? `已启用 · ${info.provider}` : '已启用';
-        if (configStatusEl) configStatusEl.innerHTML = `<span style="color:#27ae60;">● 真实 AI 已启用</span> · ${escapeHtml(info.provider || '')}`;
+        if (configStatusEl) configStatusEl.innerHTML = `<span class="ai-config-dot is-real">● 真实 AI 已启用</span> · ${escapeHtml(info.provider || '')}`;
     } else if (info.mode === 'local-template') {
         statusEl.textContent = '本地模板';
-        statusEl.style.background = '#95a5a6';
+        statusEl.classList.add('is-local-template');
         modeLabelEl.textContent = info.enabled === false && info.missing?.length > 0 ? '真实 AI 未配置' : '本地模板模式';
         if (configStatusEl) {
             if (info.enabled === false && info.missing?.length > 0) {
-                configStatusEl.innerHTML = `<span style="color:#f39c12;">● 当前使用本地模板</span><br><span style="font-size:11px;color:var(--text-muted);">缺少配置: ${escapeHtml(info.missing.join(', '))}</span>`;
+                configStatusEl.innerHTML = `<span class="ai-config-dot is-warning">● 当前使用本地模板</span><br><span class="ai-config-missing">缺少配置: ${escapeHtml(info.missing.join(', '))}</span>`;
             } else {
-                configStatusEl.innerHTML = `<span style="color:#95a5a6;">● 当前使用本地模板</span>`;
+                configStatusEl.innerHTML = `<span class="ai-config-dot is-muted">● 当前使用本地模板</span>`;
             }
         }
     } else {
         statusEl.textContent = '本地模板';
-        statusEl.style.background = '#95a5a6';
+        statusEl.classList.add('is-local-template');
         modeLabelEl.textContent = '未接入真实 AI';
-        if (configStatusEl) configStatusEl.innerHTML = `<span style="color:#95a5a6;">● 当前使用本地模板</span>`;
+        if (configStatusEl) configStatusEl.innerHTML = `<span class="ai-config-dot is-muted">● 当前使用本地模板</span>`;
     }
 }
 
@@ -161,13 +162,13 @@ function renderContextRefs(contextRefs, mode) {
         const label = typeLabels[type] || type;
         const visibleRefs = refs.slice(0, 3);
         const hiddenRefs = refs.slice(3);
-        html += `<div style="margin-bottom:10px;">
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;font-weight:600;">📂 ${escapeHtml(label)}（${refs.length}条）</div>`;
+        html += `<div class="ai-context-ref-group">
+            <div class="ai-context-ref-heading">📂 ${escapeHtml(label)}（${refs.length}条）</div>`;
         visibleRefs.forEach(ref => { html += renderContextRefItem(ref); });
         if (hiddenRefs.length > 0) {
             html += `<details class="ai-context-more">
                 <summary>查看其余 ${hiddenRefs.length} 条引用</summary>
-                <div style="margin-top:6px;">${hiddenRefs.map(ref => renderContextRefItem(ref)).join('')}</div>
+                <div class="ai-context-extra-list">${hiddenRefs.map(ref => renderContextRefItem(ref)).join('')}</div>
             </details>`;
         }
         html += '</div>';
@@ -222,7 +223,7 @@ function renderAIWorkspace() {
                             <button class="btn btn-secondary btn-xs" onclick="toggleSystemQAPromptManageMode()">${systemQAPromptManageMode ? '完成' : '管理'}</button>
                         </div>
                     </div>
-                    <div id="systemQAPromptManageBar" class="system-qa-manage-bar" style="display:${systemQAPromptManageMode ? 'flex' : 'none'};">
+                    <div id="systemQAPromptManageBar" class="system-qa-manage-bar ${systemQAPromptManageMode ? '' : 'is-hidden'}">
                         <button class="btn btn-primary btn-xs" onclick="addSystemQAPrompt()">新增</button>
                         <button class="btn btn-secondary btn-xs" onclick="restoreDefaultSystemQAPrompts()">恢复默认</button>
                     </div>
@@ -235,7 +236,7 @@ function renderAIWorkspace() {
                             <button id="systemQAHistoryBatchToggle" class="btn btn-secondary btn-xs" onclick="toggleSystemQAHistoryBatchMode()">${systemQAHistoryBatchMode ? '完成' : '批量'}</button>
                         </div>
                     </div>
-                    <div id="systemQAHistoryBatchBar" class="system-qa-manage-bar" style="display:${systemQAHistoryBatchMode ? 'flex' : 'none'};">
+                    <div id="systemQAHistoryBatchBar" class="system-qa-manage-bar ${systemQAHistoryBatchMode ? '' : 'is-hidden'}">
                         <button class="btn btn-secondary btn-xs" onclick="selectAllSystemQAHistory()">全选</button>
                         <button class="btn btn-danger btn-xs" onclick="deleteSelectedSystemQAConversations()">删除选中</button>
                     </div>
@@ -244,8 +245,8 @@ function renderAIWorkspace() {
             </aside>
 
             <section class="system-qa-main">
-                <div id="systemQAHelp" class="system-qa-help" style="display:none;">可按下方“回答依据”选择当前系统、已导入知识库或联网搜索。AI 只负责读取和分析，不会自动修改任何数据。知识库/Obsidian 指已经导入到系统资料库的内容，不会实时搜索未导入的 Obsidian 文件，也不会仅凭文件路径自动读取 Word、PDF 或网页正文。</div>
-                <div id="aiConfigStatus" class="ai-config-status system-qa-status-hidden"><span style="color:#95a5a6;">● 加载中...</span></div>
+                <div id="systemQAHelp" class="system-qa-help is-hidden">可按下方“回答依据”选择当前系统、已导入知识库或联网搜索。AI 只负责读取和分析，不会自动修改任何数据。知识库/Obsidian 指已经导入到系统资料库的内容，不会实时搜索未导入的 Obsidian 文件，也不会仅凭文件路径自动读取 Word、PDF 或网页正文。</div>
+                <div id="aiConfigStatus" class="ai-config-status system-qa-status-hidden"><span class="ai-config-dot is-muted">● 加载中...</span></div>
 
                 <div id="aiConversationArea" class="system-qa-conversation">
                     <div class="ai-chat-empty">输入问题后发送。生成后可以继续追问，比如“按班级分组”“展开第 3 个学生”“说得简单一点”。</div>
@@ -280,8 +281,8 @@ function renderAIWorkspace() {
                     </div>
                 </div>
                 <div id="agentOutput" class="ai-output-content system-qa-hidden-output">暂无回答。</div>
-                <div id="outputActions" style="display:none;"></div>
-                <div id="taskRecordInfo" class="ai-task-record" style="display:none;"></div>
+                <div id="outputActions" class="system-qa-hidden"></div>
+                <div id="taskRecordInfo" class="ai-task-record is-hidden"></div>
             </section>
 
             <aside class="system-qa-reference-panel">
@@ -345,7 +346,7 @@ function renderSystemQAPrompts() {
             ${items.map(prompt => `
                 <div class="system-qa-prompt-item ${systemQAPromptManageMode ? 'manage' : ''}">
                     <button class="system-qa-chip" data-question="${escapeHtml(prompt.text)}" onclick="fillSystemQAQuestion(this.dataset.question)">${escapeHtml(prompt.text)}</button>
-                    <div class="system-qa-prompt-tools" style="display:${systemQAPromptManageMode ? 'flex' : 'none'};">
+                    <div class="system-qa-prompt-tools ${systemQAPromptManageMode ? '' : 'is-hidden'}">
                         <button class="system-qa-icon-btn" title="编辑" onclick="editSystemQAPrompt('${escapeHtml(prompt.id)}')">改</button>
                         <button class="system-qa-icon-btn danger" title="删除" onclick="deleteSystemQAPrompt('${escapeHtml(prompt.id)}')">删</button>
                     </div>
@@ -549,7 +550,7 @@ function renderSystemQAHistory() {
                 <span>${item.pinned ? '置顶 · ' : ''}${escapeHtml(item.title || '新对话')}</span>
                 <small>${new Date(item.updatedAt || item.createdAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</small>
             </button>
-            <div class="system-qa-history-tools" style="display:${systemQAHistoryBatchMode ? 'none' : 'flex'};">
+            <div class="system-qa-history-tools ${systemQAHistoryBatchMode ? 'is-hidden' : ''}">
                 <div class="system-qa-history-menu-wrap">
                     <button class="system-qa-history-more" title="更多操作" onclick="toggleSystemQAHistoryMenu('${item.id}', event)">⋯</button>
                     ${openSystemQAHistoryMenuId === item.id ? `
@@ -569,7 +570,7 @@ function toggleSystemQAHistoryBatchMode() {
     openSystemQAHistoryMenuId = '';
     if (!systemQAHistoryBatchMode) selectedSystemQAConversationIds.clear();
     const bar = document.getElementById('systemQAHistoryBatchBar');
-    if (bar) bar.style.display = systemQAHistoryBatchMode ? 'flex' : 'none';
+    if (bar) bar.classList.toggle('is-hidden', !systemQAHistoryBatchMode);
     const btn = document.getElementById('systemQAHistoryBatchToggle');
     if (btn) btn.textContent = systemQAHistoryBatchMode ? '完成' : '批量';
     renderSystemQAHistory();
@@ -768,12 +769,12 @@ function updateTaskRecordInfo() {
         getSystemQAProviderLabel(lastTaskProvider)
     ].filter(Boolean);
     if (!parts.length) {
-        taskInfo.style.display = 'none';
+        taskInfo.classList.add('is-hidden');
         taskInfo.textContent = '';
         return;
     }
     taskInfo.textContent = parts.join(' · ');
-    taskInfo.style.display = 'inline-block';
+    taskInfo.classList.remove('is-hidden');
 }
 
 function getSystemQAModeLabel(mode) {
@@ -861,7 +862,7 @@ function startSystemQAConversation() {
     const output = document.getElementById('agentOutput');
     if (output) output.innerHTML = '暂无回答。';
     const taskInfo = document.getElementById('taskRecordInfo');
-    if (taskInfo) taskInfo.style.display = 'none';
+    if (taskInfo) taskInfo.classList.add('is-hidden');
     saveSystemQAConversations();
     showToast('已开始新对话');
 }
@@ -922,7 +923,7 @@ function autoResizeSystemQAInput(input) {
 function toggleSystemQAHelp() {
     const help = document.getElementById('systemQAHelp');
     if (!help) return;
-    help.style.display = help.style.display === 'none' ? 'block' : 'none';
+    help.classList.toggle('is-hidden');
 }
 
 function openSystemQAFullInput() {
@@ -1151,17 +1152,20 @@ function buildAIJumpQuestion(agentId, taskType, relatedType, relatedId) {
 function updateRelatedHint() {
     const hintEl = document.getElementById('relatedObjectHint');
     if (!hintEl) return;
-    if (!currentRelatedType || !currentRelatedId) { hintEl.style.display = 'none'; return; }
+    if (!currentRelatedType || !currentRelatedId) {
+        hintEl.classList.add('is-hidden');
+        return;
+    }
     const typeLabel = currentRelatedType === 'student' ? '学员' : currentRelatedType === 'prospect' ? '意向学员' : currentRelatedType;
-    hintEl.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">📌 已关联: ${escapeHtml(typeLabel)} (ID: ${escapeHtml(currentRelatedId)})</span>`;
-    hintEl.style.display = 'block';
+    hintEl.innerHTML = `<span class="system-qa-related-hint">📌 已关联: ${escapeHtml(typeLabel)} (ID: ${escapeHtml(currentRelatedId)})</span>`;
+    hintEl.classList.remove('is-hidden');
 }
 
 function clearRelatedHint() {
     currentRelatedType = '';
     currentRelatedId = '';
     const hintEl = document.getElementById('relatedObjectHint');
-    if (hintEl) hintEl.style.display = 'none';
+    if (hintEl) hintEl.classList.add('is-hidden');
 }
 
 window.jumpToAIAgent = jumpToAIAgent;
