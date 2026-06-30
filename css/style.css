@@ -4064,6 +4064,26 @@ body.dark-mode .record-link-btn:hover {
 .operation-log-time {
     white-space: nowrap;
 }
+.operation-log-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    min-width: 136px;
+}
+.operation-log-actions .btn {
+    min-height: 26px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+.operation-log-undo-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    color: var(--text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
 .modal-loading-text {
     padding: 16px;
     color: var(--text-muted);

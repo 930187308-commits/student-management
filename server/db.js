@@ -1199,12 +1199,13 @@ function createBackup(reason = 'manual') {
     }
     fs.writeFileSync(jsonBackupPath, JSON.stringify(getBackupData(), null, 2));
 
-    getDb().prepare(`
+    const result = getDb().prepare(`
         INSERT INTO backup_log (backup_path, json_path, reason, created_at)
         VALUES (?, ?, ?, ?)
     `).run(sqliteBackupPath, jsonBackupPath, reason, nowIso());
 
     return {
+        id: Number(result.lastInsertRowid),
         sqliteBackupPath,
         jsonBackupPath,
         createdAt: nowIso()

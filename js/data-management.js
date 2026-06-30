@@ -69,25 +69,37 @@ function openOperationLogModal() {
     const logs = [...(data.operationLogs || [])]
         .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
         .slice(0, 100);
-    const rows = logs.map(log => `
-        <tr>
-            <td class="operation-log-time">${escapeHtml(formatOperationLogTime(log.createdAt))}</td>
-            <td>${escapeHtml(log.module || '-')}</td>
-            <td>${escapeHtml(log.targetName || '-')}</td>
-            <td>${escapeHtml(log.summary || '-')}</td>
-        </tr>
-    `).join('');
+    const rows = logs.map(log => {
+        const canRollback = log.canUndo && log.undoStatus !== 'done';
+        const hasRestorePoint = !!log.beforeBackupId;
+        const undoText = log.undoStatus === 'done' ? '已撤销此步' : (canRollback ? '撤销此步' : '不可单步撤销');
+        const undoAction = canRollback
+            ? `<button type="button" class="btn btn-warning operation-log-rollback-btn" onclick="rollbackOperationLog('${escapeHtml(log.id)}')">撤销此步</button>`
+            : `<span class="operation-log-undo-status">${escapeHtml(undoText)}</span>`;
+        const restoreAction = hasRestorePoint
+            ? `<button type="button" class="btn btn-secondary operation-log-restore-btn" onclick="restoreOperationLogPoint('${escapeHtml(log.id)}')">回到此前</button>`
+            : `<span class="operation-log-undo-status">无备份点</span>`;
+        return `
+            <tr>
+                <td class="operation-log-time">${escapeHtml(formatOperationLogTime(log.createdAt))}</td>
+                <td>${escapeHtml(log.module || '-')}</td>
+                <td>${escapeHtml(log.targetName || '-')}</td>
+                <td>${escapeHtml(log.summary || '-')}</td>
+                <td><div class="operation-log-actions">${undoAction}${restoreAction}</div></td>
+            </tr>
+        `;
+    }).join('');
 
     document.getElementById('modalTitle').textContent = '操作日志';
     document.getElementById('modalBody').innerHTML = `
         <div class="operation-log-modal">
             <div class="operation-log-note">
-                记录核心业务的新增、编辑、删除和系统动作。当前仅用于追溯，撤回仍使用顶部“撤回上一步”。
+                记录核心业务的新增、编辑、删除和系统动作。“撤销此步”只反向处理这一条记录；“回到此前”会恢复到该操作前的整体备份点，等于撤销这一步以及之后所有操作。旧日志如果没有备份点，只能用于追溯。
             </div>
             ${logs.length === 0 ? '<div class="empty-state">暂无操作记录。之后新增、编辑、删除核心数据会自动记录。</div>' : `
                 <div class="table-wrapper">
                     <table class="operation-log-table">
-                        <thead><tr><th>时间</th><th>模块</th><th>对象</th><th>记录</th></tr></thead>
+                        <thead><tr><th>时间</th><th>模块</th><th>对象</th><th>记录</th><th>操作</th></tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
                 </div>

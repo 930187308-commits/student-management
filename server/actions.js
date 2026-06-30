@@ -211,6 +211,10 @@ function saveClassWithTransitions(classItem, options = {}) {
             changedStudents += student.status === 'renewalPending' ? 0 : 1;
             return { ...student, status: 'renewalPending' };
         }
+        if (!isNew && oldStatus === 'finished' && newStatus === 'active' && options.restoreStudentsActive && student.classId === classId && student.status === 'renewalPending') {
+            restoredStudents += 1;
+            return { ...student, status: 'active' };
+        }
         return student;
     });
     const saved = setData({
@@ -228,6 +232,7 @@ function saveClassWithTransitions(classItem, options = {}) {
         prospects: saved.prospects,
         created: isNew,
         changedStudents,
+        restoredStudents,
         clearedProspects,
         updatedAt: saved.lastModified
     };

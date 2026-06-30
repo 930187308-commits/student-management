@@ -346,6 +346,7 @@ async function saveClass(e) {
     const oldStatus = oldClass?.status;
     const newStatus = form.status.value;
     const statusChangedToFinished = !isNew && oldStatus !== 'finished' && newStatus === 'finished';
+    const statusRestoredToActive = !isNew && oldStatus === 'finished' && newStatus === 'active';
 
     const classData = {
         id: currentEditId || generateId(),
@@ -360,15 +361,20 @@ async function saveClass(e) {
     if (!classData.archived) delete classData.archivedAt;
 
     const markStudentsRenewalPending = statusChangedToFinished ? shouldMarkClassStudentsRenewalPending(currentEditId) : false;
+    const restoreStudentsActive = statusRestoredToActive ? shouldRestoreClassStudentsActive(currentEditId) : false;
 
     try {
-        await saveClassWithTransitionsToApi(classData, { markStudentsRenewalPending });
+        const result = await saveClassWithTransitionsToApi(classData, { markStudentsRenewalPending, restoreStudentsActive });
+        closeModal();
+        if (restoreStudentsActive && result?.restoredStudents > 0) {
+            showToast(`保存成功，已恢复 ${result.restoredStudents} 名学员为在读`);
+        } else {
+            showToast('保存成功');
+        }
     } catch (error) {
         showToast('保存失败：' + error.message);
         return;
     }
-    closeModal();
-    showToast('保存成功');
     render();
 }
 
@@ -405,6 +411,16 @@ function shouldMarkClassStudentsRenewalPending(classId) {
         return false;
     }
     return true;
+}
+
+function shouldRestoreClassStudentsActive(classId) {
+    const renewalStudents = (data.students || []).filter(s =>
+        s.classId === classId && s.status === 'renewalPending'
+    );
+    if (renewalStudents.length === 0) return false;
+    const names = renewalStudents.slice(0, 8).map(s => s.name).join('、');
+    const more = renewalStudents.length > 8 ? `等 ${renewalStudents.length} 人` : `${renewalStudents.length} 人`;
+    return confirm(`这个班级当前有 ${more} 待续费学员：${names}\n\n是否同步恢复为“在读”？\n\n如果刚才只是试用“已结课”功能，建议选择“确定”。\n如果这些学员确实还需要续费确认，请选择“取消”，只恢复班级状态。`);
 }
 
 function openArchivedClassManager() {

@@ -235,12 +235,16 @@ function buildChangedFieldText(collectionName, beforeItem = {}, afterItem = {}) 
     return changed.slice(0, 6).join('、') + (changed.length > 6 ? `等${changed.length}项` : '');
 }
 
-function buildOperationLogEntry({ collectionName, action, beforeItem, afterItem, detail }) {
+function buildOperationLogEntry({ collectionName, action, beforeItem, afterItem, detail, beforeBackup }) {
     const item = afterItem || beforeItem || {};
     const moduleName = getCollectionLabel(collectionName);
     const targetName = getOperationTargetName(collectionName, item);
     const actionLabel = action === 'create' ? '新增' : action === 'delete' ? '删除' : action === 'batch' ? '批量保存' : action === 'action' ? '执行' : '更新';
     const changedText = action === 'update' ? `（${buildChangedFieldText(collectionName, beforeItem, afterItem)}）` : '';
+    const canUndo = ['create', 'update', 'delete'].includes(action)
+        && !!collectionName
+        && collectionName !== 'operationLogs'
+        && (action === 'create' ? !!afterItem : !!beforeItem);
     return {
         id: `op_${Date.now()}_${Math.random().toString(16).slice(2)}`,
         action,
@@ -251,7 +255,12 @@ function buildOperationLogEntry({ collectionName, action, beforeItem, afterItem,
         targetName,
         studentId: getOperationStudentId(collectionName, item),
         summary: detail || `${actionLabel}${moduleName}：${targetName}${changedText}`,
-        canUndo: false,
+        beforeItem: beforeItem ? cloneData(beforeItem) : null,
+        afterItem: afterItem ? cloneData(afterItem) : null,
+        beforeBackupId: beforeBackup?.id || beforeBackup?.backup?.id || null,
+        beforeBackupCreatedAt: beforeBackup?.createdAt || beforeBackup?.backup?.createdAt || '',
+        canUndo,
+        undoStatus: canUndo ? 'available' : 'unsupported',
         source: 'web',
         createdAt: new Date().toISOString()
     };
@@ -269,6 +278,133 @@ async function recordOperationLog(entry) {
         return saved;
     } catch (error) {
         console.warn('记录操作日志失败:', error);
+    }
+}
+
+async function createOperationPreBackup(summary) {
+    return createServerBackup(`操作前自动备份：${summary || '业务操作'}`);
+}
+
+function getOperationUndoLabel(action) {
+    if (action === 'create') return '删除这次新增的记录';
+    if (action === 'update') return '恢复到编辑前';
+    if (action === 'delete') return '恢复被删除的记录';
+    return '不可回退';
+}
+
+async function rollbackOperationLog(logId) {
+    const log = (data.operationLogs || []).find(item => String(item.id) === String(logId));
+    if (!log) {
+        showToast('操作日志不存在');
+        return;
+    }
+    if (!log.canUndo || log.undoStatus === 'done') {
+        showToast(log.undoStatus === 'done' ? '这条操作日志已回退过' : '这条操作日志不支持回退');
+        return;
+    }
+
+    const collectionName = log.collectionName;
+    if (!collectionName || !Array.isArray(data[collectionName])) {
+        showToast('该模块暂不支持从操作日志回退');
+        return;
+    }
+
+    const actionText = getOperationUndoLabel(log.action);
+    if (!confirm(`确定要${actionText}吗？\n\n对象：${log.targetName || '-'}\n记录：${log.summary || '-'}\n\n系统会先自动创建一份备份，再执行回退。`)) {
+        return;
+    }
+
+    await createServerBackup(`操作日志回退前自动备份：${log.summary || log.targetName || logId}`);
+
+    const items = data[collectionName] || [];
+    const targetId = String(log.targetId || log.afterItem?.id || log.beforeItem?.id || '');
+    let nextItems = items;
+    let rollbackSummary = '';
+
+    if (log.action === 'create') {
+        nextItems = items.filter(item => String(item.id) !== targetId);
+        rollbackSummary = `回退新增：删除${log.module || collectionName}“${log.targetName || targetId}”`;
+    } else if (log.action === 'update') {
+        if (!log.beforeItem) {
+            showToast('缺少编辑前记录，无法回退');
+            return;
+        }
+        const exists = items.some(item => String(item.id) === targetId);
+        nextItems = exists
+            ? items.map(item => String(item.id) === targetId ? cloneData(log.beforeItem) : item)
+            : [...items, cloneData(log.beforeItem)];
+        rollbackSummary = `回退编辑：恢复${log.module || collectionName}“${log.targetName || targetId}”`;
+    } else if (log.action === 'delete') {
+        if (!log.beforeItem) {
+            showToast('缺少删除前记录，无法回退');
+            return;
+        }
+        const exists = items.some(item => String(item.id) === String(log.beforeItem.id));
+        nextItems = exists
+            ? items.map(item => String(item.id) === String(log.beforeItem.id) ? cloneData(log.beforeItem) : item)
+            : [...items, cloneData(log.beforeItem)];
+        rollbackSummary = `回退删除：恢复${log.module || collectionName}“${log.targetName || targetId}”`;
+    } else {
+        showToast('该操作类型暂不支持回退');
+        return;
+    }
+
+    try {
+        await saveCollectionToApi(collectionName, nextItems, { skipOperationLog: true });
+        const updatedLog = {
+            ...log,
+            canUndo: false,
+            undoStatus: 'done',
+            undoneAt: new Date().toISOString()
+        };
+        await saveCollectionItemToApi('operationLogs', updatedLog, {
+            skipUndo: true,
+            skipOperationLog: true,
+            skipToast: true
+        });
+        await recordOperationLog({
+            id: `op_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+            action: 'rollback',
+            module: '操作日志',
+            collectionName: 'operationLogs',
+            targetType: collectionName,
+            targetId,
+            targetName: log.targetName || targetId,
+            studentId: log.studentId || '',
+            summary: rollbackSummary,
+            canUndo: false,
+            undoStatus: 'unsupported',
+            source: 'web',
+            createdAt: new Date().toISOString()
+        });
+        showToast('已根据操作日志回退');
+        render();
+        if (typeof openOperationLogModal === 'function') openOperationLogModal();
+    } catch (error) {
+        showToast('回退失败：' + error.message);
+    }
+}
+
+async function restoreOperationLogPoint(logId) {
+    const log = (data.operationLogs || []).find(item => String(item.id) === String(logId));
+    if (!log) {
+        showToast('操作日志不存在');
+        return;
+    }
+    if (!log.beforeBackupId) {
+        showToast('这条日志没有操作前备份点，无法回到此前');
+        return;
+    }
+    if (!confirm(`确定回到这次操作之前的状态吗？\n\n对象：${log.targetName || '-'}\n记录：${log.summary || '-'}\n\n这会撤销该操作以及之后的所有操作。系统会在恢复前自动再创建一份备份。`)) {
+        return;
+    }
+    try {
+        await restoreServerBackup(log.beforeBackupId);
+        showToast('已回到该操作之前的状态');
+        render();
+        if (typeof openOperationLogModal === 'function') openOperationLogModal();
+    } catch (error) {
+        showToast('恢复失败：' + error.message);
     }
 }
 
@@ -764,6 +900,10 @@ async function saveCollectionToApi(collectionName, items, options = {}) {
     if (!options.skipUndo && lastSavedDataSnapshot) {
         undoDataSnapshot = cloneData(lastSavedDataSnapshot);
     }
+    const shouldRecordOperation = !options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName);
+    const beforeBackup = shouldRecordOperation
+        ? await createOperationPreBackup(`批量保存${getCollectionLabel(collectionName)}`)
+        : null;
     const response = await fetch(`${SERVER_URL}/api/${collectionName}`, {
         method: 'PUT',
         headers: {
@@ -787,10 +927,11 @@ async function saveCollectionToApi(collectionName, items, options = {}) {
     dataModified = false;
     updateAutoSaveIndicator();
     updateUndoButton();
-    if (!options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName)) {
+    if (shouldRecordOperation) {
         await recordOperationLog(buildOperationLogEntry({
             collectionName,
             action: 'batch',
+            beforeBackup,
             detail: `批量保存${getCollectionLabel(collectionName)}：${items.length} 条`
         }));
     }
@@ -808,6 +949,10 @@ async function saveCollectionItemToApi(collectionName, item, options = {}) {
     const url = item && item.id
         ? `${SERVER_URL}/api/${collectionName}/${encodeURIComponent(item.id)}`
         : `${SERVER_URL}/api/${collectionName}`;
+    const shouldRecordOperation = !options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName);
+    const beforeBackup = shouldRecordOperation
+        ? await createOperationPreBackup(`${beforeItem ? '编辑' : '新增'}${getCollectionLabel(collectionName)}：${getOperationTargetName(collectionName, item || beforeItem || {})}`)
+        : null;
     const response = await fetch(url, {
         method,
         headers: {
@@ -831,12 +976,13 @@ async function saveCollectionItemToApi(collectionName, item, options = {}) {
     dataModified = false;
     updateAutoSaveIndicator();
     updateUndoButton();
-    if (!options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName)) {
+    if (shouldRecordOperation) {
         await recordOperationLog(buildOperationLogEntry({
             collectionName,
             action: beforeItem ? 'update' : 'create',
             beforeItem,
-            afterItem: payload.item
+            afterItem: payload.item,
+            beforeBackup
         }));
     }
     return payload.item;
@@ -847,6 +993,10 @@ async function deleteCollectionItemFromApi(collectionName, id, options = {}) {
         undoDataSnapshot = cloneData(lastSavedDataSnapshot);
     }
     const beforeItem = (data[collectionName] || []).find(current => String(current.id) === String(id));
+    const shouldRecordOperation = !options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName);
+    const beforeBackup = shouldRecordOperation
+        ? await createOperationPreBackup(`删除${getCollectionLabel(collectionName)}：${getOperationTargetName(collectionName, beforeItem || { id })}`)
+        : null;
     const response = await fetch(`${SERVER_URL}/api/${collectionName}/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: {
@@ -869,11 +1019,12 @@ async function deleteCollectionItemFromApi(collectionName, id, options = {}) {
     dataModified = false;
     updateAutoSaveIndicator();
     updateUndoButton();
-    if (!options.skipOperationLog && OPERATION_LOG_COLLECTIONS.has(collectionName)) {
+    if (shouldRecordOperation) {
         await recordOperationLog(buildOperationLogEntry({
             collectionName,
             action: 'delete',
-            beforeItem: payload.deleted || beforeItem
+            beforeItem: payload.deleted || beforeItem,
+            beforeBackup
         }));
     }
     return payload.deleted;
@@ -885,6 +1036,10 @@ async function runActionToApi(path, options = {}) {
     }
     const method = options.method || 'POST';
     const body = options.body || {};
+    const shouldRecordOperation = !options.skipOperationLog && method !== 'GET';
+    const beforeBackup = shouldRecordOperation
+        ? await createOperationPreBackup(options.operationSummary || `系统操作：${path}`)
+        : null;
     const response = await fetch(`${SERVER_URL}${path}`, {
         method,
         headers: {
@@ -913,7 +1068,7 @@ async function runActionToApi(path, options = {}) {
     dataModified = false;
     updateAutoSaveIndicator();
     updateUndoButton();
-    if (!options.skipOperationLog && method !== 'GET') {
+    if (shouldRecordOperation) {
         await recordOperationLog({
             id: `op_${Date.now()}_${Math.random().toString(16).slice(2)}`,
             action: 'action',
@@ -925,6 +1080,9 @@ async function runActionToApi(path, options = {}) {
             studentId: '',
             summary: options.operationSummary || `执行系统操作：${path}`,
             canUndo: false,
+            undoStatus: 'unsupported',
+            beforeBackupId: beforeBackup?.id || null,
+            beforeBackupCreatedAt: beforeBackup?.createdAt || '',
             source: 'web',
             createdAt: new Date().toISOString()
         });
