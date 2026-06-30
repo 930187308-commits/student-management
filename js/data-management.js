@@ -473,11 +473,63 @@ async function restoreBackupFromList(id) {
 }
 
 // 一键导出所有Excel文件
+function getDataExportSchoolHistory(student = {}) {
+    if (typeof getSchoolHistory === 'function') return getSchoolHistory(student);
+    const history = student.schoolHistory || {};
+    const result = {
+        primarySchool: String(history.primarySchool || '').trim(),
+        middleSchool: String(history.middleSchool || '').trim(),
+        highSchool: String(history.highSchool || '').trim()
+    };
+    const legacySchool = String(student.school || '').trim();
+    if (legacySchool) {
+        if (['五年级', '六年级'].includes(student.grade) && !result.primarySchool) result.primarySchool = legacySchool;
+        if (['初一', '初二', '初三', '七年级', '八年级', '九年级'].includes(student.grade) && !result.middleSchool) result.middleSchool = legacySchool;
+        if (['高一', '高二', '高三'].includes(student.grade) && !result.highSchool) result.highSchool = legacySchool;
+    }
+    return result;
+}
+
+function getDataExportProspectContactLogs(prospect = {}) {
+    return (Array.isArray(prospect.contactLogs) ? prospect.contactLogs : [])
+        .filter(log => log && typeof log === 'object')
+        .map(log => ({ ...log }))
+        .sort((a, b) => {
+            const left = `${a.contactDate || ''} ${a.updatedAt || a.createdAt || ''}`;
+            const right = `${b.contactDate || ''} ${b.updatedAt || b.createdAt || ''}`;
+            return right.localeCompare(left);
+        });
+}
+
+function getDataExportProspectContactStatusLabel(status = '') {
+    const map = {
+        pending: '待跟进',
+        done: '已沟通',
+        trialBooked: '已约试课',
+        noReply: '未回复',
+        closed: '已结束'
+    };
+    return map[status] || status || '待跟进';
+}
+
+function getDataExportProspectContactLogsText(prospect = {}) {
+    return getDataExportProspectContactLogs(prospect)
+        .map(log => [
+            log.contactDate || '',
+            log.contactType || '',
+            getDataExportProspectContactStatusLabel(log.status),
+            log.content || '',
+            log.nextAction || ''
+        ].filter(Boolean).join(' '))
+        .join('\n');
+}
+
 function exportAllStudents() {
     const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业', forming: '组班中（旧）' };
-    const headers = ['姓名', '性别', '年级', '所在班级', '授课老师', '入班时间', '首次入学', '联系电话', '紧急联系人', '就读学校', '状态', '跟进状态', '备注'];
+    const headers = ['姓名', '性别', '年级', '所在班级', '授课老师', '入班时间', '首次入学', '首次上课年级', '联系电话', '紧急联系人', '小学学校', '初中学校', '高中学校', '状态', '备注'];
     const rows = (data.students || []).map(s => {
         const cls = (data.classes || []).find(c => c.id === s.classId);
+        const history = getDataExportSchoolHistory(s);
         return [
             s.name || '',
             s.gender || '',
@@ -486,11 +538,13 @@ function exportAllStudents() {
             s.teacher || '',
             s.enrollDate || '',
             s.firstEnrollDate || '',
+            s.firstEnrollGrade || '',
             s.phone || '',
             s.emergencyContact || '',
-            s.school || '',
+            history.primarySchool || '',
+            history.middleSchool || '',
+            history.highSchool || '',
             statusMap[s.status] || s.status || '',
-            s.followUpStatus || '',
             s.remark || ''
         ];
     });
@@ -516,8 +570,18 @@ function exportAllExcel() {
 
     // 导出成绩记录
     if (data.grades && data.grades.length > 0) {
-        const gradeHeaders = ['学员', '测试名称', '日期', '类型', '得分', '满分', '排名', '薄弱点', '备注'];
-        const gradeRows = data.grades.map(g => [g.studentName, g.testName, g.testDate, g.examType === 'school' ? '校内' : '校外', g.score, g.fullScore, `第${g.ranking}名`, g.weakPoints || '', g.remark || '']);
+        const gradeHeaders = ['学员', '测试名称', '日期', '类型', '得分', '满分', '排名', '备注', '薄弱点'];
+        const gradeRows = data.grades.map(g => [
+            g.studentName,
+            g.testName,
+            g.testDate,
+            g.examType === 'school' ? '校内' : '校外',
+            g.score,
+            g.fullScore,
+            g.ranking != null && g.ranking !== '' ? `第${g.ranking}名` : '未知',
+            g.remark || '',
+            g.weakPoints || ''
+        ]);
         const gradeWs = XLSX.utils.aoa_to_sheet([gradeHeaders, ...gradeRows]);
         formatExcelSheet(gradeWs, [gradeHeaders, ...gradeRows]);
         const gradeWb = XLSX.utils.book_new();
@@ -530,8 +594,26 @@ function exportAllExcel() {
         data.classes.forEach(cls => {
             const students = data.students.filter(s => s.classId === cls.id);
             if (students.length > 0) {
-                const stuHeaders = ['姓名', '性别', '年级', '授课老师', '联系电话', '就读学校', '状态', '备注'];
-                const stuRows = students.map(s => [s.name, s.gender, s.grade, s.teacher, s.phone || '', s.school || '', s.status === 'active' ? '在读' : s.status, s.remark || '']);
+                const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业', forming: '组班中（旧）' };
+                const stuHeaders = ['姓名', '性别', '年级', '授课老师', '入班时间', '首次入学', '首次上课年级', '联系电话', '小学学校', '初中学校', '高中学校', '状态', '备注'];
+                const stuRows = students.map(s => {
+                    const history = getDataExportSchoolHistory(s);
+                    return [
+                        s.name || '',
+                        s.gender || '',
+                        s.grade || '',
+                        s.teacher || '',
+                        s.enrollDate || '',
+                        s.firstEnrollDate || '',
+                        s.firstEnrollGrade || '',
+                        s.phone || '',
+                        history.primarySchool || '',
+                        history.middleSchool || '',
+                        history.highSchool || '',
+                        statusMap[s.status] || s.status || '',
+                        s.remark || ''
+                    ];
+                });
                 const stuWs = XLSX.utils.aoa_to_sheet([stuHeaders, ...stuRows]);
                 formatExcelSheet(stuWs, [stuHeaders, ...stuRows], { maxWidth: 34 });
                 const stuWb = XLSX.utils.book_new();
@@ -557,8 +639,30 @@ function exportAllExcel() {
 
     // 导出意向学员
     if (data.prospects && data.prospects.length > 0) {
-        const proHeaders = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '备注', '录入日期'];
-        const proRows = data.prospects.map(p => [p.name, p.grade || '', p.phone || '', p.wechat || '', p.source || '', p.intent || '', p.trialDate || '', { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' }[p.trialStatus] || '', p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交', p.remark || '', p.createDate || '']);
+        const proHeaders = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触/沟通条数', '最近接触/沟通', '接触/沟通记录', '备注', '录入日期'];
+        const proRows = data.prospects.map(p => {
+            const logs = getDataExportProspectContactLogs(p);
+            const latest = logs[0] || {};
+            const latestContact = logs.length
+                ? [latest.contactDate || '', latest.contactType || '', getDataExportProspectContactStatusLabel(latest.status)].filter(Boolean).join(' · ')
+                : '';
+            return [
+                p.name || '',
+                p.grade || '',
+                p.phone || '',
+                p.wechat || '',
+                p.source || '',
+                p.intent || '',
+                p.trialDate || '',
+                { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' }[p.trialStatus] || '',
+                p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交',
+                logs.length,
+                latestContact,
+                getDataExportProspectContactLogsText(p),
+                p.remark || '',
+                p.createDate || ''
+            ];
+        });
         const proWs = XLSX.utils.aoa_to_sheet([proHeaders, ...proRows]);
         formatExcelSheet(proWs, [proHeaders, ...proRows]);
         const proWb = XLSX.utils.book_new();
