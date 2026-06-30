@@ -524,6 +524,90 @@ function getDataExportProspectContactLogsText(prospect = {}) {
         .join('\n');
 }
 
+function getDataExportClassStatusLabel(status = '') {
+    const map = { active: '正常', forming: '组班中', finished: '已结课' };
+    return map[status] || status || '';
+}
+
+function getDataExportSafeSheetName(name = 'Sheet', usedNames = new Set()) {
+    const raw = String(name || 'Sheet')
+        .replace(/[\\/?*[\]:]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || 'Sheet';
+    const base = raw.slice(0, 31) || 'Sheet';
+    let candidate = base;
+    let index = 2;
+    while (usedNames.has(candidate)) {
+        const suffix = `_${index}`;
+        candidate = `${base.slice(0, 31 - suffix.length)}${suffix}`;
+        index += 1;
+    }
+    usedNames.add(candidate);
+    return candidate;
+}
+
+function getDataExportClassCounts(cls = {}) {
+    const classId = String(cls.id || '');
+    return {
+        formalStudents: (data.students || []).filter(s =>
+            String(s.classId || '') === classId &&
+            ['active', 'renewalPending'].includes(s.status || 'active')
+        ).length,
+        formingProspects: (data.prospects || []).filter(p =>
+            String(p.classId || '') === classId &&
+            p.trialStatus === 'forming'
+        ).length
+    };
+}
+
+function getDataExportAttendanceRowsForClass(cls = {}) {
+    const classId = String(cls.id || '');
+    const sessions = (data.attendance || [])
+        .filter(a => String(a.classId || '') === classId)
+        .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (!sessions.length) return null;
+
+    const allDates = [...new Set(sessions.map(s => s.date || '').filter(Boolean))].sort();
+    if (!allDates.length) return null;
+
+    const sessionHeader = ['学员姓名', ...allDates.map((date, index) => {
+        const session = sessions.find(item => (item.date || '') === date);
+        return session?.sessionName || `第${index + 1}次`;
+    }), '出勤次数', '请假次数'];
+    const dateHeader = ['上课日期', ...allDates, '', ''];
+
+    const studentMap = new Map((data.students || []).map(s => [String(s.id), s]));
+    const studentIds = new Set();
+    (data.students || [])
+        .filter(s => String(s.classId || '') === classId)
+        .forEach(s => studentIds.add(String(s.id)));
+    sessions.forEach(session => {
+        Object.keys(session.records || {}).forEach(id => studentIds.add(String(id)));
+    });
+
+    const rows = Array.from(studentIds).map(id => {
+        const student = studentMap.get(String(id));
+        let present = 0;
+        let absent = 0;
+        const recordValues = allDates.map(date => {
+            const session = sessions.find(item => (item.date || '') === date);
+            const status = session?.records?.[id];
+            if (status === 1 || status === '1') {
+                present += 1;
+                return '1';
+            }
+            if (status === 0 || status === '0') {
+                absent += 1;
+                return '0';
+            }
+            return '';
+        });
+        return [student?.name || `未知学员(${id})`, ...recordValues, present, absent];
+    });
+
+    return [sessionHeader, dateHeader, ...rows];
+}
+
 function exportAllStudents() {
     const statusMap = { active: '在读', renewalPending: '待续费', inactive: '停课', withdrawn: '退费', graduated: '毕业', forming: '组班中（旧）' };
     const headers = ['姓名', '性别', '年级', '所在班级', '授课老师', '入班时间', '首次入学', '首次上课年级', '联系电话', '紧急联系人', '小学学校', '初中学校', '高中学校', '状态', '备注'];
@@ -557,6 +641,8 @@ function exportAllStudents() {
 }
 
 function exportAllExcel() {
+    const date = new Date().toISOString().split('T')[0];
+
     // 导出收费记录
     if (data.fees && data.fees.length > 0) {
         const feeHeaders = ['学员', '金额', '单价', '课时', '缴费日期', '套餐', '缴费方式', '状态', '备注'];
@@ -565,7 +651,7 @@ function exportAllExcel() {
         formatExcelSheet(feeWs, [feeHeaders, ...feeRows]);
         const feeWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(feeWb, feeWs, '收费记录');
-        XLSX.writeFile(feeWb, `收费记录_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(feeWb, `收费记录_${date}.xlsx`);
     }
 
     // 导出成绩记录
@@ -586,11 +672,39 @@ function exportAllExcel() {
         formatExcelSheet(gradeWs, [gradeHeaders, ...gradeRows]);
         const gradeWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(gradeWb, gradeWs, '成绩记录');
-        XLSX.writeFile(gradeWb, `成绩记录_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(gradeWb, `成绩记录_${date}.xlsx`);
+    }
+
+    // 导出班级基础数据
+    if (data.classes && data.classes.length > 0) {
+        const classHeaders = ['班级名称', '年级', '班型', '上课时间', '学期', '满班人数', '状态', '计划课次', '暑假排课', '是否归档', '正式学员数', '组班意向数'];
+        const classRows = data.classes.map(cls => {
+            const counts = getDataExportClassCounts(cls);
+            return [
+                cls.name || '',
+                cls.grade || '',
+                cls.type || '',
+                cls.schedule || '',
+                cls.semester || '',
+                cls.capacity || '',
+                getDataExportClassStatusLabel(cls.status),
+                cls.plannedSessions || '',
+                cls.summerSchedule || '',
+                cls._archived ? '是' : '否',
+                counts.formalStudents,
+                counts.formingProspects
+            ];
+        });
+        const classWs = XLSX.utils.aoa_to_sheet([classHeaders, ...classRows]);
+        formatExcelSheet(classWs, [classHeaders, ...classRows], { maxWidth: 28 });
+        const classWb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(classWb, classWs, '班级数据');
+        XLSX.writeFile(classWb, `班级数据_${date}.xlsx`);
     }
 
     // 导出班级学员
     if (data.classes && data.classes.length > 0) {
+        const usedSheetNames = new Set();
         data.classes.forEach(cls => {
             const students = data.students.filter(s => s.classId === cls.id);
             if (students.length > 0) {
@@ -617,10 +731,26 @@ function exportAllExcel() {
                 const stuWs = XLSX.utils.aoa_to_sheet([stuHeaders, ...stuRows]);
                 formatExcelSheet(stuWs, [stuHeaders, ...stuRows], { maxWidth: 34 });
                 const stuWb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(stuWb, stuWs, cls.name);
-                XLSX.writeFile(stuWb, `班级学员_${cls.name}_${new Date().toISOString().split('T')[0]}.xlsx`);
+                XLSX.utils.book_append_sheet(stuWb, stuWs, getDataExportSafeSheetName(cls.name, usedSheetNames));
+                XLSX.writeFile(stuWb, `班级学员_${cls.name || '未命名班级'}_${date}.xlsx`);
             }
         });
+    }
+
+    // 导出考勤记录：一个工作簿，每个班级一个 sheet
+    if (data.attendance && data.attendance.length > 0) {
+        const attendanceWb = XLSX.utils.book_new();
+        const usedSheetNames = new Set();
+        (data.classes || []).forEach(cls => {
+            const rows = getDataExportAttendanceRowsForClass(cls);
+            if (!rows) return;
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            formatExcelSheet(ws, rows, { maxWidth: 18 });
+            XLSX.utils.book_append_sheet(attendanceWb, ws, getDataExportSafeSheetName(cls.name || '考勤记录', usedSheetNames));
+        });
+        if (attendanceWb.SheetNames.length > 0) {
+            XLSX.writeFile(attendanceWb, `考勤记录_${date}.xlsx`);
+        }
     }
 
     // 导出沟通记录
@@ -634,7 +764,7 @@ function exportAllExcel() {
         formatExcelSheet(commWs, [commHeaders, ...commRows], { maxWidth: 36 });
         const commWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(commWb, commWs, '沟通记录');
-        XLSX.writeFile(commWb, `沟通记录_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(commWb, `沟通记录_${date}.xlsx`);
     }
 
     // 导出意向学员
@@ -667,7 +797,7 @@ function exportAllExcel() {
         formatExcelSheet(proWs, [proHeaders, ...proRows]);
         const proWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(proWb, proWs, '意向学员');
-        XLSX.writeFile(proWb, `意向学员_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(proWb, `意向学员_${date}.xlsx`);
     }
 
     showToast('已导出所有Excel文件');
