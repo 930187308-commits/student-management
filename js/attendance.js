@@ -84,10 +84,10 @@ function loadAttendanceClass(classId) {
             <table class="attendance-table">
                 <thead>
                     <tr>
-                        <th class="attendance-sticky-col" style="min-width:80px;">学员</th>
+                        <th class="attendance-sticky-col attendance-name-col">学员</th>
                         ${allDates.map((d, i) => {
                             const sess = sessions.find(s => s.date === d);
-                            return `<th style="min-width:60px;">
+                            return `<th class="attendance-session-col">
                                 <span title="${sess?.sessionName || '第'+(i+1)+'次'}">${sess?.sessionName || '第'+(i+1)+'次'}</span><br>
                                 <small>${d}</small>
                                 <details class="attendance-session-menu">
@@ -99,8 +99,8 @@ function loadAttendanceClass(classId) {
                                 </details>
                             </th>`;
                         }).join('')}
-                        <th style="min-width:50px;">出勤</th>
-                        <th style="min-width:50px;">请假</th>
+                        <th class="attendance-summary-col">出勤</th>
+                        <th class="attendance-summary-col">请假</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -129,8 +129,8 @@ function loadAttendanceClass(classId) {
                                     const cls = status === 1 ? 'present' : status === 0 ? 'absent' : '';
                                     return `<td><input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${s.id}" onchange="updateAttendance(this)"></td>`;
                                 }).join('')}
-                                <td><strong>${present}</strong></td>
-                                <td><strong style="color:#e74c3c;">${absent}</strong></td>
+                                <td><strong class="attendance-count-present">${present}</strong></td>
+                                <td><strong class="attendance-count-absent">${absent}</strong></td>
                             </tr>
                         `;
                     }).join('')}
@@ -201,20 +201,20 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
         return `<div class="attendance-temp-section">
             <div class="attendance-temp-header">
                 <strong>临时调课学员</strong>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <select id="tempSessionSelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">${sessionOptions}</select>
+                <div class="attendance-temp-controls">
+                    <select id="tempSessionSelect" class="attendance-temp-select">${sessionOptions}</select>
                     <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal(document.getElementById('tempSessionSelect').value)">+ 添加临时学员</button>
                 </div>
             </div>
-            <div class="empty-state" style="padding: 20px;">暂无临时调课记录</div>
+            <div class="empty-state attendance-temp-empty">暂无临时调课记录</div>
         </div>`;
     }
 
     return `<div class="attendance-temp-section">
         <div class="attendance-temp-header">
             <strong>临时调课学员 <span>（临时到本班上课）</span></strong>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <select id="tempSessionSelect" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">${sessions.map((sess, i) => `<option value="${sess.date}">${escapeHtml(sess.sessionName || '第'+(i+1)+'次')} - ${sess.date}</option>`).join('')}</select>
+            <div class="attendance-temp-controls">
+                <select id="tempSessionSelect" class="attendance-temp-select">${sessions.map((sess, i) => `<option value="${sess.date}">${escapeHtml(sess.sessionName || '第'+(i+1)+'次')} - ${sess.date}</option>`).join('')}</select>
                 <button class="btn btn-success btn-sm" onclick="openAddTempStudentModal(document.getElementById('tempSessionSelect').value)">+ 添加临时学员</button>
             </div>
         </div>
@@ -222,14 +222,14 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
         <table class="attendance-table">
             <thead>
                 <tr>
-                    <th style="min-width:80px;">学员</th>
-                    <th style="min-width:60px;">来源班级</th>
+                    <th class="attendance-name-col">学员</th>
+                    <th class="attendance-session-col">来源班级</th>
                     ${allDates.map((d, i) => {
                         const sess = sessions.find(s => s.date === d);
-                        return `<th style="min-width:60px;">${sess?.sessionName || '第'+(i+1)+'次'}<br><small>${d}</small></th>`;
+                        return `<th class="attendance-session-col">${sess?.sessionName || '第'+(i+1)+'次'}<br><small>${d}</small></th>`;
                     }).join('')}
-                    <th style="min-width:50px;">出勤</th>
-                    <th style="min-width:50px;">请假</th>
+                    <th class="attendance-summary-col">出勤</th>
+                    <th class="attendance-summary-col">请假</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -246,7 +246,7 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
                     });
                     return `
                         <tr class="attendance-temp-row">
-                            <td><span style="font-weight: 600;">${escapeHtml(student.name)}</span> <span style="font-size: 10px; background: #f39c12; color: white; padding: 1px 4px; border-radius: 3px;">临时</span></td>
+                            <td><span class="attendance-temp-name">${escapeHtml(student.name)}</span> <span class="attendance-temp-badge">临时</span></td>
                             <td class="attendance-muted-cell">${escapeHtml(fromClass?.name || '-')}</td>
                             ${allDates.map((date, i) => {
                                 const sess = sessions.find(s => s.date === date);
@@ -258,11 +258,11 @@ function renderTemporaryStudentsSection(classId, sessions, allDates) {
                                 }
                                 return `<td>
                                     <input type="number" min="0" max="1" value="${status ?? ''}" class="attendance-input ${cls}" data-date="${date}" data-student="${ts.studentId}" data-temp="true" onchange="updateAttendance(this)">
-                                    <br><button class="btn btn-danger btn-xs" style="margin-top:4px;" onclick="removeTemporaryStudent('${ts.studentId}', '${date}')">移除</button>
+                                    <br><button class="btn btn-danger btn-xs attendance-temp-remove" onclick="removeTemporaryStudent('${ts.studentId}', '${date}')">移除</button>
                                 </td>`;
                             }).join('')}
-                            <td><strong style="color:#27ae60;">${present}</strong></td>
-                            <td><strong style="color:#e74c3c;">${absent}</strong></td>
+                            <td><strong class="attendance-count-present">${present}</strong></td>
+                            <td><strong class="attendance-count-absent">${absent}</strong></td>
                         </tr>
                     `;
                 }).join('')}
