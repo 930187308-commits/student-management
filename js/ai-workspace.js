@@ -347,8 +347,8 @@ function renderSystemQAPrompts() {
                 <div class="system-qa-prompt-item ${systemQAPromptManageMode ? 'manage' : ''}">
                     <button class="system-qa-chip" data-question="${escapeHtml(prompt.text)}" onclick="fillSystemQAQuestion(this.dataset.question)">${escapeHtml(prompt.text)}</button>
                     <div class="system-qa-prompt-tools ${systemQAPromptManageMode ? '' : 'is-hidden'}">
-                        <button class="system-qa-icon-btn" title="编辑" onclick="editSystemQAPrompt('${escapeHtml(prompt.id)}')">改</button>
-                        <button class="system-qa-icon-btn danger" title="删除" onclick="deleteSystemQAPrompt('${escapeHtml(prompt.id)}')">删</button>
+                        <button class="system-qa-icon-btn" aria-label="编辑问句" title="编辑" onclick="editSystemQAPrompt('${escapeHtml(prompt.id)}')">✎</button>
+                        <button class="system-qa-icon-btn danger" aria-label="删除问句" title="删除" onclick="deleteSystemQAPrompt('${escapeHtml(prompt.id)}')">×</button>
                     </div>
                 </div>
             `).join('')}
