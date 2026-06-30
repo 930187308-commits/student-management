@@ -348,13 +348,23 @@ function mergeAnswerMaps(...maps) {
 function parsePaperMeta(text, source = {}) {
     const lines = String(text || '').split(/\n+/).map(x => x.trim()).filter(Boolean);
     const meta = { ...normalizeSource(source) };
+    const allText = String(text || '');
     const titleLine = lines.find(line => /数学|试卷|测试|期末|期中|真题|专题|练习/.test(line) && !/^(?:第\s*)?\d{1,3}\s*[.．、)]/.test(line));
-    const yearMatch = String(text || '').match(/(20\d{2})(?:\s*[-—~至]\s*20\d{2})?/);
-    const gradeMatch = String(text || '').match(/六年级|初一|七年级|初二|八年级|初三|九年级/);
-    const regionMatch = String(text || '').match(/(北京|上海|天津|重庆|广东|深圳|广州|佛山|东莞|江苏|浙江|杭州|南京|成都|武汉|长沙|西安|郑州|山东|福建|厦门|福州|河北|河南|湖北|湖南|四川|陕西|辽宁|沈阳|大连|青岛|苏州|无锡|南山|福田|罗湖|宝安|龙岗|龙华|光明|坪山|盐田)(?:市|区|省)?/);
+    const yearMatch = allText.match(/(20\d{2})(?:\s*[-—~至]\s*20\d{2})?/);
+    const gradeMatch = allText.match(/六年级|初一|七年级|初二|八年级|初三|九年级/);
+    const provinceMatch = allText.match(/(广东|江苏|浙江|山东|福建|河北|河南|湖北|湖南|四川|陕西|辽宁)(?:省)?/);
+    const cityMatch = allText.match(/(深圳|广州|佛山|东莞|杭州|南京|成都|武汉|长沙|西安|郑州|厦门|福州|沈阳|大连|青岛|苏州|无锡|北京|上海|天津|重庆)(?:市)?/);
+    const districtMatch = allText.match(/(南山|福田|罗湖|宝安|龙岗|龙华|光明|坪山|盐田|天河|越秀|海珠|番禺|黄埔|朝阳|海淀|西城|东城|浦东|闵行|徐汇|宝山|余杭|萧山)(?:区)?/);
+    const schoolMatch = allText.match(/([\u4e00-\u9fa5]{2,}(?:小学|中学|学校|实验学校|外国语学校|附属学校|附中))/);
+    const regionParts = [];
+    if (provinceMatch?.[1] && provinceMatch[1] !== cityMatch?.[1]) regionParts.push(provinceMatch[1]);
+    if (cityMatch?.[1]) regionParts.push(cityMatch[1]);
     if (!meta.year && yearMatch) meta.year = yearMatch[1];
     if (gradeMatch && (!meta.grade || meta.grade === '六年级')) meta.grade = gradeMatch[0] === '七年级' ? '初一' : gradeMatch[0] === '八年级' ? '初二' : gradeMatch[0] === '九年级' ? '初三' : gradeMatch[0];
-    if (!meta.region && regionMatch) meta.region = regionMatch[0];
+    if (regionParts.length && (!meta.region || String(meta.region).length < regionParts.join('').length)) meta.region = regionParts.join('');
+    if (!meta.region && provinceMatch) meta.region = provinceMatch[1];
+    if (!meta.districtOrSchool && districtMatch) meta.districtOrSchool = `${districtMatch[1]}区`;
+    if ((!meta.districtOrSchool || /区$/.test(meta.districtOrSchool)) && schoolMatch) meta.districtOrSchool = schoolMatch[1];
     if (!meta.examName && titleLine) meta.examName = titleLine.replace(/^\s*[\-—=]+|[\-—=]+\s*$/g, '').trim();
     if (!meta.title && meta.examName) meta.title = meta.examName;
     if (!meta.examName && meta.title) meta.examName = meta.title;
@@ -574,7 +584,7 @@ function splitCandidates(rawText) {
     const blocks = [];
     let current = [];
     let started = false;
-    const boundary = /^(?:例题?|练习|题目)?\s*(?:第\s*)?(\d{1,2}|[一二三四五六七八九十]{1,3})\s*(?:[．、)]|\.(?!\d))|^\d{1,2}\s*[★☆]*$|^\d{1,2}\s+[★☆]+/;
+    const boundary = /^(?:例题?|练习|题目)?\s*(?:第\s*)?(\d{1,3}|[一二三四五六七八九十]{1,3})\s*(?:[．、)]|\.(?!\d))|^\d{1,3}\s*[★☆]*$|^\d{1,3}\s+[★☆]+/;
     lines.forEach((line) => {
         if (boundary.test(line)) {
             if (current.length && started) {
@@ -895,7 +905,7 @@ async function parseQuestionImportWithAI(input = {}) {
 }
 
 function saveQuestionBankAsset(input = {}) {
-    const fileBase64 = String(input.fileBase64 || '').replace(/^data:[^,]+,/, '');
+    const fileBase64 = String(input.fileBase64 || input.base64 || input.dataUrl || '').replace(/^data:[^,]+,/, '');
     if (!fileBase64) {
         const error = new Error('缺少图片内容');
         error.statusCode = 400;

@@ -1,6 +1,8 @@
 const B = (() => {
     const STORE_KEY = 'math-question-bank-b-state-v1';
     const ASIDE_KEY = 'math-question-bank-b-aside-collapsed';
+    const MAIN_NAV_KEY = 'math-question-bank-main-nav-collapsed';
+    const OUTPUT_SIDE_WIDTH_KEY = 'qb-b-output-side-width';
     const state = {
         view: 'import',
         questions: [],
@@ -10,6 +12,8 @@ const B = (() => {
         paperDraftExcluded: [],
         paperHistory: [],
         paperLibrary: [],
+        paperMetaHidden: false,
+        paperMetaText: '',
         outputTab: 'questions',
         outputSort: '综合排序',
         outputFilters: {
@@ -22,7 +26,35 @@ const B = (() => {
         activeCandidateId: '',
         highlightedQuestionId: '',
         filtered: [],
-        lastImportRawText: ''
+        lastImportRawText: '',
+        lastImportSummary: null,
+        bankDensity: 'compact',
+        bankFilterSchemes: [],
+        expandedPaperId: '',
+        activeDraftIndex: -1,
+        activeInsertMenuIndex: -1,
+        activeAnswerMenuIndex: -1,
+        activeImageDraftIndex: -1,
+        activeAnswerStyleIndex: -1,
+        outputSettingsOpen: false,
+        outlineDisplayMode: 'number',
+        lastNonAnswerOutputMode: 'student',
+        lastAiOutlineSuggestion: null,
+        aiPanelLoading: false,
+        aiPanelError: '',
+        aiProvider: 'qwen',
+        undoStack: [],
+        lastUndoSnapshot: null,
+        suspendUndo: false,
+        undoReady: false,
+        selectedDraftIndices: new Set(),
+        lastDraftSelectionIndex: -1,
+        activeDraftContextMenu: null,
+        expandedOutputAnswers: new Set(),
+        activeBankImageId: '',
+        handoutScaffoldApplied: false,
+        collapsedHeadings: new Set(),
+        imageResize: null
     };
 
     const grades = ['六年级', '初一', '初二', '初三'];
@@ -31,12 +63,12 @@ const B = (() => {
     const difficulties = ['基础', '中等', '提高', '压轴'];
     const help = {
         import: ['导入中心', '资料先进入候选题池，AI 辅助拆题，不自动进入正式题库。', [['生成候选题', 'B.createImport()', 'primary'], ['待确认题池', "B.switchView('candidates')", '']]],
-        candidates: ['待确认题池', '左右对照原文与结构化字段，人工确认后才进入题库 B。', [['批量标记', 'B.batchMark()', ''], ['正式题库', "B.switchView('bank')", 'primary']]],
-        bank: ['正式题库', '题库 B 的正式题目池，可筛选、编辑、归档并加入题篮。', [['新增题目', 'B.openQuestionEditor()', 'primary'], ['质量体检', "B.switchView('quality')", '']]],
+        candidates: ['待确认题池', '左右对照原文与结构化字段，人工确认后才进入正式题库。', [['批量标记', 'B.batchMark()', ''], ['正式题库', "B.switchView('bank')", 'primary']]],
+        bank: ['正式题库', '正式题目池，可筛选、编辑、归档并加入题篮。', [['新增题目', 'B.openQuestionEditor()', 'primary'], ['质量体检', "B.switchView('quality')", '']]],
         compose: ['组卷输出', '题篮、结构检查、试卷画布和多格式导出放在同一屏，减少来回切换。', [['继续选题', "B.switchView('bank')", ''], ['生成输出', 'B.generateOutput()', 'primary'], ['网页打印/PDF', 'B.printPdf()', '']]],
         papers: ['试卷库', '按导入批次保存整套试卷，方便以后整卷调出、组卷和打印。', [['正式题库', "B.switchView('bank')", ''], ['组卷输出', "B.switchView('compose')", 'primary']]],
         quality: ['质量体检', '集中处理缺答案、缺解析、缺知识点、缺来源、疑似公式损坏、重复和图形问题。', [['刷新体检', 'B.renderQuality()', ''], ['正式题库', "B.switchView('bank')", '']]],
-        docs: ['设计文档', '题库 B 的使用说明、边界、质量规则和后续规划。', [['导入中心', "B.switchView('import')", ''], ['组卷输出', "B.switchView('compose')", '']]]
+        docs: ['说明与报告', '数学题库的使用说明、质量规则、模块评估和后续规划。', [['导入中心', "B.switchView('import')", ''], ['组卷输出', "B.switchView('compose')", '']]]
     };
 
     function $(id) { return document.getElementById(id); }
@@ -59,6 +91,44 @@ const B = (() => {
     }
     function questionHasImage(q = {}) {
         return Boolean(q.diagramSvg || q.imageUrl || (Array.isArray(q.images) && q.images.length));
+    }
+    function formalNameText(text = '') {
+        return String(text || '')
+            .replace(/数学题库\s*B/g, '数学题库')
+            .replace(/题库\s*B/g, '数学题库')
+            .replace(/题库B/g, '数学题库')
+            .replace(/数学题库\s+数学题库/g, '数学题库')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+    function normalizeStoredFormalNames() {
+        let changed = false;
+        const seen = new WeakSet();
+        const visit = value => {
+            if (!value || typeof value !== 'object' || seen.has(value)) return;
+            seen.add(value);
+            Object.keys(value).forEach(key => {
+                const current = value[key];
+                if (typeof current === 'string') {
+                    const next = formalNameText(current);
+                    if (next !== current) {
+                        value[key] = next;
+                        changed = true;
+                    }
+                    return;
+                }
+                if (Array.isArray(current) || (current && typeof current === 'object')) visit(current);
+            });
+        };
+        [state.questions, state.candidates, state.paperDraft, state.paperHistory, state.paperLibrary, state.lastImportSummary].forEach(visit);
+        if (state.paperMetaText) {
+            const next = formalNameText(state.paperMetaText);
+            if (next !== state.paperMetaText) {
+                state.paperMetaText = next;
+                changed = true;
+            }
+        }
+        return changed;
     }
     function inlineMath(expr) {
         return `\\(${String(expr || '').trim()}\\)`;
@@ -136,16 +206,44 @@ const B = (() => {
             area.remove();
         }
     }
-    function save() {
-        localStorage.setItem(STORE_KEY, JSON.stringify({
+    function persistableState() {
+        return {
             questions: state.questions,
             candidates: state.candidates,
             basket: state.basket,
             paperDraft: state.paperDraft,
             paperDraftExcluded: state.paperDraftExcluded,
             paperHistory: state.paperHistory,
-            paperLibrary: state.paperLibrary
-        }));
+            paperLibrary: state.paperLibrary,
+            paperMetaHidden: state.paperMetaHidden,
+            paperMetaText: state.paperMetaText,
+            lastImportRawText: state.lastImportRawText,
+            lastImportSummary: state.lastImportSummary,
+            bankDensity: state.bankDensity,
+            bankFilterSchemes: state.bankFilterSchemes,
+            expandedPaperId: state.expandedPaperId,
+            aiProvider: state.aiProvider
+        };
+    }
+    function serializeSnapshot(snapshot = persistableState()) {
+        return JSON.stringify(snapshot);
+    }
+    function syncUndoButton() {
+        const btn = $('undoToggle');
+        if (!btn) return;
+        btn.disabled = !state.undoStack.length;
+        btn.title = state.undoStack.length ? `撤回：${state.undoStack[state.undoStack.length - 1].label || '上一步'}` : '暂无可撤回操作';
+    }
+    function save() {
+        const snapshot = persistableState();
+        const serialized = serializeSnapshot(snapshot);
+        if (state.undoReady && !state.suspendUndo && state.lastUndoSnapshot && serializeSnapshot(state.lastUndoSnapshot) !== serialized) {
+            state.undoStack.push({ label: '上一步', snapshot: JSON.parse(serializeSnapshot(state.lastUndoSnapshot)) });
+            state.undoStack = state.undoStack.slice(-30);
+            syncUndoButton();
+        }
+        localStorage.setItem(STORE_KEY, serialized);
+        state.lastUndoSnapshot = JSON.parse(serialized);
     }
     function load() {
         const data = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -156,6 +254,51 @@ const B = (() => {
         state.paperDraftExcluded = Array.isArray(data.paperDraftExcluded) ? data.paperDraftExcluded : [];
         state.paperHistory = Array.isArray(data.paperHistory) ? data.paperHistory : [];
         state.paperLibrary = Array.isArray(data.paperLibrary) ? data.paperLibrary : [];
+        state.paperMetaHidden = Boolean(data.paperMetaHidden);
+        state.paperMetaText = data.paperMetaText || '';
+        state.lastImportRawText = data.lastImportRawText || '';
+        state.lastImportSummary = data.lastImportSummary || null;
+        state.bankDensity = 'compact';
+        state.bankFilterSchemes = Array.isArray(data.bankFilterSchemes) ? data.bankFilterSchemes : [];
+        state.expandedPaperId = data.expandedPaperId || '';
+        state.aiProvider = data.aiProvider || value('bImportAIProvider') || 'qwen';
+        state.lastUndoSnapshot = JSON.parse(serializeSnapshot(persistableState()));
+        state.undoReady = true;
+        if (normalizeStoredFormalNames()) save();
+    }
+    function restorePersistedSnapshot(snapshot = {}) {
+        state.questions = Array.isArray(snapshot.questions) ? snapshot.questions : [];
+        state.candidates = Array.isArray(snapshot.candidates) ? snapshot.candidates : [];
+        state.basket = Array.isArray(snapshot.basket) ? snapshot.basket : [];
+        state.paperDraft = Array.isArray(snapshot.paperDraft) ? snapshot.paperDraft : [];
+        state.paperDraftExcluded = Array.isArray(snapshot.paperDraftExcluded) ? snapshot.paperDraftExcluded : [];
+        state.paperHistory = Array.isArray(snapshot.paperHistory) ? snapshot.paperHistory : [];
+        state.paperLibrary = Array.isArray(snapshot.paperLibrary) ? snapshot.paperLibrary : [];
+        state.paperMetaHidden = Boolean(snapshot.paperMetaHidden);
+        state.paperMetaText = snapshot.paperMetaText || '';
+        state.lastImportRawText = snapshot.lastImportRawText || '';
+        state.lastImportSummary = snapshot.lastImportSummary || null;
+        state.bankDensity = 'compact';
+        state.bankFilterSchemes = Array.isArray(snapshot.bankFilterSchemes) ? snapshot.bankFilterSchemes : [];
+        state.expandedPaperId = snapshot.expandedPaperId || '';
+        state.aiProvider = snapshot.aiProvider || state.aiProvider || 'qwen';
+        state.selectedCandidates.clear();
+        state.selectedQuestions.clear();
+        state.selectedDraftIndices.clear();
+    }
+    function undoLastAction() {
+        const item = state.undoStack.pop();
+        if (!item?.snapshot) return toast('暂无可撤回操作');
+        state.suspendUndo = true;
+        restorePersistedSnapshot(item.snapshot);
+        localStorage.setItem(STORE_KEY, serializeSnapshot(persistableState()));
+        state.lastUndoSnapshot = JSON.parse(serializeSnapshot(persistableState()));
+        state.suspendUndo = false;
+        renderAll();
+        syncOutputTabs();
+        syncAiProviderControls();
+        syncUndoButton();
+        toast(`已撤回${item.label ? `：${item.label}` : ''}`);
     }
     function sourceFromForm() {
         return {
@@ -168,8 +311,35 @@ const B = (() => {
             note: value('bNote')
         };
     }
+    function providerLabel(provider = state.aiProvider) {
+        return { qwen: 'Qwen 千问 qwen-plus', deepseek: 'DeepSeek v4-flash', global: '全局模型', rules: '本地规则' }[provider] || provider || '未选择';
+    }
+    function syncAiProviderControls() {
+        ['bImportAIProvider', 'bOutputAIProvider'].forEach(idName => {
+            const el = $(idName);
+            if (el && el.value !== state.aiProvider) el.value = state.aiProvider;
+        });
+        if ($('bAiProviderStatus')) {
+            $('bAiProviderStatus').textContent = `当前用于导入解析和 AI 输出：${providerLabel()}`;
+        }
+    }
+    function setAiProvider(provider = '') {
+        state.aiProvider = provider || 'qwen';
+        syncAiProviderControls();
+        save();
+        toast(`已切换为 ${providerLabel()}`);
+    }
+    function previewImportMetaFromInputs() {
+        const files = selectedImportFiles();
+        const fileText = files.map(file => file.name).join('\n');
+        const rawText = value('bRawText');
+        const text = [fileText, rawText].filter(Boolean).join('\n');
+        if (!text.trim()) return;
+        const next = parsePaperMeta(text, sourceFromForm());
+        applySourceToForm(next);
+    }
     function sourceLabel(source = {}) {
-        return [source.year, source.region || source.districtOrSchool, source.examName || source.sourceType, source.note].filter(Boolean).join(' ') || '未标来源';
+        return formalNameText([source.year, source.region || source.districtOrSchool, source.examName || source.sourceType, source.note].filter(Boolean).join(' ')) || '未标来源';
     }
     function hasSourceInfo(q = {}) {
         const label = String(q.sourceName || sourceLabel(q.source) || '').trim();
@@ -179,7 +349,7 @@ const B = (() => {
         return [q.sourceName || sourceLabel(q.source), q.source?.questionNo ? `原第 ${q.source.questionNo} 题` : ''].filter(Boolean).join(' · ');
     }
     function paperTitle(source = {}, fileName = '') {
-        return source.examName || source.note || fileName || [source.year, source.region || source.districtOrSchool, source.grade, source.sourceType].filter(Boolean).join(' ') || '未命名试卷';
+        return formalNameText(source.examName || source.note || fileName || [source.year, source.region || source.districtOrSchool, source.grade, source.sourceType].filter(Boolean).join(' ')) || '未命名试卷';
     }
     function createPaperFromImport(source = {}, candidates = [], fileName = '') {
         if (!candidates.length) return null;
@@ -264,9 +434,19 @@ const B = (() => {
         if (m) return Number(m[1] || m[2] || m[3]);
         return difficulty === '压轴' ? 12 : difficulty === '提高' ? 8 : 5;
     }
+    function isImageReference(url) {
+        const value = String(url || '').trim();
+        if (!value) return false;
+        return /^(?:https?:|data:image\/|blob:|file:)/i.test(value)
+            || value.startsWith('/question-bank-assets/')
+            || value.startsWith('/api/question-bank-assets')
+            || value.startsWith('/Users/')
+            || /\.(?:png|jpe?g|gif|webp|svg)(?:[?#].*)?$/i.test(value);
+    }
     function extractImageUrl(text) {
         const m = String(text || '').match(/(?:图片|图|image|img)\s*[:：]\s*(\S+)/i);
-        return m ? m[1].trim() : '';
+        const url = m ? m[1].trim() : '';
+        return isImageReference(url) ? url : '';
     }
     function extractImageUrls(text) {
         const urls = [];
@@ -274,7 +454,7 @@ const B = (() => {
         let m;
         while ((m = re.exec(String(text || '')))) {
             const url = m[1]?.trim();
-            if (url && !urls.includes(url)) urls.push(url);
+            if (isImageReference(url) && !urls.includes(url)) urls.push(url);
         }
         return urls;
     }
@@ -291,7 +471,7 @@ const B = (() => {
         let m;
         while ((m = re.exec(String(text || '')))) {
             const url = m[2]?.trim();
-            if (!url) continue;
+            if (!isImageReference(url)) continue;
             const role = roleFromImageLabel(m[1]);
             if (items.some(item => item.url === url && item.role === role)) continue;
             items.push({ url, role, optionLabel: role.startsWith('option-') ? role.slice(-1) : '', order: items.length + 1 });
@@ -317,13 +497,23 @@ const B = (() => {
     function parsePaperMeta(text, source = {}) {
         const lines = String(text || '').split(/\n+/).map(x => x.trim()).filter(Boolean);
         const meta = { ...source };
+        const allText = String(text || '');
         const titleLine = lines.find(line => /数学|试卷|测试|期末|期中|真题|专题|练习/.test(line) && !/^(?:第\s*)?\d{1,3}\s*[.．、)]/.test(line));
-        const yearMatch = String(text || '').match(/(20\d{2})(?:\s*[-—~至]\s*20\d{2})?/);
-        const gradeMatch = String(text || '').match(/六年级|初一|七年级|初二|八年级|初三|九年级/);
-        const regionMatch = String(text || '').match(/(北京|上海|天津|重庆|广东|深圳|广州|佛山|东莞|江苏|浙江|杭州|南京|成都|武汉|长沙|西安|郑州|山东|福建|厦门|福州|河北|河南|湖北|湖南|四川|陕西|辽宁|沈阳|大连|青岛|苏州|无锡|南山|福田|罗湖|宝安|龙岗|龙华|光明|坪山|盐田)(?:市|区|省)?/);
+        const yearMatch = allText.match(/(20\d{2})(?:\s*[-—~至]\s*20\d{2})?/);
+        const gradeMatch = allText.match(/六年级|初一|七年级|初二|八年级|初三|九年级/);
+        const provinceMatch = allText.match(/(广东|江苏|浙江|山东|福建|河北|河南|湖北|湖南|四川|陕西|辽宁)(?:省)?/);
+        const cityMatch = allText.match(/(深圳|广州|佛山|东莞|杭州|南京|成都|武汉|长沙|西安|郑州|厦门|福州|沈阳|大连|青岛|苏州|无锡|北京|上海|天津|重庆)(?:市)?/);
+        const districtMatch = allText.match(/(南山|福田|罗湖|宝安|龙岗|龙华|光明|坪山|盐田|天河|越秀|海珠|番禺|黄埔|朝阳|海淀|西城|东城|浦东|闵行|徐汇|宝山|余杭|萧山)(?:区)?/);
+        const schoolMatch = allText.match(/([\u4e00-\u9fa5]{2,}(?:小学|中学|学校|实验学校|外国语学校|附属学校|附中))/);
+        const regionParts = [];
+        if (provinceMatch?.[1] && provinceMatch[1] !== cityMatch?.[1]) regionParts.push(provinceMatch[1]);
+        if (cityMatch?.[1]) regionParts.push(cityMatch[1]);
         if (!meta.year && yearMatch) meta.year = yearMatch[1];
         if (gradeMatch && (!meta.grade || meta.grade === '六年级')) meta.grade = gradeMatch[0] === '七年级' ? '初一' : gradeMatch[0] === '八年级' ? '初二' : gradeMatch[0] === '九年级' ? '初三' : gradeMatch[0];
-        if (!meta.region && regionMatch) meta.region = regionMatch[0];
+        if (regionParts.length && (!meta.region || String(meta.region).length < regionParts.join('').length)) meta.region = regionParts.join('');
+        if (!meta.region && provinceMatch) meta.region = provinceMatch[1];
+        if (!meta.districtOrSchool && districtMatch) meta.districtOrSchool = `${districtMatch[1]}区`;
+        if ((!meta.districtOrSchool || /区$/.test(meta.districtOrSchool)) && schoolMatch) meta.districtOrSchool = schoolMatch[1];
         if (!meta.examName && titleLine) meta.examName = titleLine.replace(/^\s*[\-—=]+|[\-—=]+\s*$/g, '').trim();
         if (!meta.title && meta.examName) meta.title = meta.examName;
         if (!meta.examName && meta.title) meta.examName = meta.title;
@@ -334,7 +524,7 @@ const B = (() => {
             const el = $(idName);
             if (el && next && (!el.value || (idName === 'bGrade' && el.value === '六年级'))) el.value = next;
         });
-        if ($('bOutputTitle') && source.examName && $('bOutputTitle').value === '数学题库 B 专题练习') $('bOutputTitle').value = source.examName;
+        if ($('bOutputTitle') && source.examName && $('bOutputTitle').value === '数学题库专题练习') $('bOutputTitle').value = source.examName;
     }
     function splitAnswerSection(text, answerMode = value('bAnswerMode') || 'auto') {
         if (answerMode === 'inline') return { questionText: String(text || ''), answerText: '' };
@@ -510,9 +700,9 @@ const B = (() => {
         }, usedAI);
     }
     async function parseWithServerAI(fullText, source, fileName = '', providerOverride = '') {
-        const aiProvider = providerOverride || value('bImportAIProvider') || 'qwen';
+        const aiProvider = providerOverride || state.aiProvider || value('bImportAIProvider') || 'qwen';
         const answerMode = value('bAnswerMode') || 'auto';
-        const res = await fetch('/api/question-import/ai-parse', {
+        const res = await fetch(`${apiBase()}/api/question-import/ai-parse`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ rawText: fullText, fileName, source, answerMode, parseMode: aiProvider === 'rules' ? 'rules-only' : 'ai-first', aiProvider, provider: aiProvider })
@@ -526,7 +716,7 @@ const B = (() => {
     }
     async function extractImportFile(file, source, rawText = '') {
         if (!file) return { fullText: rawText, fileName: '', warnings: [] };
-        const res = await fetch('/api/question-import/batches', {
+        const res = await fetch(`${apiBase()}/api/question-import/batches`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -558,13 +748,14 @@ const B = (() => {
         return { fullText: parts.join('\n\n'), source, fileName: files.map(file => file.name).join(' + ') };
     }
     function candidatesFromParsedOrRules(fullText, source, parsedByServer = null, importWarnings = []) {
-        let nextSource = parsedByServer?.paperMeta ? { ...source, ...parsedByServer.paperMeta } : parsePaperMeta(fullText, source);
+        const localSource = parsePaperMeta(fullText, source);
+        let nextSource = parsedByServer?.paperMeta ? parsePaperMeta(fullText, { ...localSource, ...parsedByServer.paperMeta }) : localSource;
         let candidates = [];
         const warnings = [...importWarnings];
         if (parsedByServer?.candidates?.length) {
             candidates = parsedByServer.candidates.map(item => candidateFromParsed(item, nextSource));
             warnings.push(...(parsedByServer.warnings || []));
-            if (parsedByServer.fallbackUsed && value('bImportAIProvider') !== 'rules') {
+            if (parsedByServer.fallbackUsed && state.aiProvider !== 'rules') {
                 warnings.push(parsedByServer.usedAI
                     ? '部分题目 AI 未完成，本次已用本地规则补齐'
                     : 'AI 解析未完成，本次已使用本地规则结果');
@@ -763,7 +954,7 @@ const B = (() => {
                     const file = files[index];
                     setStatus(`提取文档文本 ${index + 1}/${files.length}`);
                     const extracted = await extractImportFile(file, baseSource, index === 0 ? rawText : '');
-                    setStatus(value('bImportAIProvider') === 'rules' ? `本地规则拆题 ${index + 1}/${files.length}` : `AI 解析 ${index + 1}/${files.length}`);
+                    setStatus(state.aiProvider === 'rules' ? `本地规则拆题 ${index + 1}/${files.length}` : `AI 解析 ${index + 1}/${files.length}`);
                     const parsed = await parseImportUnit(extracted.fullText, baseSource, extracted.fileName, extracted.warnings);
                     if (index === 0) firstSource = parsed.source;
                     createPaperFromImport(parsed.source, parsed.candidates, extracted.fileName);
@@ -785,7 +976,7 @@ const B = (() => {
                     }
                     fullText = parts.join('\n\n');
                 }
-                setStatus(value('bImportAIProvider') === 'rules' ? '本地规则拆题' : 'AI 分块解析，整卷可能需要 1-2 分钟');
+                setStatus(state.aiProvider === 'rules' ? '本地规则拆题' : 'AI 分块解析，整卷可能需要 1-2 分钟');
                 const parsed = await parseImportUnit(fullText, baseSource, fileName, warnings);
                 firstSource = parsed.source;
                 createPaperFromImport(parsed.source, parsed.candidates, fileName);
@@ -794,6 +985,7 @@ const B = (() => {
             }
             setStatus('生成候选题');
             applySourceToForm(firstSource);
+            state.lastImportSummary = buildImportSummary(createdCandidates, files, firstSource);
             state.candidates.unshift(...createdCandidates);
             $('bRawText').value = '';
             if ($('bImportFile')) $('bImportFile').value = '';
@@ -811,6 +1003,46 @@ const B = (() => {
             button.textContent = '生成候选题';
             if (statusEl && !/^已生成|导入失败/.test(statusText)) statusEl.style.display = 'none';
         }
+    }
+    function buildImportSummary(candidates = [], files = [], source = {}) {
+        const warnings = uniq(candidates.flatMap(c => [...(c.importWarnings || []), ...(c.aiParseWarnings || []), ...(c.warnings || [])].filter(Boolean)));
+        return {
+            fileCount: files.length || 0,
+            fileNames: files.map(file => file.name),
+            candidateCount: candidates.length,
+            aiSuccess: candidates.filter(c => c.parseStatus === 'ai-success').length,
+            aiPartial: candidates.filter(c => c.parseStatus === 'ai-partial').length,
+            localFallback: candidates.filter(c => /local|fallback|rules/.test(c.parseStatus || '')).length,
+            missingAnswer: candidates.filter(c => !c.answer).length,
+            missingSolution: candidates.filter(c => !c.solution).length,
+            missingImage: candidates.filter(c => /如图|图中|下图/.test(c.stem || '') && !questionHasImage(c)).length,
+            sourceTitle: paperTitle(source, files.map(file => file.name).join(' + ')),
+            warnings: warnings.slice(0, 6),
+            createdAt: new Date().toISOString()
+        };
+    }
+    function renderImportBatchStatus() {
+        const el = $('bImportBatchStatus');
+        if (!el) return;
+        const s = state.lastImportSummary;
+        if (!s) {
+            el.innerHTML = '<h3>本次导入状态</h3><p>导入后这里会显示文件数、AI 成功、规则兜底和需要复核的字段。</p>';
+            return;
+        }
+        const stats = [
+            ['文件', s.fileCount || (s.fileNames || []).length || '文本'],
+            ['候选题', s.candidateCount],
+            ['AI 成功', s.aiSuccess],
+            ['部分成功', s.aiPartial],
+            ['规则兜底', s.localFallback],
+            ['缺答案', s.missingAnswer],
+            ['缺解析', s.missingSolution],
+            ['含图缺附件', s.missingImage]
+        ];
+        el.innerHTML = `<h3>本次导入状态</h3>
+            <p>${html(s.sourceTitle || '未命名资料')} · ${html((s.createdAt || '').slice(0, 10))}</p>
+            <div class="b-tags">${stats.map(([label, value]) => `<span class="b-tag ${Number(value) > 0 && /兜底|缺/.test(label) ? 'orange' : ''}">${html(label)} ${html(value)}</span>`).join('')}</div>
+            ${(s.warnings || []).length ? `<p>${s.warnings.map(html).join('；')}</p>` : '<p>暂无批次级警告。</p>'}`;
     }
     function renderImportNeedsReview(warnings = [], rawText = '', fileName = '') {
         const preview = String(rawText || '').trim().slice(0, 1800);
@@ -882,12 +1114,27 @@ const B = (() => {
         if ($('bAsideKpis')) $('bAsideKpis').innerHTML = markup;
         if ($('bKpis')) $('bKpis').innerHTML = markup;
         if ($('bRailBasketBadge')) $('bRailBasketBadge').textContent = String(state.basket.length);
+        syncUndoButton();
     }
     function applyAsideState() {
         const collapsed = localStorage.getItem(ASIDE_KEY) === '1';
         document.querySelector('.b-shell')?.classList.toggle('aside-collapsed', collapsed);
         $('bAside')?.classList.toggle('collapsed', collapsed);
         if ($('bAsideToggle')) $('bAsideToggle').textContent = collapsed ? '展开' : '收起';
+    }
+    function applyMainNavState() {
+        const collapsed = localStorage.getItem(MAIN_NAV_KEY) === '1';
+        document.querySelector('.b-shell')?.classList.toggle('nav-collapsed', collapsed);
+        const btn = $('bMainNavToggle');
+        if (btn) {
+            btn.textContent = collapsed ? '›' : '‹';
+            btn.title = collapsed ? '展开左侧模块' : '折叠左侧模块';
+        }
+    }
+    function toggleMainNav() {
+        const next = !(localStorage.getItem(MAIN_NAV_KEY) === '1');
+        localStorage.setItem(MAIN_NAV_KEY, next ? '1' : '0');
+        applyMainNavState();
     }
     function toggleAside() {
         const next = !(localStorage.getItem(ASIDE_KEY) === '1');
@@ -899,11 +1146,47 @@ const B = (() => {
         const shell = document.querySelector('.b-compose-workbench');
         if (!shell) return;
         const startX = event.clientX;
-        const current = Number.parseFloat(getComputedStyle(shell).getPropertyValue('--b-outline-width')) || 210;
+        const current = Number.parseFloat(getComputedStyle(shell).getPropertyValue('--b-outline-width')) || 190;
         const onMove = moveEvent => {
-            const next = Math.min(340, Math.max(150, current + moveEvent.clientX - startX));
+            const next = Math.min(340, Math.max(44, current + moveEvent.clientX - startX));
             shell.style.setProperty('--b-outline-width', `${next}px`);
             localStorage.setItem('qb-b-outline-width', String(Math.round(next)));
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+    function startBankResize(event) {
+        event.preventDefault();
+        const grid = $('bBankGrid');
+        if (!grid) return;
+        const startX = event.clientX;
+        const current = Number.parseFloat(getComputedStyle(grid).getPropertyValue('--b-bank-filter-width')) || 300;
+        const onMove = moveEvent => {
+            const next = Math.min(460, Math.max(145, current + moveEvent.clientX - startX));
+            grid.style.setProperty('--b-bank-filter-width', `${next}px`);
+            localStorage.setItem('qb-bank-filter-width', String(Math.round(next)));
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+    function startOutputSideResize(event) {
+        event.preventDefault();
+        const shell = document.querySelector('.b-compose-workbench');
+        if (!shell) return;
+        const startX = event.clientX;
+        const current = Number.parseFloat(getComputedStyle(shell).getPropertyValue('--b-output-side-width')) || 320;
+        const onMove = moveEvent => {
+            const next = Math.min(520, Math.max(280, current - (moveEvent.clientX - startX)));
+            shell.style.setProperty('--b-output-side-width', `${next}px`);
+            localStorage.setItem(OUTPUT_SIDE_WIDTH_KEY, String(Math.round(next)));
         };
         const onUp = () => {
             document.removeEventListener('mousemove', onMove);
@@ -915,7 +1198,17 @@ const B = (() => {
     function applyOutlineWidth() {
         const saved = Number(localStorage.getItem('qb-b-outline-width') || 0);
         if (!saved) return;
-        document.querySelector('.b-compose-workbench')?.style.setProperty('--b-outline-width', `${Math.min(340, Math.max(150, saved))}px`);
+        document.querySelector('.b-compose-workbench')?.style.setProperty('--b-outline-width', `${Math.min(340, Math.max(44, saved))}px`);
+    }
+    function applyOutputSideWidth() {
+        const saved = Number(localStorage.getItem(OUTPUT_SIDE_WIDTH_KEY) || 0);
+        if (!saved) return;
+        document.querySelector('.b-compose-workbench')?.style.setProperty('--b-output-side-width', `${Math.min(520, Math.max(280, saved))}px`);
+    }
+    function applyBankFilterWidth() {
+        const saved = Number(localStorage.getItem('qb-bank-filter-width') || 0);
+        if (!saved) return;
+        $('bBankGrid')?.style.setProperty('--b-bank-filter-width', `${Math.min(460, Math.max(145, saved))}px`);
     }
     function renderCandidates() {
         $('bCandidateCount').textContent = `${state.candidates.length} 题`;
@@ -966,20 +1259,34 @@ const B = (() => {
         state.activeCandidateId = candidateId;
         const c = state.candidates.find(x => x.id === candidateId);
         if (!c) return;
-        $('bCandidateReview').innerHTML = `<div class="b-grid" style="grid-template-columns:1fr 1fr;">
+        $('bCandidateReview').innerHTML = `<div class="b-review-shell">
             <div>
                 ${candidateReviewNotice(c)}
-                <label>原文 / 上下文</label><div class="b-box">${textWithMath(c.rawText)}</div>
-                <label style="margin-top:10px;">解析状态</label><div class="b-tags">${candidateReviewTags(c)}</div>
-                ${(c.importWarnings || []).length ? `<label>导入批次提示</label><div class="b-tags">${c.importWarnings.map(w => `<span class="b-tag orange">${html(w)}</span>`).join('')}</div>` : ''}
-                <label>来源</label><div class="b-box">${html(sourceLabel(c.source))}</div>
-                ${questionImages(c).length ? `<label>图片预览</label>${renderRoleImages(c)}` : ''}
+                <section class="b-review-section">
+                    <h3>原文 / 原始抽取</h3>
+                    <div class="b-box">${textWithMath(c.rawText || c.originText || c.stem || '暂无原文')}</div>
+                </section>
+                <section class="b-review-section">
+                    <h3>解析状态</h3>
+                    <div class="b-tags">${candidateReviewTags(c)}</div>
+                    ${(c.importWarnings || []).length ? `<div class="b-tags">${c.importWarnings.map(w => `<span class="b-tag orange">${html(w)}</span>`).join('')}</div>` : ''}
+                </section>
+                <section class="b-review-section">
+                    <h3>来源信息</h3>
+                    <div class="b-box">${html(sourceLabel(c.source))}</div>
+                </section>
+                ${questionImages(c).length ? `<section class="b-review-section"><h3>图片附件</h3>${renderRoleImages(c)}</section>` : ''}
             </div>
             <div class="b-form b-review-form">
+                <section class="b-review-section">
+                    <h3>结构化结果</h3>
                 <div class="b-row three"><div><label>原试卷题号</label><input id="bCandQuestionNo" value="${html(c.source?.questionNo || '')}"></div><div><label>年级</label><select id="bCandGrade">${grades.map(g => `<option ${g === c.grade ? 'selected' : ''}>${g}</option>`).join('')}</select></div><div><label>章节</label><input id="bCandChapter" value="${html(c.chapter)}"></div></div>
                 <div class="b-row three"><div><label>题型</label><input id="bCandType" value="${html(c.questionType)}"></div><div><label>难度</label><select id="bCandDifficulty">${difficulties.map(d => `<option ${d === c.difficulty ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div><label>分值</label><input id="bCandScore" type="number" min="0" step="1" value="${html(c.score || 5)}"></div></div>
                 <div><label>题干</label><textarea id="bCandStem" rows="7">${html(c.stem)}</textarea></div>
                 <div class="b-row"><div><label>知识点</label><input id="bCandKnowledge" value="${html((c.knowledgePoints || []).join('、'))}"></div><div><label>答案</label><textarea id="bCandAnswer" rows="4">${html(c.answer)}</textarea></div></div>
+                </section>
+                <section class="b-review-section">
+                    <h3>图片归属</h3>
                 <div class="b-row three">
                     <div><label>题干图</label><input id="bCandStemImage" value="${html(firstImageByRole(c, 'stem') || c.imageUrl || '')}" placeholder="上传或粘贴链接/路径"><input type="file" accept="image/*" onchange="B.uploadCandidateImage(this.files[0], 'bCandStemImage')"></div>
                     <div><label>A 图</label><input id="bCandOptionAImage" value="${html(firstImageByRole(c, 'option-A'))}" placeholder="选项 A 图片"><input type="file" accept="image/*" onchange="B.uploadCandidateImage(this.files[0], 'bCandOptionAImage')"></div>
@@ -991,7 +1298,11 @@ const B = (() => {
                     <div><label>解析图</label><input id="bCandSolutionImage" value="${html(firstImageByRole(c, 'solution'))}" placeholder="教师版解析图片"><input type="file" accept="image/*" onchange="B.uploadCandidateImage(this.files[0], 'bCandSolutionImage')"></div>
                 </div>
                 <input id="bCandImage" type="hidden" value="${html(c.imageUrl || '')}">
+                </section>
+                <section class="b-review-section">
+                    <h3>解析</h3>
                 <div><label>解析</label><textarea id="bCandSolution" rows="6">${html(c.solution)}</textarea></div>
+                </section>
                 <div class="b-actions" style="justify-content:flex-start;"><button class="b-btn" onclick="B.ignoreCandidate('${c.id}')">忽略</button><button class="b-btn red" onclick="B.deleteCandidate('${c.id}')">删除</button><button class="b-btn primary" onclick="B.acceptCandidate('${c.id}')">确认入库</button></div>
             </div>
         </div>`;
@@ -1044,7 +1355,7 @@ const B = (() => {
         $('bCandidateReview').innerHTML = '<div class="b-empty">已确认入库。继续选择下一道候选题。</div>';
         save();
         renderAll();
-        toast('已确认入库到题库 B');
+        toast('已确认入库到正式题库');
     }
     function nextInternalNo(offset = 0) {
         const nums = state.questions
@@ -1098,7 +1409,7 @@ const B = (() => {
             errorTags: c.errorTags || [],
             source: c.source || {},
             sourceName: c.sourceName || sourceLabel(c.source),
-            aiNotes: '题库 B 人工确认入库。',
+            aiNotes: '正式题库人工确认入库。',
             originText: c.rawText || c.stem,
             status: 'active',
             createdAt: new Date().toISOString()
@@ -1210,6 +1521,7 @@ const B = (() => {
         setOptions('bFilterChapter', ['全部章节', ...chapters, ...uniq(state.questions.map(q => q.chapter))]);
         setOptions('bFilterType', ['全部题型', ...types, ...uniq(state.questions.map(q => q.questionType))]);
         setOptions('bFilterDifficulty', ['全部难度', ...difficulties]);
+        renderBankFilterSchemes();
     }
     function setOptions(idName, items) {
         const el = $(idName);
@@ -1239,6 +1551,7 @@ const B = (() => {
         $('bQuestionCount').textContent = `${state.filtered.length} 题`;
         if ($('bQuestionSelected')) $('bQuestionSelected').textContent = `已选 ${state.selectedQuestions.size}`;
         const list = $('bQuestionList');
+        list?.classList.toggle('compact', state.bankDensity === 'compact');
         if (!state.filtered.length) {
             list.innerHTML = '<div class="b-empty">当前筛选下没有题目。</div>';
             updateFilteredSelectButton();
@@ -1248,20 +1561,79 @@ const B = (() => {
         updateFilteredSelectButton();
         queueMathTypeset(list);
     }
+    function currentBankFilterSnapshot() {
+        return {
+            search: value('bFilterSearch'),
+            grade: value('bFilterGrade'),
+            year: value('bFilterYear'),
+            chapter: value('bFilterChapter'),
+            type: value('bFilterType'),
+            difficulty: value('bFilterDifficulty'),
+            formula: Boolean($('bFilterFormula')?.checked),
+            diagram: Boolean($('bFilterDiagram')?.checked)
+        };
+    }
+    function bankFilterLabel(filter = {}) {
+        const parts = [filter.grade, filter.year, filter.chapter, filter.type, filter.difficulty, filter.formula ? '含公式' : '', filter.diagram ? '含图' : '', filter.search].filter(Boolean);
+        return parts.join(' · ') || '全部题目';
+    }
+    function saveBankFilterScheme() {
+        const filter = currentBankFilterSnapshot();
+        const label = window.prompt('给这组筛选起个名字', bankFilterLabel(filter));
+        if (!label) return;
+        state.bankFilterSchemes = [{ id: id('scheme'), label, filter }, ...state.bankFilterSchemes.filter(item => item.label !== label)].slice(0, 8);
+        save();
+        renderBankFilterSchemes();
+        toast('已保存筛选方案');
+    }
+    function applyBankFilterScheme(schemeId) {
+        const scheme = state.bankFilterSchemes.find(item => item.id === schemeId);
+        if (!scheme) return;
+        const filter = scheme.filter || {};
+        const set = (idName, next) => { const el = $(idName); if (el) el.value = next || ''; };
+        set('bFilterSearch', filter.search);
+        set('bFilterGrade', filter.grade);
+        set('bFilterYear', filter.year);
+        set('bFilterChapter', filter.chapter);
+        set('bFilterType', filter.type);
+        set('bFilterDifficulty', filter.difficulty);
+        if ($('bFilterFormula')) $('bFilterFormula').checked = Boolean(filter.formula);
+        if ($('bFilterDiagram')) $('bFilterDiagram').checked = Boolean(filter.diagram);
+        renderBank();
+    }
+    function renderBankFilterSchemes() {
+        const el = $('bBankFilterSchemes');
+        if (!el) return;
+        el.innerHTML = state.bankFilterSchemes.length
+            ? state.bankFilterSchemes.map(item => `<button class="b-finder-chip" type="button" onclick="B.applyBankFilterScheme('${item.id}')">${html(item.label)}</button>`).join('')
+            : '<span class="b-tag">可保存常用筛选</span>';
+    }
+    function toggleBankDensity() {
+        state.bankDensity = state.bankDensity === 'compact' ? 'expanded' : 'compact';
+        save();
+        renderBank();
+    }
     function renderQuestionCard(q) {
         const selected = state.basket.includes(q.id);
         const checked = state.selectedQuestions.has(q.id);
         const highlighted = state.highlightedQuestionId === q.id;
+        const answer = q.answer || '待补充';
+        const solution = cleanSolutionForOutput(q.solution) || '待补充';
+        const source = sourceLabel(q.source) || q.sourceName || '';
         return `<article class="b-card selectable ${selected ? 'selected' : ''} ${highlighted ? 'highlighted' : ''} ${imageSizeClass(q)}" id="bqCard-${html(q.id)}">
             <div class="b-card-check"><input type="checkbox" ${checked ? 'checked' : ''} onchange="B.toggleQuestionSelection('${q.id}', this.checked)"></div>
             <div>
             <div class="b-card-top"><div><div class="b-card-title">${html(q.stem).slice(0, 92)}${q.stem.length > 92 ? '...' : ''}</div><div class="b-tags">${[q.internalNo, q.source?.questionNo ? `原第 ${q.source.questionNo} 题` : '', q.grade, q.chapter, q.questionType, q.difficulty, `${q.score}分`].filter(Boolean).map(x => `<span class="b-tag">${html(x)}</span>`).join('')}${questionHasFormula(q) ? '<span class="b-tag blue">公式</span>' : ''}${questionHasImage(q) ? '<span class="b-tag orange">图形</span>' : ''}${qualityFlags(q).map(x => `<span class="b-tag red">${html(x)}</span>`).join('')}</div></div><div class="b-actions"><button class="b-btn small ${selected ? '' : 'primary'}" onclick="B.toggleBasket('${q.id}')">${selected ? '移出' : '加入'}</button><button class="b-btn small" onclick="B.openQuestionEditor('${q.id}')">编辑</button>${!q.answer ? `<button class="b-btn small" onclick="B.openQuestionEditor('${q.id}')">补答案</button>` : ''}${!q.solution ? `<button class="b-btn small" onclick="B.openQuestionEditor('${q.id}')">补解析</button>` : ''}</div></div>
-            <div class="b-stem">${renderText(q.stem)}</div>
-            ${q.diagramSvg ? `<div class="b-box b-diagram">${sanitizeSvg(q.diagramSvg)}</div>` : ''}
-            ${renderRoleImages(q)}
-            ${questionHasImage(q) ? `<div class="b-image-size-control">图形大小 <select onchange="B.setQuestionImageSize('${q.id}', this.value)"><option value="small" ${q.imageSize === 'small' ? 'selected' : ''}>小</option><option value="medium" ${!q.imageSize || q.imageSize === 'medium' ? 'selected' : ''}>中</option><option value="large" ${q.imageSize === 'large' ? 'selected' : ''}>大</option></select></div>` : ''}
-            <div class="b-tags">${(q.knowledgePoints || []).map(x => `<span class="b-tag">${html(x)}</span>`).join('')}</div>
-            <div class="b-stem" style="font-size:12px;color:var(--muted);">来源：${html(q.sourceName || sourceLabel(q.source))}</div>
+            ${questionHasImage(q) ? `<div class="b-card-image-preview" onclick="B.selectQuestionImage('${html(q.id)}')">${q.diagramSvg ? renderQuestionBankMedia(`<div class="b-box b-diagram">${sanitizeSvg(q.diagramSvg)}</div>`, q, 'SVG 图形') : ''}${renderRoleImages(q, { bankQuestionId: q.id })}</div>` : ''}
+            <details class="b-fold"><summary>显示答案</summary><div class="b-inline-answer-content"><strong>答案：</strong>${formulaForHtml(answer)}<br><strong>解析：</strong>${formulaForHtml(solution)}${imageItemsByRole(q, 'solution').map((url, imageIndex) => `<img class="b-question-image" src="${html(imageSrc(url))}" alt="解析图${imageIndex + 1}">`).join('')}</div></details>
+            <details class="b-fold"><summary>查看题干 / 来源</summary>
+                <div class="b-stem">${renderText(q.stem)}</div>
+                ${q.diagramSvg ? renderQuestionBankMedia(`<div class="b-box b-diagram">${sanitizeSvg(q.diagramSvg)}</div>`, q, 'SVG 图形') : ''}
+                ${renderRoleImages(q, { bankQuestionId: q.id })}
+                ${questionHasImage(q) ? `<div class="b-image-size-control">图形大小 <select onchange="B.setQuestionImageSize('${q.id}', this.value)"><option value="small" ${q.imageSize === 'small' ? 'selected' : ''}>小</option><option value="medium" ${!q.imageSize || q.imageSize === 'medium' ? 'selected' : ''}>中</option><option value="large" ${q.imageSize === 'large' ? 'selected' : ''}>大</option>${q.imageSize === 'custom' ? '<option value="custom" selected>自定义</option>' : ''}</select></div>` : ''}
+                <div class="b-tags">${(q.knowledgePoints || []).map(x => `<span class="b-tag">${html(x)}</span>`).join('')}</div>
+                <div class="b-stem" style="font-size:12px;color:var(--muted);">来源：${html(source)}</div>
+            </details>
             </div>
         </article>`;
     }
@@ -1273,6 +1645,8 @@ const B = (() => {
         const q = state.questions.find(item => item.id === questionId);
         if (!q) return;
         q.imageSize = ['small', 'medium', 'large'].includes(size) ? size : 'medium';
+        delete q.imageWidth;
+        delete q.imageHeight;
         save();
         renderBank();
         refreshOutput();
@@ -1400,7 +1774,7 @@ const B = (() => {
         const excluded = new Set(state.paperDraftExcluded || []);
         const missing = state.basket.filter(questionId => !current.includes(questionId) && !excluded.has(questionId));
         const stale = new Set(state.basket);
-        state.paperDraft = state.paperDraft.filter(item => ['heading', 'text', 'pageBreak', 'table', 'image'].includes(item.type) || stale.has(item.id));
+        state.paperDraft = state.paperDraft.filter(item => ['heading', 'text', 'pageBreak', 'blank', 'table', 'image'].includes(item.type) || stale.has(item.id));
         missing.forEach(questionId => state.paperDraft.push({ type: 'question', id: questionId }));
         if (!state.paperDraft.length && state.basket.length) {
             const included = state.basket.filter(questionId => !excluded.has(questionId));
@@ -1413,6 +1787,7 @@ const B = (() => {
             if (item.type === 'heading') return item;
             if (item.type === 'text') return item;
             if (item.type === 'pageBreak') return item;
+            if (item.type === 'blank') return item;
             if (item.type === 'table') return item;
             if (item.type === 'image') return item;
             const question = state.questions.find(q => q.id === item.id);
@@ -1431,16 +1806,43 @@ const B = (() => {
     function draftTitle() {
         return value('bOutputTitle') || `${outputTypeLabel()} ${new Date().toISOString().slice(0, 10)}`;
     }
+    function ensureHandoutScaffold() {
+        if (state.handoutScaffoldApplied) return;
+        ensurePaperDraftFromBasket();
+        const hasHandoutStructure = state.paperDraft.some(item =>
+            (item.type === 'heading' && /知识梳理|讲义/.test(item.title || '')) ||
+            (item.type === 'text' && /方法提示|知识梳理/.test(item.text || ''))
+        );
+        if (hasHandoutStructure) {
+            state.handoutScaffoldApplied = true;
+            return;
+        }
+        state.paperDraft.unshift(
+            { type: 'heading', title: '一、知识梳理' },
+            { type: 'text', text: '方法提示：先明确模型，再对应例题和变式训练。' }
+        );
+        state.handoutScaffoldApplied = true;
+        save();
+    }
     function setOutputType(type) {
         const el = $('bOutputType');
+        const currentMode = value('bOutputMode') || 'student';
+        if (currentMode !== 'answerOnly') state.lastNonAnswerOutputMode = currentMode;
         if (el) el.value = type;
         document.querySelectorAll('[data-output-type]').forEach(btn => btn.classList.toggle('active', btn.dataset.outputType === type));
-        if (type === 'answerEdit') setOutputMode('answerOnly');
+        if (type === 'handout') ensureHandoutScaffold();
+        if (type === 'answerEdit') {
+            setOutputMode('answerOnly', { remember: false });
+        } else if (currentMode === 'answerOnly') {
+            setOutputMode(state.lastNonAnswerOutputMode || 'student', { remember: false });
+        }
+        renderPaperDraft();
         refreshOutput();
     }
-    function setOutputMode(mode) {
+    function setOutputMode(mode, options = {}) {
         const el = $('bOutputMode');
         if (el) el.value = mode;
+        if (mode !== 'answerOnly' && options.remember !== false) state.lastNonAnswerOutputMode = mode;
         document.querySelectorAll('[data-output-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.outputMode === mode));
         refreshOutput();
     }
@@ -1451,30 +1853,188 @@ const B = (() => {
         document.querySelectorAll('[data-output-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.outputMode === mode));
     }
     function scrollDraftItem(index) {
+        state.activeDraftIndex = Number(index);
         const el = $(`bPaperItem-${index}`);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         document.querySelectorAll('.b-paper-item').forEach(item => item.classList.remove('active'));
         el?.classList.add('active');
+    }
+    function visibleDraftIndices() {
+        return draftItems().map((_, index) => index).filter(index => !isDraftItemHiddenInEditor(index));
+    }
+    function selectDraftOutline(event, index) {
+        const n = Number(index);
+        if (!Number.isFinite(n)) return;
+        const additive = Boolean(event?.metaKey || event?.ctrlKey);
+        const ranged = Boolean(event?.shiftKey && state.lastDraftSelectionIndex >= 0);
+        if (ranged) {
+            const visible = visibleDraftIndices();
+            const start = visible.indexOf(state.lastDraftSelectionIndex);
+            const end = visible.indexOf(n);
+            if (start >= 0 && end >= 0) {
+                const [from, to] = start < end ? [start, end] : [end, start];
+                if (!additive) state.selectedDraftIndices.clear();
+                visible.slice(from, to + 1).forEach(itemIndex => state.selectedDraftIndices.add(itemIndex));
+            }
+        } else if (additive) {
+            if (state.selectedDraftIndices.has(n)) state.selectedDraftIndices.delete(n);
+            else state.selectedDraftIndices.add(n);
+            state.lastDraftSelectionIndex = n;
+        } else {
+            state.selectedDraftIndices = new Set([n]);
+            state.lastDraftSelectionIndex = n;
+        }
+        scrollDraftItem(n);
+        renderOutputOutline();
+    }
+    function collapsedHeadingIndexFor(index) {
+        for (let i = Number(index) - 1; i >= 0; i -= 1) {
+            const item = state.paperDraft[i];
+            if (item?.type === 'heading') return state.collapsedHeadings.has(i) ? i : -1;
+        }
+        return -1;
+    }
+    function isDraftItemHiddenInEditor(index) {
+        return collapsedHeadingIndexFor(index) >= 0;
+    }
+    function toggleDraftHeadingCollapse(index) {
+        const n = Number(index);
+        if (!Number.isFinite(n)) return;
+        if (state.collapsedHeadings.has(n)) state.collapsedHeadings.delete(n);
+        else state.collapsedHeadings.add(n);
+        renderOutputOutline();
+        refreshOutput();
+    }
+    function toggleOutlineDisplayMode(event) {
+        event?.stopPropagation?.();
+        state.outlineDisplayMode = state.outlineDisplayMode === 'number' ? 'content' : 'number';
+        renderOutputOutline();
+    }
+    function selectedDraftArray(fallbackIndex = -1) {
+        const fallback = Number(fallbackIndex);
+        const values = [...state.selectedDraftIndices].filter(index => Number.isFinite(index) && state.paperDraft[index]);
+        if (values.length) return values;
+        return Number.isFinite(fallback) && state.paperDraft[fallback] ? [fallback] : [];
+    }
+    function contextMenuHtml() {
+        const menu = state.activeDraftContextMenu;
+        if (!menu) return '';
+        const item = state.paperDraft[menu.index];
+        if (!item) return '';
+        const style = `left:${Math.round(menu.x)}px;top:${Math.round(menu.y)}px;`;
+        if (item.type === 'heading') {
+            return `<div class="b-context-menu" style="${style}" onclick="event.stopPropagation()">
+                <button class="red" onclick="B.removeDraftHeadingOnly(${menu.index})">移除标题</button>
+                <button class="red" onclick="B.removeDraftHeadingSection(${menu.index})">移除标题下内容</button>
+            </div>`;
+        }
+        const count = selectedDraftArray(menu.index).length;
+        return `<div class="b-context-menu" style="${style}" onclick="event.stopPropagation()">
+            <button class="red" onclick="B.removeSelectedDraftItems(${menu.index})">移除${count > 1 ? `选中 ${count} 项` : '当前项'}</button>
+        </div>`;
+    }
+    function showDraftContextMenu(event, index) {
+        event.preventDefault();
+        event.stopPropagation();
+        const n = Number(index);
+        if (!state.selectedDraftIndices.has(n)) {
+            state.selectedDraftIndices = new Set([n]);
+            state.lastDraftSelectionIndex = n;
+        }
+        state.activeDraftContextMenu = { index: n, x: event.clientX, y: event.clientY };
+        renderOutputOutline();
+    }
+    function hideDraftContextMenu() {
+        if (!state.activeDraftContextMenu) return;
+        state.activeDraftContextMenu = null;
+        renderOutputOutline();
+    }
+    function removeDraftIndices(indices = []) {
+        const uniqueIndices = [...new Set(indices.map(Number).filter(index => Number.isFinite(index) && state.paperDraft[index]))].sort((a, b) => b - a);
+        uniqueIndices.forEach(index => {
+            const [removed] = state.paperDraft.splice(index, 1);
+            if (removed?.type === 'question' && removed.id) {
+                state.paperDraftExcluded = uniq([...(state.paperDraftExcluded || []), removed.id]);
+            }
+        });
+        state.selectedDraftIndices.clear();
+        state.activeDraftContextMenu = null;
+        state.collapsedHeadings.clear();
+        save();
+        renderPaperDraft();
+        refreshOutput();
+        if (uniqueIndices.length) toast(`已移除 ${uniqueIndices.length} 项`);
+    }
+    function removeSelectedDraftItems(fallbackIndex) {
+        removeDraftIndices(selectedDraftArray(fallbackIndex));
+    }
+    function removeDraftHeadingOnly(index) {
+        removeDraftIndices([index]);
+    }
+    function removeDraftHeadingSection(index) {
+        const n = Number(index);
+        if (!state.paperDraft[n] || state.paperDraft[n].type !== 'heading') return;
+        const indices = [];
+        for (let i = n + 1; i < state.paperDraft.length; i += 1) {
+            if (state.paperDraft[i]?.type === 'heading') break;
+            indices.push(i);
+        }
+        removeDraftIndices(indices);
     }
     function renderOutputOutline() {
         const el = $('bOutputOutline');
         if (!el) return;
         const items = draftItems();
         let questionIndex = 0;
-        const rows = [`<button class="b-outline-item active" onclick="B.scrollDraftItem(-1)">标题区</button>`];
+        const modeText = state.outlineDisplayMode === 'number' ? '题号' : '内容';
+        el.classList.toggle('number-mode', state.outlineDisplayMode === 'number');
+        const rows = [`<div class="b-outline-item root active" onclick="B.scrollDraftItem(-1)"><span>标题区</span><button class="b-outline-mode" onclick="B.toggleOutlineDisplayMode(event)">${modeText}</button></div>`];
         items.forEach((item, index) => {
-            if (item.type === 'heading') rows.push(`<button class="b-outline-item" onclick="B.scrollDraftItem(${index})">${html(item.title || '未命名栏目')}</button>`);
-            else if (item.type === 'text') rows.push(`<button class="b-outline-item sub" onclick="B.scrollDraftItem(${index})"><span class="b-outline-no">讲</span><span>${html(String(item.text || '讲义说明').slice(0, 12))}</span></button>`);
-            else if (item.type === 'pageBreak') rows.push(`<button class="b-outline-item sub" onclick="B.scrollDraftItem(${index})"><span class="b-outline-no">页</span><span>分页</span></button>`);
-            else if (item.type === 'table') rows.push(`<button class="b-outline-item sub" onclick="B.scrollDraftItem(${index})"><span class="b-outline-no">表</span><span>${html(item.title || '表格')}</span></button>`);
-            else if (item.type === 'image') rows.push(`<button class="b-outline-item sub" onclick="B.scrollDraftItem(${index})"><span class="b-outline-no">图</span><span>${html(item.caption || '图片')}</span></button>`);
+            if (isDraftItemHiddenInEditor(index)) return;
+            const selected = state.selectedDraftIndices.has(index) ? ' selected' : '';
+            const dragAttrs = `draggable="true" ondragstart="B.startDraftDrag(event, ${index})" ondragover="B.allowDraftDrop(event)" ondrop="B.dropDraftItem(event, ${index})" oncontextmenu="B.showDraftContextMenu(event, ${index})"`;
+            const click = `onclick="B.selectDraftOutline(event, ${index})"`;
+            if (item.type === 'heading') {
+                const collapsed = state.collapsedHeadings.has(index);
+                rows.push(`<div class="b-outline-item heading${selected}" ${dragAttrs} ${click}><span class="b-outline-title">${html(item.title || '未命名栏目')}</span><button class="b-outline-toggle" title="${collapsed ? '展开' : '折叠'}" onclick="event.stopPropagation();B.toggleDraftHeadingCollapse(${index})">${collapsed ? '▸' : '▾'}</button></div>`);
+            }
+            else if (item.type === 'text') rows.push(`<div class="b-outline-item sub${selected}" ${dragAttrs} ${click}><span class="b-outline-no">讲</span><span>${html(state.outlineDisplayMode === 'number' ? '说明' : String(item.text || '讲义说明').slice(0, 12))}</span></div>`);
+            else if (item.type === 'pageBreak') rows.push(`<div class="b-outline-item sub${selected}" ${dragAttrs} ${click}><span class="b-outline-no">页</span><span>分页</span></div>`);
+            else if (item.type === 'blank') rows.push(`<div class="b-outline-item sub${selected}" ${dragAttrs} ${click}><span class="b-outline-no">空</span><span>${Number(item.rows || 4)} 行空白</span></div>`);
+            else if (item.type === 'table') rows.push(`<div class="b-outline-item sub${selected}" ${dragAttrs} ${click}><span class="b-outline-no">表</span><span>${html(state.outlineDisplayMode === 'number' ? '表格' : item.title || '表格')}</span></div>`);
+            else if (item.type === 'image') rows.push(`<div class="b-outline-item sub${selected}" ${dragAttrs} ${click}><span class="b-outline-no">图</span><span>${html(state.outlineDisplayMode === 'number' ? '图片' : item.caption || '图片')}</span></div>`);
             else if (item.type === 'question') {
                 questionIndex += 1;
-                rows.push(`<button class="b-outline-item sub" onclick="B.scrollDraftItem(${index})"><span class="b-outline-no">${questionIndex}</span><span>${html((item.question?.stem || '题目').slice(0, 13))}</span></button>`);
+                const label = state.outlineDisplayMode === 'number' ? '' : `<span>${html((item.question?.stem || '题目').slice(0, 13))}</span>`;
+                const questionClass = state.outlineDisplayMode === 'number' ? ' question-number' : '';
+                rows.push(`<div class="b-outline-item sub${questionClass}${selected}" ${dragAttrs} ${click}><span class="b-outline-no">${questionIndex}</span>${label}</div>`);
             }
         });
-        rows.push(`<button class="b-outline-item" onclick="B.setOutputType('answerEdit')">答案解析</button>`);
+        rows.push(contextMenuHtml());
         el.innerHTML = rows.join('');
+    }
+    function answerAreaPopover(index) {
+        const item = state.paperDraft[index] || {};
+        const area = item.answerArea || {};
+        const activeStyle = area.override ? (!area.enabled ? 'none' : area.style === 'blank' ? 'blank' : 'underline') : '';
+        const rows = Number(area.rows || (activeStyle === 'underline' ? 1 : 4));
+        const styleButton = (key, label) => `<button class="${activeStyle === key ? 'active' : ''}" onclick="event.stopPropagation();B.chooseAnswerAreaStyle(${index}, '${key}')">${label}</button>`;
+        const rowButton = row => `<button class="${rows === row ? 'active' : ''}" onclick="event.stopPropagation();B.setAnswerAreaRows(${index}, ${row})">${row} 行</button>`;
+        const showRows = state.activeAnswerStyleIndex === index && ['underline', 'blank'].includes(activeStyle);
+        return `<div class="b-answer-popover" onclick="event.stopPropagation()">
+            <div class="b-answer-style-list">
+                ${styleButton('none', '不显示')}
+                ${styleButton('underline', '横线')}
+                ${styleButton('blank', '空白')}
+            </div>
+            ${showRows ? `<div class="b-answer-row-list">${[1, 2, 3, 4, 6, 8].map(rowButton).join('')}</div>` : ''}
+        </div>`;
+    }
+    function draftInlineTools(index, kind = 'item') {
+        return `<div class="b-paper-insert-tools">
+            <button class="b-btn small" onclick="B.insertPageBreak(${index})">插入分页</button>
+            ${kind === 'question' ? `<span class="b-answer-menu-wrap"><button class="b-btn small b-answer-menu-btn ${state.activeAnswerMenuIndex === index ? 'active' : ''}" onclick="event.stopPropagation();B.toggleAnswerAreaMenu(${index})">答题区</button>${state.activeAnswerMenuIndex === index ? answerAreaPopover(index) : ''}</span>` : ''}
+        </div>`;
     }
     function renderPaperDraft() {
         const el = $('bPaperDraftList');
@@ -1483,14 +2043,15 @@ const B = (() => {
         const items = draftItems();
         let questionIndex = 0;
         el.innerHTML = items.length ? items.map((item, index) => {
-            if (item.type === 'heading') return `<article class="b-basket-mini"><div class="b-basket-mini-title">标题：${html(item.title)}</div><div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small" onclick="B.editDraftHeading(${index})">编辑</button><button class="b-btn small red" onclick="B.removeDraftItem(${index})">移除</button></div></article>`;
+            if (item.type === 'heading') return `<article class="b-basket-mini"><div class="b-basket-mini-title">标题：${html(item.title)}</div><div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small" onclick="B.editDraftHeading(${index})">编辑</button>${draftInlineTools(index)}<button class="b-btn small red" onclick="B.removeDraftItem(${index})">移除</button></div></article>`;
             if (item.type === 'text') return `<article class="b-basket-mini"><div class="b-basket-mini-title">说明：${html(String(item.text || '').slice(0, 70))}${String(item.text || '').length > 70 ? '...' : ''}</div><div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small" onclick="B.editDraftText(${index})">编辑</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, 1)">下移</button><button class="b-btn small red" onclick="B.removeDraftItem(${index})">移除</button></div></article>`;
             if (item.type === 'pageBreak') return `<article class="b-basket-mini"><div class="b-basket-mini-title">分页</div><div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small" onclick="B.moveDraftItem(${index}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, 1)">下移</button><button class="b-btn small red" onclick="B.removeDraftItem(${index})">移除</button></div></article>`;
+            if (item.type === 'blank') return `<article class="b-basket-mini"><div class="b-basket-mini-title">${Number(item.rows || 4)} 行空白</div><div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small" onclick="B.setDraftBlankRows(${index})">设置行数</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, 1)">下移</button><button class="b-btn small red" onclick="B.removeDraftItem(${index})">移除</button></div></article>`;
             if (item.type === 'table') return `<article class="b-basket-mini"><div class="b-basket-mini-title">表格：${html(item.title || '未命名表格')}</div><div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small" onclick="B.editDraftTable(${index})">编辑</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, 1)">下移</button><button class="b-btn small red" onclick="B.removeDraftItem(${index})">移除</button></div></article>`;
             if (item.type === 'image') return `<article class="b-basket-mini"><div class="b-basket-mini-title">图片：${html(item.caption || item.url || '图片')}</div><div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small" onclick="B.editDraftImage(${index})">编辑</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, 1)">下移</button><button class="b-btn small red" onclick="B.removeDraftItem(${index})">移除</button></div></article>`;
             const q = item.question;
             questionIndex += 1;
-            return `<article class="b-basket-mini"><div class="b-basket-mini-title">${questionIndex}. ${textWithMath(String(q.stem || '').slice(0, 70))}${q.stem.length > 70 ? '...' : ''}</div><div class="b-actions" style="justify-content:flex-start;"><span class="b-tag">${html(q.questionType || '未标题型')}</span><button class="b-btn small" onclick="B.editDraftQuestion(${index})">临时编辑</button><button class="b-btn small" onclick="B.configureAnswerArea(${index})">答题区</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, 1)">下移</button><button class="b-btn small red" onclick="B.removeDraftItem(${index})">移出本卷</button></div></article>`;
+            return `<article class="b-basket-mini"><div class="b-basket-mini-title">${questionIndex}. ${textWithMath(String(q.stem || '').slice(0, 70))}${q.stem.length > 70 ? '...' : ''}</div><div class="b-actions" style="justify-content:flex-start;"><span class="b-tag">${html(q.questionType || '未标题型')}</span><button class="b-btn small" onclick="B.editDraftQuestion(${index})">临时编辑</button>${draftInlineTools(index, 'question')}<button class="b-btn small" onclick="B.moveDraftItem(${index}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${index}, 1)">下移</button><button class="b-btn small red" onclick="B.removeDraftItem(${index})">移出本卷</button></div></article>`;
         }).join('') : '<div class="b-empty">题篮为空，本卷草稿会在加入题目后生成。</div>';
         queueMathTypeset(el);
     }
@@ -1516,14 +2077,76 @@ const B = (() => {
         const el = $('bOutputTitle');
         if (el) el.value = title;
     }
-    function insertDraftHeading() {
-        const title = window.prompt('输入标题，例如：一、选择题', '一、选择题');
-        if (!title) return;
+    function updatePaperMetaFromInline(text = '') {
+        const next = String(text || '').trim();
+        state.paperMetaText = next;
+        state.paperMetaHidden = !next;
+        save();
+        refreshOutput();
+    }
+    function hidePaperMeta() {
+        state.paperMetaHidden = true;
+        save();
+        refreshOutput();
+    }
+    function showPaperMeta() {
+        state.paperMetaHidden = false;
+        save();
+        refreshOutput();
+    }
+    function syncPaperMetaButton() {
+        const btn = $('bPaperMetaToggle');
+        if (!btn) return;
+        btn.textContent = state.paperMetaHidden ? '显示信息栏' : '隐藏信息栏';
+        btn.classList.toggle('active', !state.paperMetaHidden);
+    }
+    function togglePaperMeta() {
+        state.paperMetaHidden = !state.paperMetaHidden;
+        save();
+        refreshOutput();
+    }
+    function syncLeftExportSettings() {
+        $('bLeftExportSettings')?.classList.toggle('show', state.outputSettingsOpen);
+        const btn = $('bExportSettingsToggle');
+        if (btn) {
+            btn.classList.toggle('active', state.outputSettingsOpen);
+            btn.textContent = state.outputSettingsOpen ? '收起设置' : '导出设置';
+        }
+    }
+    function toggleLeftExportSettings() {
+        state.outputSettingsOpen = !state.outputSettingsOpen;
+        syncLeftExportSettings();
+    }
+    function defaultInsertIndex(position = 'after') {
+        const index = Number(state.activeDraftIndex);
+        if (Number.isFinite(index) && index >= 0 && index < state.paperDraft.length) return position === 'before' ? index : index + 1;
+        return state.paperDraft.length;
+    }
+    function insertDraftItem(item, position = 'after') {
         ensurePaperDraftFromBasket();
-        state.paperDraft.push({ type: 'heading', title: title.trim() });
+        const index = defaultInsertIndex(position);
+        state.paperDraft.splice(index, 0, item);
+        state.activeDraftIndex = index;
+        state.activeInsertMenuIndex = -1;
+        state.activeAnswerMenuIndex = -1;
         save();
         renderPaperDraft();
         refreshOutput();
+        requestAnimationFrame(() => scrollDraftItem(index));
+    }
+    function insertDraftMenu(index) {
+        const nextIndex = Number(index);
+        state.activeDraftIndex = nextIndex;
+        state.activeInsertMenuIndex = state.activeInsertMenuIndex === nextIndex ? -1 : nextIndex;
+        state.activeAnswerMenuIndex = -1;
+        renderPaperDraft();
+        refreshOutput();
+        requestAnimationFrame(() => scrollDraftItem(nextIndex));
+    }
+    function insertDraftHeading(position = 'after') {
+        const title = window.prompt('输入标题，例如：一、选择题', '一、选择题');
+        if (!title) return;
+        insertDraftItem({ type: 'heading', title: title.trim() }, position);
     }
     function editDraftHeading(index) {
         const item = state.paperDraft[index];
@@ -1551,14 +2174,10 @@ const B = (() => {
         const title = String(text || '').trim();
         if (title) item.title = title;
     }
-    function insertDraftText() {
+    function insertDraftText(position = 'after') {
         const text = window.prompt('输入本次输出的说明文字，例如：方法提示、例题说明、课前提醒', '方法提示：');
         if (!text) return;
-        ensurePaperDraftFromBasket();
-        state.paperDraft.push({ type: 'text', text: text.trim() });
-        save();
-        renderPaperDraft();
-        refreshOutput();
+        insertDraftItem({ type: 'text', text: text.trim() }, position);
     }
     function editDraftText(index) {
         const item = state.paperDraft[index];
@@ -1583,21 +2202,39 @@ const B = (() => {
         if (!item || item.type !== 'text') return;
         item.text = String(text || '').trim();
     }
-    function insertPageBreak() {
+    function insertAfterDraftIndex(afterIndex, item) {
         ensurePaperDraftFromBasket();
-        state.paperDraft.push({ type: 'pageBreak' });
+        const index = Number(afterIndex);
+        const position = Number.isFinite(index) && index >= 0 ? Math.min(state.paperDraft.length, index + 1) : state.paperDraft.length;
+        state.paperDraft.splice(position, 0, item);
         save();
         renderPaperDraft();
         refreshOutput();
     }
-    function insertDraftTable() {
-        const title = window.prompt('表格标题', '课堂记录表');
-        if (!title) return;
-        ensurePaperDraftFromBasket();
-        state.paperDraft.push({ type: 'table', title: title.trim(), rows: [['要点', '记录'], ['方法', '']] });
+    function insertPageBreak(afterIndex) {
+        insertAfterDraftIndex(afterIndex, { type: 'pageBreak' });
+    }
+    function insertPageBreakBefore(index) {
+        state.activeDraftIndex = Number(index);
+        insertDraftItem({ type: 'pageBreak' }, 'before');
+    }
+    function insertDraftBlank(afterIndex, rows = 4) {
+        insertAfterDraftIndex(afterIndex, { type: 'blank', rows: Number(rows) || 4 });
+    }
+    function setDraftBlankRows(index) {
+        const item = state.paperDraft[index];
+        if (!item || item.type !== 'blank') return;
+        const rows = Number(window.prompt('空白行数', String(item.rows || 4)));
+        if (!Number.isFinite(rows) || rows < 1) return;
+        item.rows = Math.min(20, Math.max(1, Math.round(rows)));
         save();
         renderPaperDraft();
         refreshOutput();
+    }
+    function insertDraftTable(position = 'after') {
+        const title = window.prompt('表格标题', '课堂记录表');
+        if (!title) return;
+        insertDraftItem({ type: 'table', title: title.trim(), rows: [['要点', '记录'], ['方法', '']] }, position);
     }
     function editDraftTable(index) {
         const item = state.paperDraft[index];
@@ -1609,15 +2246,11 @@ const B = (() => {
         renderPaperDraft();
         refreshOutput();
     }
-    function insertDraftImage() {
+    function insertDraftImage(position = 'after') {
         const url = window.prompt('图片链接或本地附件 URL', '');
         if (!url) return;
         const caption = window.prompt('图片说明', '配图') || '';
-        ensurePaperDraftFromBasket();
-        state.paperDraft.push({ type: 'image', url: url.trim(), caption: caption.trim() });
-        save();
-        renderPaperDraft();
-        refreshOutput();
+        insertDraftItem({ type: 'image', url: url.trim(), caption: caption.trim() }, position);
     }
     function editDraftImage(index) {
         const item = state.paperDraft[index];
@@ -1660,18 +2293,212 @@ const B = (() => {
         renderPaperDraft();
         refreshOutput();
     }
-    function configureAnswerArea(index) {
+    function setDraftQuestionImageSize(index, size) {
         const item = state.paperDraft[index];
         if (!item || item.type !== 'question') return;
-        const area = item.answerArea || {};
-        openModal('设置本题答题区', `<div class="b-form">
-            <div class="b-alert success"><span>单题设置优先于右侧“答题区设置”的全局规则。</span></div>
-            <label><input id="bDraftAnswerOverride" type="checkbox" ${area.override ? 'checked' : ''}> 启用单题设置</label>
-            <label><input id="bDraftAnswerEnabled" type="checkbox" ${area.enabled !== false ? 'checked' : ''}> 显示答题区</label>
-            <div class="b-row"><div><label>样式</label><select id="bDraftAnswerStyle"><option value="inherit" ${!area.style || area.style === 'inherit' ? 'selected' : ''}>跟随全局</option><option value="underline" ${area.style === 'underline' ? 'selected' : ''}>填空横线</option><option value="lines" ${area.style === 'lines' ? 'selected' : ''}>解答横线</option><option value="blank" ${area.style === 'blank' ? 'selected' : ''}>空白区域</option></select></div><div><label>行数</label><input id="bDraftAnswerRows" type="number" min="1" max="20" value="${html(area.rows || '')}" placeholder="留空按全局"></div></div>
-            <label><input id="bDraftForceNextPage" type="checkbox" ${area.forceNextPage ? 'checked' : ''}> 本题从下一页开始</label>
-            <div class="b-actions"><button class="b-btn" onclick="B.closeModal()">取消</button><button class="b-btn primary" onclick="B.saveAnswerAreaConfig(${index})">保存</button></div>
-        </div>`);
+        const next = ['small', 'medium', 'large'].includes(size) ? size : '';
+        item.override = { ...(item.override || {}) };
+        if (next) item.override.imageSize = next;
+        else delete item.override.imageSize;
+        save();
+        renderPaperDraft();
+        refreshOutput();
+        toast(next ? `本卷中已改为${next === 'small' ? '小图' : next === 'large' ? '大图' : '中图'}` : '已恢复默认图片大小');
+    }
+    function startDraftImageResize(event, index) {
+        event.preventDefault();
+        event.stopPropagation();
+        const item = state.paperDraft[index];
+        const target = event.currentTarget?.closest('.b-resizable-figure');
+        if (!item || item.type !== 'question' || !target) return;
+        state.activeImageDraftIndex = Number(index);
+        const rect = target.getBoundingClientRect();
+        const start = {
+            x: event.clientX,
+            y: event.clientY,
+            width: rect.width,
+            height: rect.height
+        };
+        state.imageResize = { index, target, start };
+        const onMove = moveEvent => {
+            let nextWidth = start.width + moveEvent.clientX - start.x;
+            let nextHeight = start.height + moveEvent.clientY - start.y;
+            if (moveEvent.shiftKey) {
+                const ratio = start.width / Math.max(1, start.height);
+                const dominant = Math.abs(moveEvent.clientX - start.x) >= Math.abs(moveEvent.clientY - start.y)
+                    ? nextWidth
+                    : (start.height + moveEvent.clientY - start.y) * ratio;
+                nextWidth = dominant;
+                nextHeight = dominant / ratio;
+            }
+            nextWidth = clampNumber(nextWidth, 90, 720);
+            nextHeight = clampNumber(nextHeight, 50, 520);
+            target.style.width = `${Math.round(nextWidth)}px`;
+            target.style.height = `${Math.round(nextHeight)}px`;
+        };
+        const onUp = () => {
+            const current = state.imageResize;
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            state.imageResize = null;
+            if (!current?.target) return;
+            const nextRect = current.target.getBoundingClientRect();
+            item.override = {
+                ...(item.override || {}),
+                imageWidth: Math.round(clampNumber(nextRect.width, 90, 720)),
+                imageHeight: Math.round(clampNumber(nextRect.height, 50, 520))
+            };
+            save();
+            refreshOutput();
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+    function selectDraftImage(index) {
+        state.activeImageDraftIndex = Number(index);
+        state.activeDraftIndex = Number(index);
+        document.querySelectorAll('.b-paper-item').forEach(item => item.classList.remove('active'));
+        $(`bPaperItem-${index}`)?.classList.add('active');
+        document.querySelectorAll('.b-resizable-figure').forEach(item => item.classList.remove('is-selected'));
+        $(`bPaperItem-${index}`)?.querySelectorAll('.b-resizable-figure').forEach(item => item.classList.add('is-selected'));
+    }
+    function selectQuestionImage(questionId) {
+        state.activeBankImageId = questionId;
+        document.querySelectorAll('.b-card-image-preview .b-resizable-figure').forEach(item => item.classList.remove('is-selected'));
+        document.querySelectorAll(`#bqCard-${CSS.escape(questionId)} .b-card-image-preview .b-resizable-figure`).forEach(item => item.classList.add('is-selected'));
+    }
+    function startQuestionImageResize(event, questionId) {
+        event.preventDefault();
+        event.stopPropagation();
+        const q = state.questions.find(item => item.id === questionId);
+        const target = event.currentTarget?.closest('.b-resizable-figure');
+        if (!q || !target) return;
+        state.activeBankImageId = questionId;
+        const rect = target.getBoundingClientRect();
+        const start = {
+            x: event.clientX,
+            y: event.clientY,
+            width: rect.width,
+            height: rect.height
+        };
+        const onMove = moveEvent => {
+            let nextWidth = start.width + moveEvent.clientX - start.x;
+            let nextHeight = start.height + moveEvent.clientY - start.y;
+            if (moveEvent.shiftKey) {
+                const ratio = start.width / Math.max(1, start.height);
+                const dominant = Math.abs(moveEvent.clientX - start.x) >= Math.abs(moveEvent.clientY - start.y)
+                    ? nextWidth
+                    : (start.height + moveEvent.clientY - start.y) * ratio;
+                nextWidth = dominant;
+                nextHeight = dominant / ratio;
+            }
+            nextWidth = clampNumber(nextWidth, 90, 720);
+            nextHeight = clampNumber(nextHeight, 50, 520);
+            target.style.width = `${Math.round(nextWidth)}px`;
+            target.style.height = `${Math.round(nextHeight)}px`;
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            const nextRect = target.getBoundingClientRect();
+            q.imageWidth = Math.round(clampNumber(nextRect.width, 90, 720));
+            q.imageHeight = Math.round(clampNumber(nextRect.height, 50, 520));
+            q.imageSize = 'custom';
+            save();
+            renderBank();
+            refreshOutput();
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+    function configureAnswerArea(index) {
+        toggleAnswerAreaMenu(index);
+    }
+    function toggleAnswerAreaMenu(index) {
+        const item = state.paperDraft[index];
+        if (!item || item.type !== 'question') return;
+        state.activeAnswerMenuIndex = state.activeAnswerMenuIndex === index ? -1 : index;
+        state.activeAnswerStyleIndex = state.activeAnswerMenuIndex === index ? index : -1;
+        state.activeInsertMenuIndex = -1;
+        renderPaperDraft();
+        refreshOutput();
+    }
+    function chooseAnswerAreaStyle(index, style = 'none') {
+        const item = state.paperDraft[index];
+        if (!item || item.type !== 'question') return;
+        const previous = item.answerArea || {};
+        if (style === 'none') {
+            item.answerArea = { override: true, enabled: false, style: 'blank', rows: 0, forceNextPage: false };
+            state.activeAnswerMenuIndex = -1;
+            state.activeAnswerStyleIndex = -1;
+            save();
+            renderPaperDraft();
+            refreshOutput();
+            toast('已关闭本题答题区');
+            return;
+        }
+        const rows = Number(previous.rows || (style === 'underline' ? 1 : 4));
+        item.answerArea = {
+            override: true,
+            enabled: true,
+            style,
+            rows: Math.min(8, Math.max(1, rows)),
+            forceNextPage: previous.forceNextPage || false
+        };
+        state.activeAnswerMenuIndex = index;
+        state.activeAnswerStyleIndex = index;
+        save();
+        renderPaperDraft();
+        refreshOutput();
+    }
+    function setAnswerAreaRows(index, rows) {
+        const item = state.paperDraft[index];
+        if (!item || item.type !== 'question') return;
+        const current = item.answerArea || {};
+        item.answerArea = {
+            override: true,
+            enabled: true,
+            style: current.style === 'blank' ? 'blank' : 'underline',
+            rows: Math.min(8, Math.max(1, Number(rows) || 1)),
+            forceNextPage: current.forceNextPage || false
+        };
+        state.activeAnswerMenuIndex = -1;
+        state.activeAnswerStyleIndex = -1;
+        save();
+        renderPaperDraft();
+        refreshOutput();
+        toast(`已设置 ${item.answerArea.rows} 行答题区`);
+    }
+    function setAnswerAreaPreset(index, preset = '') {
+        const item = state.paperDraft[index];
+        if (!item || item.type !== 'question') return;
+        const previous = item.answerArea || {};
+        const next = { override: true, enabled: true, style: 'lines', rows: 6, forceNextPage: false };
+        if (preset === 'none') {
+            next.enabled = false;
+            next.rows = 0;
+        } else if (preset === 'underline') {
+            next.style = 'underline';
+            next.rows = 1;
+        } else if (preset === 'blank') {
+            next.style = 'blank';
+            next.rows = 4;
+        } else if (preset === 'nextPage') {
+            Object.assign(next, previous.override ? previous : { style: 'lines', rows: 6 });
+            next.override = true;
+            next.enabled = previous.enabled !== false;
+            next.forceNextPage = !previous.forceNextPage;
+        } else {
+            const rows = Number(preset);
+            next.style = 'lines';
+            next.rows = Number.isFinite(rows) && rows > 0 ? rows : 6;
+        }
+        item.answerArea = next;
+        state.activeAnswerMenuIndex = -1;
+        save();
+        renderPaperDraft();
+        refreshOutput();
+        toast(preset === 'none' ? '已关闭本题答题区' : preset === 'nextPage' ? (next.forceNextPage ? '本题将从下一页开始' : '已取消下一页开始') : '已更新本题答题区');
     }
     function saveAnswerAreaConfig(index) {
         const item = state.paperDraft[index];
@@ -1688,6 +2515,23 @@ const B = (() => {
         renderPaperDraft();
         refreshOutput();
     }
+    function setDraftAnswerRows(index, rows) {
+        const item = state.paperDraft[index];
+        if (!item || item.type !== 'question') return;
+        const value = Number(rows);
+        if (!Number.isFinite(value)) return;
+        item.answerArea = {
+            ...(item.answerArea || {}),
+            override: true,
+            enabled: value > 0,
+            style: value === 1 ? 'underline' : 'lines',
+            rows: value > 0 ? value : 0
+        };
+        save();
+        renderPaperDraft();
+        refreshOutput();
+        toast(value > 0 ? `已设置 ${value} 行答题区` : '已关闭本题答题区');
+    }
     function removeDraftItem(index) {
         const [removed] = state.paperDraft.splice(index, 1);
         if (removed?.type === 'question' && removed.id) {
@@ -1702,6 +2546,24 @@ const B = (() => {
         if (next < 0 || next >= state.paperDraft.length) return;
         const [item] = state.paperDraft.splice(index, 1);
         state.paperDraft.splice(next, 0, item);
+        save();
+        renderPaperDraft();
+        refreshOutput();
+    }
+    function startDraftDrag(event, index) {
+        event.dataTransfer?.setData('text/plain', String(index));
+        event.currentTarget?.classList.add('dragging');
+    }
+    function allowDraftDrop(event) {
+        event.preventDefault();
+    }
+    function dropDraftItem(event, targetIndex) {
+        event.preventDefault();
+        const from = Number(event.dataTransfer?.getData('text/plain'));
+        document.querySelectorAll('.b-outline-item.dragging').forEach(el => el.classList.remove('dragging'));
+        if (!Number.isFinite(from) || from === targetIndex || from < 0 || from >= state.paperDraft.length) return;
+        const [item] = state.paperDraft.splice(from, 1);
+        state.paperDraft.splice(targetIndex, 0, item);
         save();
         renderPaperDraft();
         refreshOutput();
@@ -1741,23 +2603,95 @@ const B = (() => {
             .sort((a, b) => paperQuestionSortValue(a, paper) - paperQuestionSortValue(b, paper));
     }
     function renderPapers() {
+        renderPaperFilterOptions();
         const query = value('bPaperSearch').toLowerCase();
-        const papers = state.paperLibrary.filter(paper => {
+        const year = value('bPaperYearFilter');
+        const grade = value('bPaperGradeFilter');
+        const region = value('bPaperRegionFilter');
+        const type = value('bPaperTypeFilter');
+        const sort = value('bPaperSortFilter') || 'recent';
+        let papers = state.paperLibrary.filter(paper => {
             const hay = [paper.title, paper.year, paper.grade, paper.region, paper.sourceType, paper.fileName].join(' ').toLowerCase();
-            return !query || hay.includes(query);
+            if (query && !hay.includes(query)) return false;
+            if (year && String(paper.year || '') !== year) return false;
+            if (grade && String(paper.grade || '') !== grade) return false;
+            if (region && String(paper.region || '') !== region) return false;
+            if (type && String(paper.sourceType || '') !== type) return false;
+            return true;
         });
+        papers = sortPapers(papers, sort);
         if ($('bPaperCount')) $('bPaperCount').textContent = `${papers.length} 套`;
         const list = $('bPaperList');
         if (!list) return;
         list.innerHTML = papers.length ? papers.map(paper => {
             const questions = paperQuestions(paper);
+            const expanded = state.expandedPaperId === paper.id;
+            const detail = expanded ? renderPaperDetail(paper, questions) : '';
             return `<article class="b-card">
                 <div class="b-card-top">
                     <div><div class="b-card-title">${html(paper.title)}</div><div class="b-tags">${[paper.year, paper.grade, paper.region, paper.sourceType, paper.fileName, `${questions.length} 道已入库`].filter(Boolean).map(x => `<span class="b-tag">${html(x)}</span>`).join('')}</div></div>
-                    <div class="b-actions"><button class="b-btn small primary" onclick="B.loadPaperToBasket('${paper.id}')">整卷加入</button><button class="b-btn small" onclick="B.printPaper('${paper.id}')">打印整卷</button><button class="b-btn small red" onclick="B.deletePaper('${paper.id}')">删除记录</button></div>
+                    <div class="b-actions"><button class="b-btn small" onclick="B.togglePaperDetail('${paper.id}')">${expanded ? '收起详情' : '查看详情'}</button><button class="b-btn small primary" onclick="B.loadPaperToBasket('${paper.id}')">整卷加入本卷</button><button class="b-btn small" onclick="B.printPaper('${paper.id}')">按原题号打印</button><button class="b-btn small red" onclick="B.deletePaper('${paper.id}')">删除记录</button></div>
                 </div>
+                ${detail}
             </article>`;
         }).join('') : '<div class="b-empty">暂无试卷。导入整卷后会自动生成试卷记录。</div>';
+    }
+    function togglePaperDetail(paperId) {
+        state.expandedPaperId = state.expandedPaperId === paperId ? '' : paperId;
+        save();
+        renderPapers();
+    }
+    function renderPaperDetail(paper = {}, questions = []) {
+        const typeDist = group(questions, q => q.questionType || '未标题型');
+        const flags = questions.flatMap(q => qualityFlags(q));
+        const flagDist = group(flags.map(flag => ({ flag })), item => item.flag);
+        const canPrint = questions.length > 0 && !questions.some(q => !q.stem);
+        const rows = questions.map((q, index) => {
+            const no = q.source?.questionNo || index + 1;
+            const stem = String(q.stem || '').replace(/\s+/g, ' ').trim();
+            const meta = [q.questionType, q.difficulty, q.score ? `${q.score}分` : '', questionHasImage(q) ? '含图' : '', questionHasFormula(q) ? '含公式' : ''].filter(Boolean).join(' · ');
+            return `<div class="b-paper-question-row">
+                <span class="b-paper-question-no">${html(no)}</span>
+                <div>
+                    <div class="b-paper-question-title">${html(stem.slice(0, 72))}${stem.length > 72 ? '...' : ''}</div>
+                    <div class="b-paper-question-meta">${html(meta || '未标注')}</div>
+                </div>
+                <button class="b-btn small primary" onclick="B.addQuestionToDraft('${q.id}')">加入本卷</button>
+            </div>`;
+        }).join('');
+        return `<div class="b-paper-detail">
+            <div class="b-paper-quality">
+                <div><strong>${questions.length}</strong>已入库题目</div>
+                <div><strong>${Object.keys(flagDist).length ? flags.length : 0}</strong>质量提示</div>
+                <div><strong>${canPrint ? '可以' : '需复核'}</strong>整卷输出</div>
+            </div>
+            <div class="b-tags">${Object.entries(typeDist).map(([key, count]) => `<span class="b-tag">${html(key)} ${count}</span>`).join('') || '<span class="b-tag">暂无题型分布</span>'}</div>
+            <div class="b-tags">${Object.entries(flagDist).map(([key, count]) => `<span class="b-tag orange">${html(key)} ${count}</span>`).join('') || '<span class="b-tag green">暂无明显质量问题</span>'}</div>
+            <p class="b-mini-note">整卷加入本卷：进入组卷输出，可继续编辑和加讲义内容；按原题号打印：按原试卷顺序进入打印流程。</p>
+            <div class="b-paper-question-list">
+                <div class="b-paper-question-head"><span>题号</span><span>本卷题目</span><button class="b-btn small primary" onclick="B.loadPaperToBasket('${paper.id}')">整卷加入</button></div>
+                ${rows || '<div class="b-empty">这套试卷还没有入库题目。</div>'}
+            </div>
+        </div>`;
+    }
+    function sortPapers(papers = [], sort = 'recent') {
+        if (sort === 'yearDesc') return [...papers].sort((a, b) => String(b.year || '').localeCompare(String(a.year || '')));
+        if (sort === 'title') return [...papers].sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN'));
+        if (sort === 'countDesc') return [...papers].sort((a, b) => paperQuestions(b).length - paperQuestions(a).length);
+        return [...papers].sort((a, b) => String(b.createdAt || b.id || '').localeCompare(String(a.createdAt || a.id || '')));
+    }
+    function renderPaperFilterOptions() {
+        setOptions('bPaperYearFilter', ['全部年份', ...uniq(state.paperLibrary.map(p => p.year)).sort((a, b) => String(b).localeCompare(String(a)))]);
+        setOptions('bPaperGradeFilter', ['全部年级', ...uniq(state.paperLibrary.map(p => p.grade))]);
+        setOptions('bPaperRegionFilter', ['全部地区', ...uniq(state.paperLibrary.map(p => p.region))]);
+        setOptions('bPaperTypeFilter', ['全部类型', ...uniq(state.paperLibrary.map(p => p.sourceType))]);
+    }
+    function clearPaperFilters() {
+        ['bPaperSearch', 'bPaperYearFilter', 'bPaperGradeFilter', 'bPaperRegionFilter', 'bPaperTypeFilter'].forEach(idName => {
+            const el = $(idName);
+            if (el) el.value = '';
+        });
+        renderPapers();
     }
     function deletePaper(paperId) {
         const paper = state.paperLibrary.find(item => item.id === paperId);
@@ -1776,7 +2710,7 @@ const B = (() => {
         state.basket = questions.map(q => q.id);
         state.paperDraft = questions.map(q => ({ type: 'question', id: q.id }));
         state.paperDraftExcluded = [];
-        if ($('bOutputTitle')) $('bOutputTitle').value = paper.title || '数学题库 B 输出';
+        if ($('bOutputTitle')) $('bOutputTitle').value = paper.title || '数学题库输出';
         save();
         renderAll();
         switchView('compose');
@@ -1816,6 +2750,22 @@ const B = (() => {
     function setOutputRange(range = '正式题库') {
         state.outputFilters.questions.range = range;
         renderOutputQuestionFinder();
+    }
+    function toggleOutputCardAnswer(questionId) {
+        if (state.expandedOutputAnswers.has(questionId)) state.expandedOutputAnswers.delete(questionId);
+        else state.expandedOutputAnswers.add(questionId);
+        renderOutputQuestionFinder();
+    }
+    function outputQuestionPreview(q = {}) {
+        if (!questionHasImage(q)) return '';
+        const images = normalizedImageItems(q).slice(0, 2);
+        const diagram = q.diagramSvg ? `<div class="b-output-card-image"><div class="b-box b-diagram">${sanitizeSvg(q.diagramSvg)}</div></div>` : '';
+        const imageHtml = images.map((item, index) => `<img class="b-question-image" src="${html(imageSrc(item.url))}" alt="题目图片${index + 1}">`).join('');
+        return `<div class="b-output-card-preview">${diagram}${imageHtml}</div>`;
+    }
+    function outputQuestionAnswer(q = {}) {
+        if (!state.expandedOutputAnswers.has(q.id)) return '';
+        return `<div class="b-inline-answer-content"><strong>答案：</strong>${formulaForHtml(q.answer || '待补充')}<br><strong>解析：</strong>${formulaForHtml(cleanSolutionForOutput(q.solution) || '待补充')}</div>`;
     }
     function renderOutputSide() {
         renderOutputQuestionFinder();
@@ -1863,8 +2813,11 @@ const B = (() => {
         $('bOutputQuestionResults').innerHTML = items.length ? items.map(q => `<article class="b-output-card">
             <div class="b-output-card-title">${textWithMath(String(q.stem || '').slice(0, 46))}${String(q.stem || '').length > 46 ? '...' : ''}</div>
             <div class="b-output-card-meta">${[q.source?.year, q.region, q.chapter, q.difficulty, questionHasImage(q) ? '含图' : ''].filter(Boolean).map(html).join(' · ')}</div>
+            ${outputQuestionPreview(q)}
+            ${outputQuestionAnswer(q)}
             <button class="b-btn small primary" onclick="B.addQuestionToDraft('${q.id}')">加入本卷</button>
             <button class="b-btn small" onclick="B.toggleBasket('${q.id}')">加入题篮</button>
+            <button class="b-btn small" onclick="B.toggleOutputCardAnswer('${q.id}')">${state.expandedOutputAnswers.has(q.id) ? '收起答案' : '显示答案'}</button>
             <button class="b-btn small" onclick="B.openQuestionEditor('${q.id}')">预览/编辑</button>
         </article>`).join('') : '<div class="b-empty">没有找到题目。</div>';
         queueMathTypeset($('bOutputQuestionResults'));
@@ -2051,37 +3004,175 @@ const B = (() => {
         renderOutputHistory();
         toast('已删除历史组卷');
     }
-    function generateAiOutline() {
+    function questionRefText(q = {}, index = 0) {
+        return q.source?.questionNo ? `原${q.source.questionNo}` : (q.internalNo || q.id || `第${index + 1}题`);
+    }
+    function compactQuestionForAi(q = {}, index = 0) {
+        return {
+            id: q.id,
+            ref: questionRefText(q, index),
+            type: q.questionType || '',
+            difficulty: q.difficulty || '',
+            chapter: q.chapter || '',
+            knowledgePoints: q.knowledgePoints || [],
+            score: q.score || '',
+            stem: String(q.stem || '').replace(/\s+/g, ' ').slice(0, 90),
+            answer: String(q.answer || '').replace(/\s+/g, ' ').slice(0, 60),
+            hasImage: questionHasImage(q)
+        };
+    }
+    function localAiOutlineSuggestion(items = basketItems()) {
+        const calc = items.filter(q => /填空|计算/.test(q.questionType || ''));
+        const core = items.filter(q => /选择|应用|几何|综合|证明/.test(q.questionType || ''));
+        const sections = [
+            { title: '一、知识梳理', note: '方法提示：先明确模型、公式或转化关系，再进入例题。', questionIds: calc.slice(0, 1).map(q => q.id) },
+            { title: '二、例题与训练', note: '建议按基础到提高排列，讲一题后配一题变式。', questionIds: core.map(q => q.id) },
+            { title: '三、课后练习', note: '保留独立练习题，用于课堂后半段或课后巩固。', questionIds: calc.slice(1).map(q => q.id) }
+        ].filter(section => section.note || section.questionIds.length);
+        return { source: 'local', sections, warnings: ['当前展示为本地结构建议。'] };
+    }
+    function apiBase() {
+        return window.location.protocol === 'file:' ? 'http://localhost:3000' : '';
+    }
+    function extractJsonFromText(text = '') {
+        const raw = String(text || '').trim();
+        const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        const candidate = fenced ? fenced[1] : raw;
+        const start = candidate.indexOf('{');
+        const end = candidate.lastIndexOf('}');
+        if (start < 0 || end <= start) return null;
+        try { return JSON.parse(candidate.slice(start, end + 1)); } catch { return null; }
+    }
+    function findQuestionIdByRef(ref = '', items = []) {
+        const text = String(ref || '').trim();
+        if (!text) return '';
+        const cleaned = text.replace(/^原第?/, '').replace(/题$/, '');
+        const found = items.find((q, index) => q.id === text || q.internalNo === text || String(q.source?.questionNo || '') === cleaned || String(index + 1) === cleaned);
+        return found?.id || '';
+    }
+    function normalizeAiOutlineSuggestion(aiText = '', items = []) {
+        const parsed = extractJsonFromText(aiText);
+        if (parsed?.sections?.length) {
+            const sections = parsed.sections.map(section => {
+                const refs = section.questionIds || section.questionRefs || section.questions || [];
+                const questionIds = refs.map(ref => typeof ref === 'object' ? (ref.id || ref.ref || ref.no) : ref)
+                    .map(ref => findQuestionIdByRef(ref, items))
+                    .filter(Boolean);
+                return {
+                    title: section.title || section.name || '未命名模块',
+                    note: section.note || section.description || section.text || '',
+                    questionIds: [...new Set(questionIds)]
+                };
+            }).filter(section => section.title || section.note || section.questionIds.length);
+            if (sections.length) return { source: 'ai', rawText: aiText, sections, warnings: [] };
+        }
+        const fallback = localAiOutlineSuggestion(items);
+        fallback.source = 'ai-text';
+        fallback.rawText = aiText;
+        fallback.warnings = ['AI 返回了文本建议，系统已用本地规则匹配题号。'];
+        return fallback;
+    }
+    function aiOutlineHtml(suggestion = state.lastAiOutlineSuggestion) {
+        if (state.aiPanelLoading) return '<div class="b-empty">AI 正在分析题篮和本卷结构...</div>';
+        if (!suggestion) return '<div class="b-empty">生成后会在这里显示结构建议。</div>';
+        const warnings = [...(suggestion.warnings || []), state.aiPanelError].filter(Boolean);
+        const sourceTag = suggestion.source === 'ai' ? '<span class="b-tag green">AI 建议</span>' : suggestion.source === 'ai-text' ? '<span class="b-tag orange">AI 文本 + 本地匹配</span>' : '<span class="b-tag">本地建议</span>';
+        const rows = (suggestion.sections || []).map(section => {
+            const refs = (section.questionIds || []).map(id => {
+                const q = state.questions.find(item => item.id === id) || {};
+                return questionRefText(q);
+            }).filter(Boolean).join('、') || '无指定题号';
+            return `<div class="b-output-card"><div class="b-output-card-title">${html(section.title)}</div><div class="b-output-card-meta">${html(section.note || '无说明')}</div><div class="b-tags"><span class="b-tag">${html(refs)}</span></div></div>`;
+        }).join('');
+        const raw = suggestion.rawText ? `<details class="b-mini-note"><summary>查看 AI 原文</summary><pre style="white-space:pre-wrap;margin:6px 0 0;">${html(suggestion.rawText)}</pre></details>` : '';
+        return `${sourceTag}${warnings.length ? `<div class="b-tags">${warnings.map(item => `<span class="b-tag orange">${html(item)}</span>`).join('')}</div>` : ''}${rows || '<div class="b-empty">暂无可加入的结构。</div>'}${raw}`;
+    }
+    function renderAiOutlineSuggestion() {
+        if ($('bAiOutline')) $('bAiOutline').innerHTML = aiOutlineHtml();
+    }
+    async function requestOutputAi(task, instruction) {
+        const items = basketItems();
+        const draft = draftItems().slice(0, 40).map((item, index) => ({
+            index: index + 1,
+            type: item.type,
+            title: item.title || '',
+            text: item.text ? String(item.text).slice(0, 80) : '',
+            questionId: item.id || ''
+        }));
+        const payload = {
+            agent: 'teaching-agent',
+            task,
+            answerLength: 'detailed',
+            modelProvider: state.aiProvider || value('bImportAIProvider') || '',
+            latestQuestion: instruction,
+            input: JSON.stringify({
+                outputType: value('bOutputType') || 'quiz',
+                outputMode: value('bOutputMode') || 'student',
+                questions: items.map(compactQuestionForAi),
+                draft,
+                stats: {
+                    count: items.length,
+                    types: group(items, q => q.questionType),
+                    difficulties: group(items, q => q.difficulty),
+                    chapters: group(items, q => q.chapter)
+                }
+            })
+        };
+        const res = await fetch(`${apiBase()}/api/ai/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) throw new Error(data.error || data.message || 'AI 调用失败');
+        return data;
+    }
+    async function generateAiOutline() {
         const items = basketItems();
         if (!items.length) return toast('请先加入题篮');
-        const byType = Object.entries(items.reduce((acc, q) => {
-            const key = q.questionType || '练习';
-            (acc[key] = acc[key] || []).push(q);
-            return acc;
-        }, {}));
-        const htmlRows = byType.map(([type, qs], index) => `<div class="b-output-card"><div class="b-output-card-title">${['知识梳理', '例题', '变式', '练习'][index] || type}</div><div class="b-output-card-meta">${qs.map(q => q.source?.questionNo ? `原${q.source.questionNo}` : q.internalNo).filter(Boolean).join('、') || `${qs.length}题`}</div><button class="b-btn small primary" onclick="B.applyAiOutline()">加入本卷</button></div>`).join('');
-        if ($('bAiOutline')) $('bAiOutline').innerHTML = htmlRows || '<div class="b-empty">暂无建议。</div>';
+        state.aiPanelLoading = true;
+        state.aiPanelError = '';
+        state.lastAiOutlineSuggestion = null;
+        renderAiOutlineSuggestion();
+        const local = localAiOutlineSuggestion(items);
+        try {
+            const instruction = '请根据题篮题目和当前本卷草稿，生成讲义/练习结构建议。请优先输出 JSON：{"sections":[{"title":"一、知识梳理","note":"说明","questionRefs":["原1","B-001"]}]}，再补充简短理由。';
+            const data = await requestOutputAi('lesson-plan', instruction);
+            const suggestion = normalizeAiOutlineSuggestion(data.result || data.outputText || '', items);
+            suggestion.provider = data.provider || '';
+            suggestion.mode = data.mode || '';
+            if (data.mode === 'local-template') {
+                suggestion.warnings = [...(suggestion.warnings || []), '真实 AI 未启用或不可用，已显示本地/模板建议。'];
+            }
+            if (Array.isArray(data.warnings)) suggestion.warnings = [...(suggestion.warnings || []), ...data.warnings];
+            state.lastAiOutlineSuggestion = suggestion;
+        } catch (err) {
+            state.lastAiOutlineSuggestion = local;
+            state.aiPanelError = `AI 暂不可用：${err.message || err}`;
+        } finally {
+            state.aiPanelLoading = false;
+            renderAiOutlineSuggestion();
+        }
     }
     function applyAiOutline() {
-        const items = basketItems();
-        if (!items.length) return toast('请先加入题篮');
-        state.paperDraft = [];
-        const sections = [
-            ['一、知识梳理', items.filter(q => /填空|计算/.test(q.questionType || '')).slice(0, 1)],
-            ['二、例题与训练', items.filter(q => /选择|应用|几何|综合|证明/.test(q.questionType || ''))],
-            ['三、课后练习', items.filter(q => /填空|计算/.test(q.questionType || '')).slice(1)]
-        ].filter(([, qs]) => qs.length);
-        sections.forEach(([title, qs]) => {
-            state.paperDraft.push({ type: 'heading', title });
-            if (/知识梳理/.test(title)) state.paperDraft.push({ type: 'text', text: '方法提示：先找同高、等底、比例或转化关系，再列式比较。' });
-            qs.forEach(q => state.paperDraft.push({ type: 'question', id: q.id }));
+        const suggestion = state.lastAiOutlineSuggestion || localAiOutlineSuggestion(basketItems());
+        if (!suggestion.sections?.length) return toast('请先生成大纲');
+        const existing = new Set(state.paperDraft.filter(item => item.type === 'question').map(item => item.id));
+        suggestion.sections.forEach(section => {
+            state.paperDraft.push({ type: 'heading', title: section.title || '未命名模块' });
+            if (section.note) state.paperDraft.push({ type: 'text', text: section.note });
+            (section.questionIds || []).forEach(questionId => {
+                if (existing.has(questionId)) return;
+                state.paperDraft.push({ type: 'question', id: questionId });
+                existing.add(questionId);
+            });
         });
         save();
         renderAll();
         refreshOutput();
-        toast('已按讲义结构整理本卷');
+        toast('已把大纲建议加入本卷草稿');
     }
-    function checkDraftQuality() {
+    async function checkDraftQuality() {
         const qs = draftQuestions();
         const problems = [];
         if (!qs.length) problems.push('本卷还没有题目');
@@ -2089,7 +3180,15 @@ const B = (() => {
         if (qs.some(q => /如图|下图|图中/.test(q.stem || '') && !questionHasImage(q))) problems.push('存在含图但无附件题');
         const difficulties = qs.map(q => q.difficulty).filter(Boolean);
         if (difficulties.includes('压轴') && difficulties[0] === '压轴') problems.push('压轴题位置偏前');
-        $('bDraftQuality').innerHTML = problems.length ? `<div class="b-tags">${problems.map(p => `<span class="b-tag orange">${html(p)}</span>`).join('')}</div>` : '<div class="b-tag green">本卷常规检查通过</div>';
+        const localHtml = problems.length ? `<div class="b-tags">${problems.map(p => `<span class="b-tag orange">${html(p)}</span>`).join('')}</div>` : '<div class="b-tag green">本卷常规检查通过</div>';
+        if ($('bDraftQuality')) $('bDraftQuality').innerHTML = `${localHtml}<div class="b-empty">AI 正在补充质量建议...</div>`;
+        try {
+            const data = await requestOutputAi('exam-analysis', '请检查当前本卷质量，重点看难度递进、题型比例、图片断页、答案解析完整性。用 3-5 条短建议回答。');
+            const warning = data.mode === 'local-template' ? '<span class="b-tag orange">真实 AI 未启用，以下为模板建议</span>' : '<span class="b-tag green">AI 建议</span>';
+            if ($('bDraftQuality')) $('bDraftQuality').innerHTML = `${localHtml}<div class="b-tags">${warning}</div><div class="b-output-card-meta">${html(data.result || '').replace(/\n/g, '<br>')}</div>`;
+        } catch (err) {
+            if ($('bDraftQuality')) $('bDraftQuality').innerHTML = `${localHtml}<div class="b-tag orange">AI 暂不可用：${html(err.message || err)}</div>`;
+        }
     }
     function group(items, fn) {
         return items.reduce((acc, item) => {
@@ -2114,11 +3213,31 @@ const B = (() => {
         const el = $('bBasketDrawerBody');
         if (!el) return;
         const items = basketItems();
-        el.innerHTML = items.length ? items.map((q, i) => `<article class="b-basket-mini" draggable="true" ondragstart="B.startBasketDrag(event, ${i})" ondragover="B.allowBasketDrop(event)" ondrop="B.dropBasketItem(event, ${i})">
+        const allAction = items.length ? `<div class="b-actions" style="justify-content:flex-start;margin-bottom:10px;"><button class="b-btn small primary" onclick="B.addAllBasketToDraft()">全部加入本卷</button></div>` : '';
+        el.innerHTML = items.length ? allAction + items.map((q, i) => `<article class="b-basket-mini" draggable="true" ondragstart="B.startBasketDrag(event, ${i})" ondragover="B.allowBasketDrop(event)" ondrop="B.dropBasketItem(event, ${i})">
             <div class="b-basket-mini-title">${i + 1}. ${textWithMath(String(q.stem || '').slice(0, 86))}${q.stem.length > 86 ? '...' : ''}</div>
-            <div class="b-actions" style="justify-content:flex-start;"><span class="b-tag">${html(q.chapter || '未标章节')}</span><button class="b-btn small" onclick="B.moveBasketItem(${i}, -1)">上移</button><button class="b-btn small" onclick="B.moveBasketItem(${i}, 1)">下移</button><button class="b-btn small" onclick="B.toggleBasket('${q.id}')">移出</button></div>
+            <div class="b-actions" style="justify-content:flex-start;"><span class="b-tag">${html(q.chapter || '未标章节')}</span><button class="b-btn small primary" onclick="B.addBasketQuestionToDraft('${q.id}')">加入本卷</button><button class="b-btn small" onclick="B.moveBasketItem(${i}, -1)">上移</button><button class="b-btn small" onclick="B.moveBasketItem(${i}, 1)">下移</button><button class="b-btn small" onclick="B.toggleBasket('${q.id}')">移出</button></div>
         </article>`).join('') : '<div class="b-empty">题篮为空。去正式题库加入题目。</div>';
         queueMathTypeset(el);
+    }
+    function addBasketQuestionToDraft(questionId) {
+        addQuestionToDraft(questionId);
+        closeBasketDrawer();
+    }
+    function addAllBasketToDraft() {
+        const ids = state.basket.filter(Boolean);
+        if (!ids.length) return toast('题篮为空');
+        ensurePaperDraftFromBasket();
+        ids.forEach(questionId => {
+            if (!draftQuestionIds().includes(questionId)) state.paperDraft.push({ type: 'question', id: questionId });
+            state.paperDraftExcluded = state.paperDraftExcluded.filter(id => id !== questionId);
+        });
+        save();
+        renderAll();
+        refreshOutput();
+        closeBasketDrawer();
+        switchView('compose');
+        toast(`已加入 ${ids.length} 道题到本卷`);
     }
     function moveBasketItem(index, delta) {
         const next = index + delta;
@@ -2168,16 +3287,24 @@ const B = (() => {
         closeBasketDrawer();
         closeHelpDrawer();
     }
+    function closeInlineMenus() {
+        if (state.activeInsertMenuIndex < 0 && state.activeAnswerMenuIndex < 0 && state.activeAnswerStyleIndex < 0) return;
+        state.activeInsertMenuIndex = -1;
+        state.activeAnswerMenuIndex = -1;
+        state.activeAnswerStyleIndex = -1;
+        renderPaperDraft();
+        generateOutput();
+    }
     function goComposeFromBasket() {
         closeBasketDrawer();
         switchView('compose');
     }
     function outputOptions() {
         return {
-            showScore: $('bShowScore')?.checked ?? true,
-            showDifficulty: $('bShowDifficulty')?.checked ?? true,
-            showTags: $('bShowTags')?.checked,
-            showSource: $('bShowSource')?.checked,
+            showScore: $('bShowScore')?.checked || false,
+            showDifficulty: $('bShowDifficulty')?.checked || false,
+            showTags: $('bShowTags')?.checked || false,
+            showSource: $('bShowSource')?.checked || false,
             showAnswerArea: $('bShowAnswerArea')?.checked || false,
             answerAutoByType: $('bAnswerAutoByType')?.checked !== false,
             fillBlankStyle: value('bFillBlankStyle') || 'underline',
@@ -2238,7 +3365,10 @@ const B = (() => {
         if (opts.mode !== 'student') return '';
         const config = answerAreaConfig(q, opts);
         if (!config.enabled) return '';
-        if (config.style === 'underline') return '<div class="b-answer-area"><span class="b-fill-underline"></span></div>';
+        if (config.style === 'underline') {
+            const lines = Array.from({ length: Math.max(1, Number(config.rows || 1)) }, () => '<div class="b-answer-line"></div>').join('');
+            return `<div class="b-answer-area"><div class="b-answer-lines">${lines}</div></div>`;
+        }
         if (config.style === 'blank') return `<div class="b-answer-area b-answer-blank" style="min-height:${Math.max(36, Number(config.rows || 4) * 18)}px"></div>`;
         const lines = Array.from({ length: Math.max(1, Number(config.rows || 6)) }, () => '<div class="b-answer-line"></div>').join('');
         return `<div class="b-answer-area"><div class="b-answer-lines">${lines}</div></div>`;
@@ -2251,12 +3381,14 @@ const B = (() => {
         const opts = outputOptions();
         const questions = draftQuestions();
         const totalScore = questions.reduce((s, q) => s + Number(q.score || 0), 0);
-        const lines = [`# ${title}`, '', mode === 'answerOnly' ? '答案版' : `姓名：__________　总分：${totalScore} 分`, ''];
-        if (type === 'handout') lines.push('## 学习目标', '- 梳理核心模型。', '- 通过例题掌握步骤。', '');
+        const defaultMeta = mode === 'answerOnly' ? '答案版' : `姓名：__________　总分：${totalScore} 分`;
+        const lines = [`# ${title}`, ''];
+        if (!state.paperMetaHidden) lines.push(state.paperMetaText || defaultMeta, '');
         if (type === 'variants') lines.push('说明：以下为举一反三练习草稿，变式需老师最终确认。', '');
         if (type === 'wrongbook') lines.push('## 错题复练清单', '');
         let questionIndex = 0;
         items.forEach((item) => {
+            if (mode === 'answerOnly' && ['pageBreak', 'blank'].includes(item.type)) return;
             if (item.type === 'heading') {
                 lines.push(`## ${item.title}`, '');
                 return;
@@ -2267,6 +3399,10 @@ const B = (() => {
             }
             if (item.type === 'pageBreak') {
                 lines.push('--- 分页 ---', '');
+                return;
+            }
+            if (item.type === 'blank') {
+                lines.push(...Array.from({ length: Math.max(1, Number(item.rows || 4)) }, () => ''), '');
                 return;
             }
             if (item.type === 'table') {
@@ -2287,21 +3423,26 @@ const B = (() => {
     function imageSrc(url) {
         const value = String(url || '').trim();
         if (!value) return '';
+        if (!isImageReference(value)) return '';
         if (/^(?:https?:|data:|blob:|file:)/i.test(value)) return value;
         if (value.startsWith('/Users/')) return `file://${value}`;
+        if (value.startsWith('/')) {
+            const origin = /^https?:$/i.test(window.location.protocol) ? window.location.origin : 'http://localhost:3000';
+            return `${origin}${value}`;
+        }
         return value;
     }
     function questionImages(q = {}) {
-        const images = Array.isArray(q.images) ? q.images.map(item => typeof item === 'string' ? item : item?.url).filter(Boolean) : [];
-        if (!images.length && q.imageUrl) images.push(q.imageUrl);
+        const images = Array.isArray(q.images) ? q.images.map(item => typeof item === 'string' ? item : item?.url).filter(isImageReference) : [];
+        if (!images.length && isImageReference(q.imageUrl)) images.push(q.imageUrl);
         return [...new Set(images)];
     }
     function normalizedImageItems(q = {}) {
         const items = Array.isArray(q.images) ? q.images.map((item, index) => {
             if (typeof item === 'string') return { url: item, role: '', order: index + 1 };
             return { url: item?.url || '', role: item?.role || '', optionLabel: item?.optionLabel || '', order: item?.order || index + 1 };
-        }).filter(item => item.url) : [];
-        if (!items.length && q.imageUrl) items.push({ url: q.imageUrl, role: 'stem', order: 1 });
+        }).filter(item => isImageReference(item.url)) : [];
+        if (!items.length && isImageReference(q.imageUrl)) items.push({ url: q.imageUrl, role: 'stem', order: 1 });
         return items;
     }
     function imageItemsByRole(q = {}, role = '') {
@@ -2344,7 +3485,12 @@ const B = (() => {
     function renderImages(q = {}, alt = '题目图片') {
         return questionImages(q).map((url, index) => `<img class="b-question-image" src="${html(imageSrc(url))}" alt="${alt}${index + 1}">`).join('');
     }
-    function renderRoleImages(q = {}) {
+    function renderQuestionBankMedia(innerHtml, q = {}, label = '图片') {
+        const selected = state.activeBankImageId === q.id;
+        const handle = `<span class="b-resize-handle" title="拖动调整正式题图片大小" onmousedown="B.startQuestionImageResize(event, '${html(q.id)}')"></span>`;
+        return `<div class="b-resizable-figure is-resizable ${selected ? 'is-selected' : ''}"${outputMediaStyle(q)} aria-label="${html(label)}" onclick="event.stopPropagation();B.selectQuestionImage('${html(q.id)}')">${innerHtml}${handle}</div>`;
+    }
+    function renderRoleImages(q = {}, opts = {}) {
         let items = normalizedImageItems(q);
         if (!items.length) return '';
         const hasOptionRoles = items.some(item => /^option-[A-D]$/.test(item.role || ''));
@@ -2359,7 +3505,10 @@ const B = (() => {
         const groups = ['stem', 'option-A', 'option-B', 'option-C', 'option-D', 'solution']
             .map(role => ({ role, urls: items.filter(item => (item.role || 'stem') === role).map(item => item.url) }))
             .filter(group => group.urls.length);
-        return `<div class="b-image-role-grid">${groups.map(group => `<div class="b-image-role-item"><div class="b-mini-note">${labels[group.role] || '图片'}</div>${group.urls.map((url, index) => `<img class="b-question-image" src="${html(imageSrc(url))}" alt="${labels[group.role] || '图片'}${index + 1}">`).join('')}</div>`).join('')}</div>`;
+        return `<div class="b-image-role-grid">${groups.map(group => `<div class="b-image-role-item"><div class="b-mini-note">${labels[group.role] || '图片'}</div>${group.urls.map((url, index) => {
+            const image = `<img class="b-question-image" src="${html(imageSrc(url))}" alt="${labels[group.role] || '图片'}${index + 1}">`;
+            return opts.bankQuestionId ? renderQuestionBankMedia(image, q, labels[group.role] || '图片') : image;
+        }).join('')}</div>`).join('')}</div>`;
     }
     function outputStemText(q = {}) {
         return cleanStemForOutput(q.stem || '').replace(/^\s*(?:图片|图|image|img)\s*[:：]\s*\S+\s*$/gim, '').trim();
@@ -2390,6 +3539,37 @@ const B = (() => {
         });
         return { intro, options, usedImageCount: Math.min(images.length, options.length) };
     }
+    function clampNumber(value, min, max) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return min;
+        return Math.min(max, Math.max(min, num));
+    }
+    function outputImageSize(q = {}, fallback = {}) {
+        const width = Number(q.imageWidth || 0);
+        const height = Number(q.imageHeight || 0);
+        if (width > 0 && height > 0) {
+            return {
+                width: clampNumber(width, 90, 720),
+                height: clampNumber(height, 50, 520)
+            };
+        }
+        if (fallback.width && fallback.height) return fallback;
+        if (q.imageSize === 'small') return { width: 220, height: 130 };
+        if (q.imageSize === 'large') return { width: 560, height: 320 };
+        return { width: 360, height: 220 };
+    }
+    function outputMediaStyle(q = {}, fallback = {}) {
+        const size = outputImageSize(q, fallback);
+        if (!size.width || !size.height) return '';
+        return ` style="width:${Math.round(size.width)}px;height:${Math.round(size.height)}px"`;
+    }
+    function renderOutputMedia(innerHtml, q = {}, opts = {}, label = '图片') {
+        const interactive = Boolean(opts.interactive && Number.isFinite(Number(opts.draftIndex)));
+        const draftIndex = Number(opts.draftIndex);
+        const selected = interactive && state.activeImageDraftIndex === draftIndex;
+        const handle = interactive ? `<span class="b-resize-handle" title="拖动调整本卷图片大小" onmousedown="B.startDraftImageResize(event, ${Number(opts.draftIndex)})"></span>` : '';
+        return `<div class="b-resizable-figure ${interactive ? 'is-resizable' : ''} ${selected ? 'is-selected' : ''}"${outputMediaStyle(q)} aria-label="${html(label)}" ${interactive ? `onclick="event.stopPropagation();B.selectDraftImage(${draftIndex})"` : ''}>${innerHtml}${handle}</div>`;
+    }
     function renderQuestionForOutput(q, index, opts = {}) {
         const allImages = questionImages(q);
         const roleItems = normalizedImageItems(q);
@@ -2416,13 +3596,13 @@ const B = (() => {
             return `<section class="b-preview-question b-answer-only ${imageSizeClass(q)}">
                 ${opts.showSource ? `<p class="b-source-line">来源：${html(sourceWithQuestionNo(q))}</p>` : ''}
                 <p class="b-question-line"><span class="b-question-no">${index + 1}.</span><strong>答案：</strong>${formulaForHtml(q.answer || '待补充')}</p>
-                <div class="b-teacher-block"><strong>解析：</strong>${formulaForHtml(cleanSolutionForOutput(q.solution) || '待补充')}${imageItemsByRole(q, 'solution').map((url, imageIndex) => `<img class="b-question-image" src="${html(imageSrc(url))}" alt="解析图片${imageIndex + 1}">`).join('')}</div>
+                <div class="b-teacher-block"><strong>解析：</strong>${formulaForHtml(cleanSolutionForOutput(q.solution) || '待补充')}${imageItemsByRole(q, 'solution').map((url, imageIndex) => renderOutputMedia(`<img class="b-question-image" src="${html(imageSrc(url))}" alt="解析图片${imageIndex + 1}">`, q, opts, `解析图片${imageIndex + 1}`)).join('')}</div>
             </section>`;
         }
         const questionText = parsed.options.length ? parsed.intro : stemWithFillBlank(q);
         const remainingImages = parsed.options.length ? stemImages : stemImages;
-        const optionGrid = parsed.options.length ? `<div class="b-option-grid">${parsed.options.map(option => `<div class="b-option-item"><span class="b-option-label">${html(option.label)}.</span>${formulaForHtml(option.text)}${option.image ? `<img class="b-question-image" src="${html(imageSrc(option.image))}" alt="选项${html(option.label)}图片">` : ''}</div>`).join('')}</div>` : '';
-        const extras = `${q.diagramSvg ? `<div class="b-box b-diagram">${sanitizeSvg(q.diagramSvg)}</div>` : ''}${remainingImages.map((url, imageIndex) => `<img class="b-question-image" src="${html(imageSrc(url))}" alt="题目图片${imageIndex + 1}">`).join('')}`;
+        const optionGrid = parsed.options.length ? `<div class="b-option-grid">${parsed.options.map(option => `<div class="b-option-item"><span class="b-option-label">${html(option.label)}.</span>${formulaForHtml(option.text)}${option.image ? renderOutputMedia(`<img class="b-question-image" src="${html(imageSrc(option.image))}" alt="选项${html(option.label)}图片">`, q, opts, `选项${html(option.label)}图片`) : ''}</div>`).join('')}</div>` : '';
+        const extras = `${q.diagramSvg ? renderOutputMedia(`<div class="b-box b-diagram">${sanitizeSvg(q.diagramSvg)}</div>`, q, opts, 'SVG 图形') : ''}${remainingImages.map((url, imageIndex) => renderOutputMedia(`<img class="b-question-image" src="${html(imageSrc(url))}" alt="题目图片${imageIndex + 1}">`, q, opts, `题目图片${imageIndex + 1}`)).join('')}`;
         const solutionImages = imageItemsByRole(q, 'solution');
         const answerArea = renderAnswerArea(q, opts);
         const breakStyle = answerAreaConfig(q, opts).forceNextPage ? ' style="break-before:page;page-break-before:always;"' : '';
@@ -2432,7 +3612,7 @@ const B = (() => {
             ${extras}
             ${optionGrid}
             ${opts.showTags && q.knowledgePoints?.length ? `<p class="b-mini-note">知识点：${q.knowledgePoints.map(html).join('、')}</p>` : ''}
-            ${opts.mode === 'teacher' ? `<div class="b-teacher-block"><strong>答案：</strong>${formulaForHtml(q.answer || '待补充')}<br><strong>解析：</strong>${formulaForHtml(cleanSolutionForOutput(q.solution) || '待补充')}${solutionImages.map((url, imageIndex) => `<img class="b-question-image" src="${html(imageSrc(url))}" alt="解析图片${imageIndex + 1}">`).join('')}</div>` : ''}
+            ${opts.mode === 'teacher' ? `<div class="b-teacher-block"><strong>答案：</strong>${formulaForHtml(q.answer || '待补充')}<br><strong>解析：</strong>${formulaForHtml(cleanSolutionForOutput(q.solution) || '待补充')}${solutionImages.map((url, imageIndex) => renderOutputMedia(`<img class="b-question-image" src="${html(imageSrc(url))}" alt="解析图片${imageIndex + 1}">`, q, opts, `解析图片${imageIndex + 1}`)).join('')}</div>` : ''}
             ${answerArea}
             ${opts.type === 'variants' ? '<p class="b-mini-note">变式 1：换数字。　变式 2：换问法。　变式 3：加一步。</p>' : ''}
         </section>`;
@@ -2489,6 +3669,15 @@ const B = (() => {
         }
         return lines.filter(Boolean).join('\n');
     }
+    function draftInsertPopover(index) {
+        if (state.activeInsertMenuIndex !== index) return '';
+        return `<div class="b-insert-popover" onclick="event.stopPropagation()">
+            <button onclick="B.insertDraftHeading('before')">标题</button>
+            <button onclick="B.insertDraftText('before')">说明</button>
+            <button onclick="B.insertDraftTable('before')">表格</button>
+            <button onclick="B.insertDraftImage('before')">图片</button>
+        </div>`;
+    }
     function buildPreviewHtml() {
         const items = draftItems();
         const title = draftTitle();
@@ -2500,39 +3689,101 @@ const B = (() => {
         let questionIndex = 0;
         let pageNumber = 1;
         const body = items.map((item, itemIndex) => {
-            const tools = `<div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftQuestion(${itemIndex})">临时编辑</button><button class="b-btn small" onclick="B.configureAnswerArea(${itemIndex})">答题区</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, 1)">下移</button><button class="b-btn small" onclick="B.removeDraftItem(${itemIndex})">移出</button></div>`;
-            if (item.type === 'heading') return `<div class="b-paper-item" id="bPaperItem-${itemIndex}"><h2 class="b-paper-section-title b-editable" contenteditable="true" spellcheck="false" oninput="B.syncDraftHeadingInline(${itemIndex}, this.textContent)" onblur="B.updateDraftHeadingFromInline(${itemIndex}, this.textContent)">${html(item.title)}</h2><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftHeading(${itemIndex})">编辑</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, 1)">下移</button><button class="b-btn small" onclick="B.removeDraftItem(${itemIndex})">移除</button></div></div>`;
-            if (item.type === 'text') return `<div class="b-paper-item" id="bPaperItem-${itemIndex}"><p class="b-handout-note b-editable" contenteditable="true" spellcheck="false" oninput="B.syncDraftTextInline(${itemIndex}, this.innerText)" onblur="B.updateDraftTextFromInline(${itemIndex}, this.innerText)">${formulaForHtml(item.text || '')}</p><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftText(${itemIndex})">编辑</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, 1)">下移</button><button class="b-btn small" onclick="B.removeDraftItem(${itemIndex})">移除</button></div></div>`;
+            if (mode === 'answerOnly' && ['pageBreak', 'blank'].includes(item.type)) return '';
+            if (isDraftItemHiddenInEditor(itemIndex)) return '';
+            const addButton = `<button class="b-paper-add ${state.activeInsertMenuIndex === itemIndex ? 'active' : ''}" title="在此上方插入" onclick="event.stopPropagation();B.insertDraftMenu(${itemIndex})">+</button>${draftInsertPopover(itemIndex)}`;
+            const itemTools = `<button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, 1)">下移</button>${draftInlineTools(itemIndex, item.type === 'question' ? 'question' : 'item')}<button class="b-btn small" onclick="B.removeDraftItem(${itemIndex})">移出</button>`;
+            const tools = `<div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftQuestion(${itemIndex})">临时编辑</button>${itemTools}</div>`;
+            if (item.type === 'heading') {
+                return `<div class="b-paper-item" id="bPaperItem-${itemIndex}" onclick="B.scrollDraftItem(${itemIndex})">${addButton}<div class="b-heading-row"><h2 class="b-paper-section-title b-editable" contenteditable="true" spellcheck="false" oninput="B.syncDraftHeadingInline(${itemIndex}, this.textContent)" onblur="B.updateDraftHeadingFromInline(${itemIndex}, this.textContent)">${html(item.title)}</h2></div><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftHeading(${itemIndex})">编辑</button>${itemTools}</div></div>`;
+            }
+            if (item.type === 'text') return `<div class="b-paper-item" id="bPaperItem-${itemIndex}" onclick="B.scrollDraftItem(${itemIndex})">${addButton}<p class="b-handout-note b-editable" contenteditable="true" spellcheck="false" oninput="B.syncDraftTextInline(${itemIndex}, this.innerText)" onblur="B.updateDraftTextFromInline(${itemIndex}, this.innerText)">${formulaForHtml(item.text || '')}</p><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftText(${itemIndex})">编辑</button>${itemTools}</div></div>`;
             if (item.type === 'pageBreak') {
                 pageNumber += 1;
-                return `<div class="b-paper-item" id="bPaperItem-${itemIndex}"><div class="b-page-break-line" data-next-page="${pageNumber}">分页控制：导出时从这里进入下一页</div><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, 1)">下移</button><button class="b-btn small" onclick="B.removeDraftItem(${itemIndex})">移除</button></div></div>`;
+                return `<div class="b-paper-item" id="bPaperItem-${itemIndex}" onclick="B.scrollDraftItem(${itemIndex})">${addButton}<div class="b-page-break-line" data-next-page="${pageNumber}">固定分页：第 ${pageNumber} 页开始</div><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, -1)">上移</button><button class="b-btn small" onclick="B.moveDraftItem(${itemIndex}, 1)">下移</button><button class="b-btn small" onclick="B.removeDraftItem(${itemIndex})">移除</button></div></div>`;
             }
-            if (item.type === 'table') return `<div class="b-paper-item" id="bPaperItem-${itemIndex}"><table class="b-draft-table"><caption>${html(item.title || '')}</caption>${(item.rows || []).map(row => `<tr>${row.map(cell => `<td>${html(cell)}</td>`).join('')}</tr>`).join('')}</table><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftTable(${itemIndex})">编辑</button><button class="b-btn small" onclick="B.removeDraftItem(${itemIndex})">移除</button></div></div>`;
-            if (item.type === 'image') return `<div class="b-paper-item" id="bPaperItem-${itemIndex}"><img class="b-question-image" src="${html(imageSrc(item.url))}" alt="${html(item.caption || '本卷图片')}">${item.caption ? `<p class="b-mini-note">${html(item.caption)}</p>` : ''}<div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftImage(${itemIndex})">编辑</button><button class="b-btn small" onclick="B.removeDraftItem(${itemIndex})">移除</button></div></div>`;
-            const htmlBlock = renderQuestionForOutput(item.question, questionIndex, { ...opts, mode, type, draftItem: item });
+            if (item.type === 'blank') return `<div class="b-paper-item" id="bPaperItem-${itemIndex}" onclick="B.scrollDraftItem(${itemIndex})">${addButton}<div class="b-draft-blank" style="height:${Math.max(24, Number(item.rows || 4) * 18)}px">${Number(item.rows || 4)} 行空白</div><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.setDraftBlankRows(${itemIndex})">设置</button>${itemTools}</div></div>`;
+            if (item.type === 'table') return `<div class="b-paper-item" id="bPaperItem-${itemIndex}" onclick="B.scrollDraftItem(${itemIndex})">${addButton}<table class="b-draft-table"><caption>${html(item.title || '')}</caption>${(item.rows || []).map(row => `<tr>${row.map(cell => `<td>${html(cell)}</td>`).join('')}</tr>`).join('')}</table><div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftTable(${itemIndex})">编辑</button>${itemTools}</div></div>`;
+            if (item.type === 'image') return `<div class="b-paper-item" id="bPaperItem-${itemIndex}" onclick="B.scrollDraftItem(${itemIndex})">${addButton}<img class="b-question-image" src="${html(imageSrc(item.url))}" alt="${html(item.caption || '本卷图片')}">${item.caption ? `<p class="b-mini-note">${html(item.caption)}</p>` : ''}<div class="b-paper-inline-tools"><button class="b-btn small" onclick="B.editDraftImage(${itemIndex})">编辑</button>${itemTools}</div></div>`;
+            const htmlBlock = renderQuestionForOutput(item.question, questionIndex, { ...opts, mode, type, draftItem: item, draftIndex: itemIndex, interactive: true });
             questionIndex += 1;
-            return `<div class="b-paper-item ${imageSizeClass(item.question)}" id="bPaperItem-${itemIndex}">${htmlBlock}${tools}</div>`;
+            return `<div class="b-paper-item ${imageSizeClass(item.question)}" id="bPaperItem-${itemIndex}" onclick="B.scrollDraftItem(${itemIndex})">${addButton}${htmlBlock}${tools}</div>`;
         }).join('');
-        const meta = mode === 'answerOnly' ? '答案版' : `姓名：__________　班级：__________　得分：__________${opts.showScore ? `　总分：${totalScore} 分` : ''}`;
-        const intro = type === 'handout' ? '<h2 class="b-paper-section-title">一、知识梳理</h2><p class="b-handout-note">方法提示：先明确模型，再对应例题和变式训练。</p>' : '';
-        return `<h1 id="bPaperItem--1" class="b-editable" contenteditable="true" spellcheck="false" oninput="B.syncDraftTitleInline(this.textContent)" onblur="B.updateDraftTitleFromInline(this.textContent)" title="直接修改标题">${html(title)}</h1><p class="b-paper-meta">${meta}</p>${intro}<div class="b-paper-questions">${body}</div><div class="b-page-footer">第 1 页 / 预览分页</div>`;
+        const defaultMeta = mode === 'answerOnly' ? '答案版' : `姓名：__________　班级：__________　得分：__________${opts.showScore ? `　总分：${totalScore} 分` : ''}`;
+        const meta = state.paperMetaText || defaultMeta;
+        const metaHtml = state.paperMetaHidden ? '' : `<div class="b-paper-meta-row" id="bPaperMetaRow"><p class="b-paper-meta b-editable" contenteditable="true" spellcheck="false" onblur="B.updatePaperMetaFromInline(this.textContent)">${html(meta)}</p><button class="b-btn small" onclick="B.hidePaperMeta()">删除</button></div>`;
+        const intro = '';
+        return `<h1 id="bPaperItem--1" class="b-editable" contenteditable="true" spellcheck="false" oninput="B.syncDraftTitleInline(this.textContent)" onblur="B.updateDraftTitleFromInline(this.textContent)" title="直接修改标题">${html(title)}</h1>${metaHtml}${intro}<div class="b-paper-questions">${body}</div><div class="b-page-footer">第 1 页 / 预览分页</div>`;
+    }
+    function clearAutoPageGuides() {
+        document.querySelectorAll('.b-auto-page-break-line').forEach(el => el.remove());
+    }
+    function queueAutoPageGuides() {
+        clearTimeout(window._bAutoPageTimer);
+        window._bAutoPageTimer = setTimeout(renderAutoPageGuides, 180);
+    }
+    function renderAutoPageGuides() {
+        const output = $('bOutput');
+        if (!output || (value('bOutputMode') || 'student') === 'answerOnly') return clearAutoPageGuides();
+        clearAutoPageGuides();
+        const items = [...output.querySelectorAll('.b-paper-item')];
+        if (!items.length) return;
+        const style = getComputedStyle(output);
+        const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+        const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+        const paperHeight = Math.max(880, output.clientWidth * 1.414);
+        const contentPageHeight = Math.max(760, paperHeight - paddingTop - paddingBottom);
+        let page = 1;
+        let nextLimit = paddingTop + contentPageHeight;
+        const breaks = [];
+        items.forEach(item => {
+            const manualLine = item.querySelector('.b-page-break-line');
+            if (manualLine) {
+                const manualPage = Number(manualLine.dataset.nextPage || 0);
+                page = Number.isFinite(manualPage) && manualPage > page ? manualPage : page + 1;
+                nextLimit = item.offsetTop + contentPageHeight;
+                return;
+            }
+            const bottom = item.offsetTop + item.offsetHeight;
+            if (bottom > nextLimit) {
+                page += 1;
+                breaks.push({ before: item, page });
+                nextLimit += contentPageHeight;
+                while (bottom > nextLimit) {
+                    page += 1;
+                    nextLimit += contentPageHeight;
+                }
+            }
+        });
+        breaks.forEach(({ before, page }) => {
+            const line = document.createElement('div');
+            line.className = 'b-auto-page-break-line';
+            line.dataset.label = `自动分页：第 ${page} 页开始`;
+            before.parentNode?.insertBefore(line, before);
+        });
     }
     function generateOutput() {
-        if (!basketItems().length) return toast('请先加入题篮');
+        if (!basketItems().length && !state.paperDraft.length) return toast('请先加入题篮');
         const el = $('bOutput');
         el.dataset.markdown = buildMarkdown();
         el.innerHTML = buildPreviewHtml();
+        syncPaperMetaButton();
+        syncLeftExportSettings();
         queueMathTypeset(el);
+        queueAutoPageGuides();
     }
     function refreshOutput() {
         const el = $('bOutput');
         if (!el) return;
-        if (!basketItems().length) {
+        if (!basketItems().length && !state.paperDraft.length) {
             el.dataset.markdown = '';
             el.innerHTML = '先把题目加入题篮，预览会自动生成。';
+            clearAutoPageGuides();
+            syncPaperMetaButton();
+            syncLeftExportSettings();
             return;
         }
-        ensurePaperDraftFromBasket();
+        if (basketItems().length) ensurePaperDraftFromBasket();
         renderPaperDraft();
         generateOutput();
     }
@@ -2551,30 +3802,40 @@ const B = (() => {
     }
     function formulaForDocxText(text) {
         const superscripts = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '+': '⁺', '-': '⁻', n: 'ⁿ' };
-        const simpleFractions = { '1/2': '½', '1/3': '⅓', '2/3': '⅔', '1/4': '¼', '3/4': '¾', '1/5': '⅕', '2/5': '⅖', '3/5': '⅗', '4/5': '⅘', '1/6': '⅙', '5/6': '⅚', '1/8': '⅛', '3/8': '⅜', '5/8': '⅝', '7/8': '⅞' };
         function sup(value) {
             return String(value || '').split('').map(ch => superscripts[ch] || ch).join('');
         }
         return String(text || '')
-            .replace(/\\d?frac\{([^{}]+)\}\{([^{}]+)\}/g, (_, a, b) => simpleFractions[`${a}/${b}`] || `${a}⁄${b}`)
-            .replace(/\\sqrt(?:\[[^\]]+\])?\{([^{}]+)\}/g, '√($1)')
-            .replace(/([A-Za-z0-9)])\^\{?([0-9+\-n]+)\}?/g, (_, base, exp) => `${base}${sup(exp)}`)
-            .replace(/\b([1-9])\/([1-9])\b/g, (m) => simpleFractions[m] || m)
+            .replace(/\\(?:dfrac|tfrac|frac)\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, (_, a, b) => `(${formulaForDocxText(a)})/(${formulaForDocxText(b)})`)
+            .replace(/\\(?:dfrac|tfrac|frac)\s*\(([^()]+)\)\s*\(([^()]+)\)/g, (_, a, b) => `(${formulaForDocxText(a)})/(${formulaForDocxText(b)})`)
+            .replace(/\\sqrt(?:\[[^\]]+\])?\s*\{([^{}]+)\}/g, (_, a) => `√(${formulaForDocxText(a)})`)
+            .replace(/\\sqrt\s*\(([^()]+)\)/g, (_, a) => `√(${formulaForDocxText(a)})`)
+            .replace(/\\sqrt\s+([A-Za-z0-9.]+)/g, '√($1)')
+            .replace(/([A-Za-z0-9)])\^\{([0-9+\-n]+)\}/g, (_, base, exp) => `${base}${sup(exp)}`)
+            .replace(/([A-Za-z0-9)])\^([0-9n])/g, (_, base, exp) => `${base}${sup(exp)}`)
+            .replace(/√\(([^()\s]+)\)/g, '√$1')
             .replace(/\\times/g, '×')
             .replace(/\\cdot/g, '·')
             .replace(/\\div/g, '÷')
             .replace(/\\leq?/g, '≤')
             .replace(/\\geq?/g, '≥')
             .replace(/\\pi/g, 'π')
+            .replace(/\\angle/g, '∠')
+            .replace(/\\triangle/g, '△')
+            .replace(/\\parallel/g, '∥')
+            .replace(/\\perp/g, '⊥')
+            .replace(/\\circ/g, '°')
+            .replace(/([0-9])\^°/g, '$1°')
             .replace(/\\left|\\right/g, '')
             .replace(/\\\(|\\\)|\\\[|\\\]/g, '')
+            .replace(/\\([A-Za-z]+)/g, '$1')
             .replace(/[{}]/g, '');
     }
     function xml(v) {
         return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
     }
     function docxRun(text, opts = {}) {
-        const props = [opts.bold ? '<w:b/>' : '', opts.size ? `<w:sz w:val="${opts.size}"/>` : '', opts.color ? `<w:color w:val="${opts.color}"/>` : ''].join('');
+        const props = ['<w:rFonts w:ascii="Cambria Math" w:eastAsia="SimSun" w:hAnsi="Cambria Math"/>', opts.bold ? '<w:b/>' : '', opts.size ? `<w:sz w:val="${opts.size}"/>` : '', opts.color ? `<w:color w:val="${opts.color}"/>` : ''].join('');
         return `<w:r>${props ? `<w:rPr>${props}</w:rPr>` : ''}<w:t xml:space="preserve">${xml(text)}</w:t></w:r>`;
     }
     function docxParagraph(text = '', opts = {}) {
@@ -2646,6 +3907,13 @@ const B = (() => {
         rels.push(`<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fileName}"/>`);
         return docxImage(relId, label, size.width || 360, size.height || 180);
     }
+    function docxOutputImageSize(q = {}, fallback = {}) {
+        const size = outputImageSize(q, fallback);
+        return {
+            width: Math.round(clampNumber(size.width || 360, 80, 560)),
+            height: Math.round(clampNumber(size.height || 180, 50, 360))
+        };
+    }
     async function docxQuestionXml(q, index, opts, media, rels) {
         const allImages = questionImages(q);
         const roleItems = normalizedImageItems(q);
@@ -2674,17 +3942,17 @@ const B = (() => {
             parts.push(docxParagraph(`${index + 1}. 答案：${formulaForDocxText(q.answer || '待补充')}`, { after: 40 }));
             parts.push(docxParagraph(`解析：${formulaForDocxText(cleanSolutionForOutput(q.solution) || '待补充')}`, { after: 50 }));
             const answerImages = imageItemsByRole(q, 'solution');
-            for (let i = 0; i < answerImages.length; i += 1) parts.push(await docxImageAsset(answerImages[i], media, rels, `解析图${i + 1}`, { width: 190, height: 95 }));
+            for (let i = 0; i < answerImages.length; i += 1) parts.push(await docxImageAsset(answerImages[i], media, rels, `解析图${i + 1}`, docxOutputImageSize(q, { width: 190, height: 95 })));
             return parts.join('');
         }
         parts.push(docxParagraph(`${index + 1}. ${metaParts.length ? `（${metaParts.join('｜')}）` : ''}${formulaForDocxText(parsed.options.length ? parsed.intro : stemWithFillBlank(q))}`, { after: 60 }));
-        if (diagramData) parts.push(await docxImageAsset(diagramData, media, rels, 'SVG 图形'));
-        for (let i = 0; i < stemImages.length; i += 1) parts.push(await docxImageAsset(stemImages[i], media, rels, `题干图${i + 1}`));
+        if (diagramData) parts.push(await docxImageAsset(diagramData, media, rels, 'SVG 图形', docxOutputImageSize(q)));
+        for (let i = 0; i < stemImages.length; i += 1) parts.push(await docxImageAsset(stemImages[i], media, rels, `题干图${i + 1}`, docxOutputImageSize(q)));
         if (parsed.options.length) {
             const cells = [];
             for (const option of parsed.options) {
                 const cellParts = [docxParagraph(`${option.label}. ${formulaForDocxText(option.text)}`, { after: 20 })];
-                if (option.image) cellParts.push(await docxImageAsset(option.image, media, rels, `选项${option.label}图片`, { width: 120, height: 70 }));
+                if (option.image) cellParts.push(await docxImageAsset(option.image, media, rels, `选项${option.label}图片`, docxOutputImageSize(q, { width: 120, height: 70 })));
                 cells.push(`<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr>${cellParts.join('')}</w:tc>`);
             }
             const rows = [];
@@ -2695,13 +3963,13 @@ const B = (() => {
         if (opts.mode === 'teacher') {
             parts.push(docxParagraph(`答案：${formulaForDocxText(q.answer || '待补充')}\n解析：${formulaForDocxText(cleanSolutionForOutput(q.solution) || '待补充')}`, { after: 50 }));
             const solutionImages = imageItemsByRole(q, 'solution');
-            for (let i = 0; i < solutionImages.length; i += 1) parts.push(await docxImageAsset(solutionImages[i], media, rels, `解析图${i + 1}`, { width: 190, height: 95 }));
+            for (let i = 0; i < solutionImages.length; i += 1) parts.push(await docxImageAsset(solutionImages[i], media, rels, `解析图${i + 1}`, docxOutputImageSize(q, { width: 190, height: 95 })));
         }
         if (opts.mode === 'student') {
             const config = answerAreaConfig(q, opts);
             if (config.enabled) {
                 if (config.style === 'underline') parts.push(docxParagraph('答：________________', { after: 70 }));
-                else if (config.style === 'blank') parts.push(docxParagraph(Array.from({ length: Math.max(2, Number(config.rows || 4)) }, () => '').join('\n'), { after: 80, line: 360 }));
+                else if (config.style === 'blank') parts.push(docxParagraph(Array.from({ length: Math.max(2, Number(config.rows || 4)) }, () => ' ').join('\n'), { after: 80, line: 360 }));
                 else parts.push(docxParagraph(Array.from({ length: Math.max(1, Number(config.rows || 6)) }, () => '________________________________________').join('\n'), { after: 80, line: 360 }));
             }
         }
@@ -2767,7 +4035,9 @@ const B = (() => {
         const totalScore = questions.reduce((s, q) => s + Number(q.score || 0), 0);
         const media = [];
         const rels = [];
-        const body = [docxParagraph(title, { align: 'center', bold: true, size: 32, after: 80 }), docxParagraph(mode === 'answerOnly' ? '答案版' : `姓名：__________    总分：${totalScore} 分`, { align: 'center', size: 20, color: '667085', after: 160 })];
+        const body = [docxParagraph(title, { align: 'center', bold: true, size: 32, after: 80 })];
+        const defaultMeta = mode === 'answerOnly' ? '答案版' : `姓名：__________    总分：${totalScore} 分`;
+        if (!state.paperMetaHidden) body.push(docxParagraph(state.paperMetaText || defaultMeta, { align: 'center', size: 20, color: '667085', after: 160 }));
         let questionIndex = 0;
         for (const item of items) {
             if (item.type === 'heading') {
@@ -2775,7 +4045,9 @@ const B = (() => {
             } else if (item.type === 'text') {
                 body.push(docxParagraph(formulaForDocxText(item.text || ''), { after: 80 }));
             } else if (item.type === 'pageBreak') {
-                body.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+                if (mode !== 'answerOnly') body.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+            } else if (item.type === 'blank') {
+                if (mode !== 'answerOnly') body.push(docxParagraph(Array.from({ length: Math.max(1, Number(item.rows || 4)) }, () => ' ').join('\n'), { after: 80, line: 360 }));
             } else if (item.type === 'table') {
                 body.push(docxParagraph(item.title || '表格', { bold: true, after: 40 }));
                 const rows = (item.rows || []).map(row => `<w:tr>${row.map(cell => `<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr>${docxParagraph(cell, { after: 20 })}</w:tc>`).join('')}</w:tr>`).join('');
@@ -2812,16 +4084,20 @@ const B = (() => {
         const totalScore = questions.reduce((s, q) => s + Number(q.score || 0), 0);
         let questionIndex = 0;
         const body = items.map(item => {
+            if (mode === 'answerOnly' && ['pageBreak', 'blank'].includes(item.type)) return '';
             if (item.type === 'heading') return `<h2 class="b-paper-section-title">${html(item.title)}</h2>`;
             if (item.type === 'text') return `<p class="b-handout-note">${formulaForHtml(item.text || '')}</p>`;
             if (item.type === 'pageBreak') return '<div class="b-page-break-line" style="break-after:page;page-break-after:always;"></div>';
+            if (item.type === 'blank') return `<div class="b-draft-blank" style="height:${Math.max(24, Number(item.rows || 4) * 18)}px"></div>`;
             if (item.type === 'table') return `<table class="b-draft-table"><caption>${html(item.title || '')}</caption>${(item.rows || []).map(row => `<tr>${row.map(cell => `<td>${html(cell)}</td>`).join('')}</tr>`).join('')}</table>`;
             if (item.type === 'image') return `<img class="b-question-image" src="${html(imageSrc(item.url))}" alt="${html(item.caption || '本卷图片')}">${item.caption ? `<p class="b-mini-note">${html(item.caption)}</p>` : ''}`;
             const block = renderQuestionForOutput(item.question, questionIndex, { ...opts, mode, type, draftItem: item });
             questionIndex += 1;
             return block;
         }).join('\n');
-        return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${html(title)}</title><script>window.MathJax={tex:{inlineMath:[['\\\\(','\\\\)'],['$','$']],displayMath:[['\\\\[','\\\\]']],processEscapes:true},svg:{fontCache:'global'}};<\/script><script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"><\/script><style>@page{size:${opts.paperSize};margin:13mm 14mm}body{font-family:"Times New Roman","SimSun",serif;color:#111827;line-height:1.48;font-size:${opts.paperFontSize}pt}h1{text-align:center;margin:0 0 7pt;font-size:18pt}.b-paper-meta{text-align:center;color:#667085;font-size:9.5pt;margin:0 0 10pt}.b-paper-section-title{font-size:13pt;margin:8pt 0 4pt}.b-handout-note{margin:4pt 0 7pt;white-space:pre-wrap}.b-preview-question{${opts.keepQuestionTogether ? 'break-inside:avoid;' : ''}margin:5pt 0 7pt}.b-question-line{margin:0;line-height:1.5}.b-question-no{font-weight:800;margin-right:3pt}.b-question-meta{color:#667085;font-size:9pt;margin-right:4pt}.b-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2pt 8pt;margin:3pt 0 2pt 18pt}.b-option-item{border:0;padding:1pt;min-height:18pt}.b-option-label{font-weight:800;margin-right:4pt}.b-img-size-small{--question-image-height:90pt;--question-image-width:160pt}.b-img-size-medium{--question-image-height:150pt;--question-image-width:260pt}.b-img-size-large{--question-image-height:220pt;--question-image-width:380pt}.b-question-image,img{max-width:min(100%,var(--question-image-width,260pt));max-height:var(--question-image-height,150pt);object-fit:contain}.b-option-item img{display:block;margin-top:2pt;max-height:105pt}.b-mini-note,.source,.tags,.b-source-line{font-size:8.5pt;color:#667085;margin:2pt 0}.b-teacher-block{margin:4pt 0 0 18pt}.b-box{border:1px dashed #cbd5e1;padding:6pt}.b-answer-area{margin:4pt 0 4pt 18pt}.b-answer-lines{display:grid;gap:8pt;padding-top:3pt}.b-answer-line{border-bottom:1px solid #cbd5e1;height:14pt}.b-answer-blank{border:1px dashed #d0d5dd;border-radius:5pt;background:#fff}.b-fill-underline{display:inline-block;min-width:86pt;border-bottom:1px solid #111827;height:1em}.b-page-break-line{break-after:page;page-break-after:always}.b-draft-table{width:100%;border-collapse:collapse;margin:5pt 0}.b-draft-table td{border:1px solid #cbd5e1;padding:5pt}.b-draft-table caption{text-align:left;font-weight:700;margin-bottom:3pt}mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}</style></head><body><h1>${html(title)}</h1><p class="b-paper-meta">${mode === 'answerOnly' ? '答案版' : `姓名：__________　班级：__________　得分：__________${opts.showScore ? `　总分：${totalScore} 分` : ''}`}</p>${body}</body></html>`;
+        const defaultMeta = mode === 'answerOnly' ? '答案版' : `姓名：__________　班级：__________　得分：__________${opts.showScore ? `　总分：${totalScore} 分` : ''}`;
+        const metaHtml = state.paperMetaHidden ? '' : `<p class="b-paper-meta">${html(state.paperMetaText || defaultMeta)}</p>`;
+        return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${html(title)}</title><script>window.MathJax={tex:{inlineMath:[['\\\\(','\\\\)'],['$','$']],displayMath:[['\\\\[','\\\\]']],processEscapes:true},svg:{fontCache:'global'}};<\/script><script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"><\/script><style>@page{size:${opts.paperSize};margin:13mm 14mm}body{font-family:"Times New Roman","SimSun",serif;color:#111827;line-height:1.48;font-size:${opts.paperFontSize}pt}h1{text-align:center;margin:0 0 7pt;font-size:18pt}.b-paper-meta{text-align:center;color:#667085;font-size:9.5pt;margin:0 0 10pt}.b-paper-section-title{font-size:13pt;margin:8pt 0 4pt}.b-handout-note{margin:4pt 0 7pt;white-space:pre-wrap}.b-preview-question{${opts.keepQuestionTogether ? 'break-inside:avoid;' : ''}margin:5pt 0 7pt}.b-question-line{margin:0;line-height:1.5}.b-question-no{font-weight:800;margin-right:3pt}.b-question-meta{color:#667085;font-size:9pt;margin-right:4pt}.b-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2pt 8pt;margin:3pt 0 2pt 18pt}.b-option-item{border:0;padding:1pt;min-height:18pt}.b-option-label{font-weight:800;margin-right:4pt}.b-img-size-small{--question-image-height:90pt;--question-image-width:160pt}.b-img-size-medium{--question-image-height:150pt;--question-image-width:260pt}.b-img-size-large{--question-image-height:220pt;--question-image-width:380pt}.b-resizable-figure{display:inline-block;max-width:100%;vertical-align:top;margin-top:4pt}.b-resizable-figure .b-question-image,.b-resizable-figure .b-diagram{width:100%;height:100%;max-width:none;max-height:none}.b-resizable-figure .b-diagram svg{width:100%;height:100%;max-width:none;max-height:none}.b-question-image,img{max-width:min(100%,var(--question-image-width,260pt));max-height:var(--question-image-height,150pt);object-fit:contain}.b-option-item img{display:block;margin-top:2pt;max-height:105pt}.b-mini-note,.source,.tags,.b-source-line{font-size:8.5pt;color:#667085;margin:2pt 0}.b-teacher-block{margin:4pt 0 0 18pt}.b-box{border:1px dashed #cbd5e1;padding:6pt}.b-answer-area{margin:4pt 0 4pt 18pt}.b-answer-lines{display:grid;gap:8pt;padding-top:3pt}.b-answer-line{border-bottom:1px solid #cbd5e1;height:14pt}.b-answer-blank{border:0;border-radius:0;background:transparent}.b-draft-blank{height:72px}.b-fill-underline{display:inline-block;min-width:86pt;border-bottom:1px solid #111827;height:1em}.b-page-break-line{break-after:page;page-break-after:always}.b-draft-table{width:100%;border-collapse:collapse;margin:5pt 0}.b-draft-table td{border:1px solid #cbd5e1;padding:5pt}.b-draft-table caption{text-align:left;font-weight:700;margin-bottom:3pt}mjx-container{max-width:none;overflow:visible}</style></head><body><h1>${html(title)}</h1>${metaHtml}${body}</body></html>`;
     }
     function download(name, type, content) {
         const blob = new Blob([content], { type });
@@ -2837,24 +4113,59 @@ const B = (() => {
     }
     function downloadMd() {
         if (!basketItems().length) return toast('请先加入题篮');
-        download(`${safeFile(value('bOutputTitle') || '题库B输出')}.md`, 'text/markdown;charset=utf-8', buildMarkdown());
+        download(`${safeFile(value('bOutputTitle') || '数学题库输出')}.md`, 'text/markdown;charset=utf-8', buildMarkdown());
     }
     function downloadHtml() {
         if (!basketItems().length) return toast('请先加入题篮');
-        download(`${safeFile(value('bOutputTitle') || '题库B输出')}.html`, 'text/html;charset=utf-8', buildHtmlDoc());
+        downloadHtmlWithEmbeddedImages().catch(error => {
+            toast(error?.message || 'HTML 生成失败');
+        });
+    }
+    async function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+    async function embedHtmlImages(htmlDoc) {
+        const srcs = [...new Set(Array.from(htmlDoc.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)).map(match => match[1]).filter(src => /^https?:|^file:|^blob:/i.test(src)))];
+        if (!srcs.length) return htmlDoc;
+        const replacements = new Map();
+        await Promise.all(srcs.map(async src => {
+            try {
+                const res = await fetch(src);
+                if (!res.ok) return;
+                replacements.set(src, await blobToDataUrl(await res.blob()));
+            } catch {
+                // Keep the original link if the image cannot be fetched.
+            }
+        }));
+        let next = htmlDoc;
+        replacements.forEach((dataUrl, src) => {
+            next = next.split(`src="${src}"`).join(`src="${dataUrl}"`);
+        });
+        return next;
+    }
+    async function downloadHtmlWithEmbeddedImages() {
+        if (!basketItems().length) return toast('请先加入题篮');
+        toast('正在生成 HTML...');
+        download(`${safeFile(value('bOutputTitle') || '数学题库输出')}.html`, 'text/html;charset=utf-8', await embedHtmlImages(buildHtmlDoc()));
+        toast('已生成 HTML');
     }
     async function downloadWord() {
         if (!basketItems().length) return toast('请先加入题篮');
         try {
             toast('正在生成 Word DOCX...');
-            downloadBlob(`${safeFile(value('bOutputTitle') || '题库B输出')}.docx`, await buildDocxBlob());
+            downloadBlob(`${safeFile(value('bOutputTitle') || '数学题库输出')}.docx`, await buildDocxBlob());
             toast('已生成 Word DOCX');
         } catch (error) {
             toast(error?.message || 'Word 生成失败，请检查图片或公式');
         }
     }
     function safeFile(name) {
-        return String(name || '题库B输出').replace(/[\\\\/:*?"<>|]/g, '_').slice(0, 80);
+        return String(name || '数学题库输出').replace(/[\\\\/:*?"<>|]/g, '_').slice(0, 80);
     }
     function printPdf() {
         if (!basketItems().length) return toast('请先加入题篮');
@@ -2880,10 +4191,43 @@ const B = (() => {
         const checks = ['缺答案', '缺解析', '缺知识点', '缺来源', '疑似合并多题', '疑似公式损坏', '含图但无附件', '疑似重复题'];
         const activeQuestions = state.questions.filter(q => q.status !== 'archived');
         const dupes = findDuplicates(activeQuestions);
-        $('bQuality').innerHTML = checks.map(flag => {
+        const latest = state.lastImportSummary;
+        const importReport = latest ? `<article class="b-doc"><h3>本次导入质量报告 <span class="b-tag blue">${html((latest.createdAt || '').slice(0, 10))}</span></h3>
+            <p>${html(latest.sourceTitle || '未命名资料')}：候选 ${html(latest.candidateCount)} 题，AI 成功 ${html(latest.aiSuccess)}，规则兜底 ${html(latest.localFallback)}，缺答案 ${html(latest.missingAnswer)}，缺解析 ${html(latest.missingSolution)}。</p>
+            ${(latest.warnings || []).length ? `<div class="b-tags">${latest.warnings.map(w => `<span class="b-tag orange">${html(w)}</span>`).join('')}</div>` : '<p>暂无批次级警告。</p>'}
+        </article>` : '';
+        $('bQuality').innerHTML = importReport + checks.map(flag => {
             const items = flag === '疑似重复题' ? dupes : activeQuestions.filter(q => qualityFlags(q).includes(flag));
-            return `<article class="b-doc"><h3>${html(flag)} <span class="b-tag ${items.length ? 'red' : 'green'}">${items.length}</span></h3><p>${items.length ? '点击题号可跳到正式题库定位。' : '暂无问题。'}</p><div class="b-quality-list">${items.map(q => `<button class="b-quality-item" onclick="B.locateQuestion('${q.id}')">${html(q.internalNo || q.id)} · ${html(q.chapter || '未标章节')} · ${html(q.stem).slice(0, 46)}${q.stem.length > 46 ? '...' : ''}</button>`).join('')}</div></article>`;
+            const actions = items.length ? `<div class="b-actions" style="justify-content:flex-start;margin:6px 0;">
+                <button class="b-btn small primary" onclick="B.locateQuestion('${items[0].id}')">定位第一题</button>
+                ${flag === '缺知识点' ? '<button class="b-btn small" onclick="B.autoFillMissingKnowledge()">按章节补知识点</button>' : ''}
+                ${flag === '缺来源' ? '<button class="b-btn small" onclick="B.autoFillMissingSource()">按导入信息补来源</button>' : ''}
+            </div>` : '';
+            return `<article class="b-doc"><h3>${html(flag)} <span class="b-tag ${items.length ? 'red' : 'green'}">${items.length}</span></h3><p>${items.length ? '点击题号可跳到正式题库定位。' : '暂无问题。'}</p>${actions}<div class="b-quality-list">${items.map(q => `<button class="b-quality-item" onclick="B.locateQuestion('${q.id}')">${html(q.internalNo || q.id)} · ${html(q.chapter || '未标章节')} · ${html(q.stem).slice(0, 46)}${q.stem.length > 46 ? '...' : ''}</button>`).join('')}</div></article>`;
         }).join('');
+    }
+    function autoFillMissingKnowledge() {
+        let count = 0;
+        state.questions.forEach(q => {
+            if (q.status === 'archived' || (q.knowledgePoints || []).length) return;
+            q.knowledgePoints = [q.chapter || q.questionType || '待复核知识点'];
+            count += 1;
+        });
+        save();
+        renderAll();
+        toast(`已补 ${count} 道题的知识点，建议复核`);
+    }
+    function autoFillMissingSource() {
+        let count = 0;
+        state.questions.forEach(q => {
+            if (q.status === 'archived' || hasSourceInfo(q)) return;
+            q.sourceName = q.sourceName || '数学题库自建题';
+            q.source = { ...(q.source || {}), sourceType: q.source?.sourceType || '自建题' };
+            count += 1;
+        });
+        save();
+        renderAll();
+        toast(`已补 ${count} 道题的来源标签，建议复核`);
     }
     function resetBankFilters() {
         ['bFilterGrade', 'bFilterYear', 'bFilterChapter', 'bFilterType', 'bFilterDifficulty'].forEach(idName => {
@@ -2907,7 +4251,10 @@ const B = (() => {
             renderBank();
             setTimeout(() => {
                 const card = $(`bqCard-${questionId}`);
-                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (card) {
+                    card.querySelectorAll('details.b-fold').forEach(detail => { detail.open = true; });
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }, 0);
         }, 0);
     }
@@ -2983,7 +4330,7 @@ const B = (() => {
         closeModal();
         save();
         renderAll();
-        toast('已保存到题库 B');
+        toast('已保存到正式题库');
     }
     function quickFilter(grade = '', chapter = '', diagram = false) {
         switchView('bank');
@@ -2999,7 +4346,7 @@ const B = (() => {
     function examples() {
         const tri = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 150"><path d="M35 125 L130 25 L225 125 Z" fill="#fff" stroke="#111827" stroke-width="3"/><path d="M130 25 L130 125" stroke="#2364e8" stroke-width="2" stroke-dasharray="5 4"/><text x="25" y="140">A</text><text x="124" y="20">C</text><text x="226" y="140">B</text></svg>';
         const circle = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 160"><circle cx="88" cy="82" r="55" fill="#fff" stroke="#111827" stroke-width="3"/><line x1="88" y1="82" x2="143" y2="82" stroke="#2364e8" stroke-width="3"/><text x="100" y="74">60°</text></svg>';
-        const base = { source: { sourceType: '自编', year: '2026', region: '深圳', examName: '数学题库 B 内置例题' }, sourceName: '数学题库 B 内置例题', status: 'active', aiNotes: '题库 B 初始化例题。' };
+        const base = { source: { sourceType: '自编', year: '2026', region: '深圳', examName: '数学题库内置例题' }, sourceName: '数学题库内置例题', status: 'active', aiNotes: '数学题库初始化例题。' };
         return [
             ['B-DEMO-001', '六年级', '计算', '计算题', '基础', ['分数'], '计算：\\(\\frac{3}{4}+\\frac{5}{6}\\times\\frac{9}{10}-\\frac{1}{3}\\)。', '\\frac{3}{4}+\\frac{5}{6}\\times\\frac{9}{10}-\\frac{1}{3}', '', '7/6', '先算乘法，再通分相加减。'],
             ['B-DEMO-002', '六年级', '应用题', '应用题', '中等', ['比例', '百分数'], '原价 80 元，先降价 20%，再提价 25%，现价是多少？', '80(1-20\\%)(1+25\\%)', '', '80 元', '降价后为 64 元，再提价为 80 元。'],
@@ -3015,13 +4362,131 @@ const B = (() => {
             ['B-DEMO-012', '初三', '几何', '综合题', '压轴', ['相似三角形'], '在 △ABC 中，DE ∥ BC，AD:DB=2:1，若 △ADE 面积为 12，求四边形 DBCE 面积。', '\\frac{S_{ADE}}{S_{ABC}}=(\\frac{2}{3})^2', tri, '15', '面积比 4:9，所以 ABC 面积 27，差为 15。']
         ].map(([internalNo, grade, chapter, questionType, difficulty, knowledgePoints, stem, formulaLatex, diagramSvg, answer, solution], idx) => ({ ...base, id: `b-demo-${idx + 1}`, internalNo, grade, system: grade === '六年级' ? '小升初' : '校内', chapter, questionType, difficulty, knowledgePoints, stem, formulaLatex, diagramSvg, answer, solution, commonMistakes: '注意题目条件和符号边界。', errorTags: [], score: difficulty === '压轴' ? 12 : difficulty === '提高' ? 8 : 5 }));
     }
+    function commentExamples() {
+        const tri = '<svg xmlns="http://www.w3.org/2000/svg" width="260" height="150" viewBox="0 0 260 150"><path d="M35 125 L130 25 L225 125 Z" fill="#fff" stroke="#111827" stroke-width="4"/><path d="M130 25 L130 125" stroke="#2364e8" stroke-width="3" stroke-dasharray="8 6"/><text x="25" y="140">A</text><text x="124" y="20">C</text><text x="226" y="140">B</text></svg>';
+        const baseSource = {
+            sourceType: '批注样例',
+            year: '2026',
+            grade: '六年级',
+            region: '广东深圳',
+            districtOrSchool: '本地 file 页面',
+            examName: '数学题库批注样例-七类题型',
+            note: '用于批注各种题型、公式、图形、答案版和输出排版'
+        };
+        const sourceName = sourceLabel(baseSource);
+        const rows = [
+            ['B-COMMENT-001', '1', '代数', '选择题', '中等', 4, ['平方根', '选择题排版'], '【批注样例-选择题】若 \\(x^2=9\\)，则 \\(x\\) 的值可能是（ ）。\nA. 3\nB. -3\nC. 3或-3\nD. 9', 'C', '平方等于9的数有两个，分别是3和-3。', '', []],
+            ['B-COMMENT-002', '2', '计算', '填空题', '中等', 3, ['根式', '填空横线'], '【批注样例-填空题】化简：\\(\\sqrt{50}-2\\sqrt{8}+\\sqrt{18}\\)=____。', '4√2', '\\(\\sqrt{50}=5\\sqrt2\\)，\\(2\\sqrt8=4\\sqrt2\\)，\\(\\sqrt{18}=3\\sqrt2\\)，所以结果为 \\(4\\sqrt2\\)。', '', []],
+            ['B-COMMENT-003', '3', '计算', '计算题', '中等', 5, ['分数计算', '公式显示'], '【批注样例-计算题】计算：\\(\\frac{3}{4}+\\frac{5}{6}\\times\\frac{9}{10}-\\frac{1}{3}\\)。', '7/6', '先算乘法，\\(\\frac{5}{6}\\times\\frac{9}{10}=\\frac34\\)，再计算 \\(\\frac34+\\frac34-\\frac13=\\frac76\\)。', '', []],
+            ['B-COMMENT-004', '4', '应用题', '应用题', '中等', 6, ['方程应用', '利润问题'], '【批注样例-应用题】某文具店购进一批笔记本，按每本8元出售可盈利120元，按每本7元出售则亏损30元。求这批笔记本共有多少本。', '150本', '设共有 \\(x\\) 本，两种售价相差1元，总利润相差150元，所以 \\(x=150\\)。', '', []],
+            ['B-COMMENT-005', '5', '几何', '几何题', '中等', 5, ['三角形面积', '题干图'], '【批注样例-几何题】如图，△ABC中AB=12，高为7，求面积。', '42', '三角形面积=底×高÷2，\\(12\\times7\\div2=42\\)。', tri, [{ role: 'stem', order: 1, url: `data:image/svg+xml;utf8,${encodeURIComponent(tri)}` }]],
+            ['B-COMMENT-006', '6', '几何', '证明题', '中等', 6, ['平行线', '角关系'], '【批注样例-证明题】已知AB∥CD，∠1=∠2。求证：BE∥DF。', '证明见解析', '因为AB∥CD，所以对应角相等；又因为∠1=∠2，可推出BE与DF对应角相等，因此BE∥DF。', '', []],
+            ['B-COMMENT-007', '7', '函数', '综合题', '压轴', 10, ['二次函数', '综合题'], '【批注样例-综合题】已知函数 \\(y=x^2-4x+1\\)。解答以下问题：（1）求顶点坐标；（2）求当 \\(-1\\le x\\le3\\) 时函数的最小值。', '（1）(2,-3)；（2）-3', '配方得 \\(y=(x-2)^2-3\\)，顶点为(2,-3)。因为2在区间内，所以最小值为-3。', '', []]
+        ];
+        return rows.map(([internalNo, questionNo, chapter, questionType, difficulty, score, knowledgePoints, stem, answer, solution, diagramSvg, images], idx) => ({
+            id: `b-comment-${idx + 1}`,
+            internalNo,
+            grade: '六年级',
+            system: '小升初',
+            chapter,
+            knowledgePoints,
+            subKnowledgePoint: '',
+            questionType,
+            difficulty,
+            score,
+            stem,
+            answer,
+            solution,
+            formulaLatex: extractFormula(stem),
+            diagramSvg,
+            imageUrl: images[0]?.url || '',
+            images,
+            imageSize: idx === 4 ? 'small' : 'medium',
+            commonMistakes: '',
+            errorTags: [],
+            source: { ...baseSource, questionNo, paperOrder: Number(questionNo) },
+            sourceName,
+            aiNotes: 'file 页面批注样例，人工插入。',
+            originText: stem,
+            status: 'active',
+            createdAt: '2026-06-22T00:00:00.000Z'
+        }));
+    }
+    function ensureFileCommentSamples() {
+        if (location.protocol !== 'file:') return false;
+        const existing = new Set(state.questions.map(q => q.internalNo));
+        const next = commentExamples().filter(q => !existing.has(q.internalNo));
+        if (!next.length) return false;
+        state.questions.unshift(...next);
+        const paperId = 'paper-comment-samples-2026';
+        state.paperLibrary = state.paperLibrary.filter(paper => paper.id !== paperId);
+        state.paperLibrary.unshift({
+            id: paperId,
+            title: '数学题库批注样例-七类题型',
+            year: '2026',
+            grade: '六年级',
+            region: '广东深圳',
+            sourceType: '批注样例',
+            fileName: 'file页面批注样例',
+            importedAt: '2026-06-22T00:00:00.000Z',
+            questionIds: next.map(q => q.id),
+            candidateIds: [],
+            questionOrder: next.map((q, index) => ({ questionId: q.id, questionNo: String(index + 1), paperOrder: index + 1 })),
+            warnings: ['用于批注测试，不是真实试卷']
+        });
+        save();
+        return true;
+    }
+    function ensureDemoPaperRecord() {
+        const demoQuestions = state.questions
+            .filter(q => /^B-DEMO-\d+/.test(q.internalNo || ''))
+            .sort((a, b) => String(a.internalNo || '').localeCompare(String(b.internalNo || ''), undefined, { numeric: true }));
+        if (!demoQuestions.length) return false;
+        const paperId = 'paper-demo-samples-2026';
+        const title = '数学题库内置例题-12题综合样卷';
+        demoQuestions.forEach((q, index) => {
+            q.source = {
+                ...(q.source || {}),
+                paperId,
+                sourceType: '内置例题',
+                year: q.source?.year || '2026',
+                grade: q.grade || q.source?.grade || '',
+                region: q.source?.region || '深圳',
+                examName: title,
+                questionNo: String(index + 1),
+                paperOrder: index + 1
+            };
+            q.sourceName = sourceLabel(q.source);
+        });
+        state.paperLibrary = state.paperLibrary.filter(paper => paper.id !== paperId);
+        state.paperLibrary.unshift({
+            id: paperId,
+            title,
+            year: '2026',
+            grade: '六年级-初三',
+            region: '深圳',
+            sourceType: '内置例题',
+            fileName: '系统样例',
+            importedAt: new Date().toISOString(),
+            questionIds: demoQuestions.map(q => q.id),
+            candidateIds: [],
+            questionOrder: demoQuestions.map((q, index) => ({
+                questionId: q.id,
+                questionNo: String(index + 1),
+                paperOrder: index + 1
+            })),
+            warnings: ['系统样例，用于验证试卷库查看详情和整卷加入流程']
+        });
+        return true;
+    }
     function seedSamples() {
         const existing = new Set(state.questions.map(q => q.internalNo));
         const next = examples().filter(q => !existing.has(q.internalNo));
         state.questions.unshift(...next);
+        const paperReady = ensureDemoPaperRecord();
         save();
         renderAll();
-        toast(next.length ? `已补齐 ${next.length} 道题库 B 例题` : '题库 B 例题已存在');
+        toast(next.length ? `已补齐 ${next.length} 道数学题库例题，并生成样例试卷` : paperReady ? '数学题库例题已存在，已刷新样例试卷' : '数学题库例题已存在');
     }
     function openModal(title, body) {
         $('bModalTitle').textContent = title;
@@ -3041,43 +4506,71 @@ const B = (() => {
         renderPapers();
         renderOutputSide();
         renderQuality();
+        renderImportBatchStatus();
     }
     function init() {
         load();
+        const addedCommentSamples = ensureFileCommentSamples();
         applyAsideState();
+        applyMainNavState();
+        applyOutlineWidth();
+        applyOutputSideWidth();
+        applyBankFilterWidth();
+        syncAiProviderControls();
         ['bOutputTitle', 'bOutputType', 'bOutputMode', 'bShowScore', 'bShowDifficulty', 'bShowTags', 'bShowSource', 'bShowAnswerArea', 'bAnswerAutoByType', 'bFillBlankStyle', 'bSolutionRows', 'bPaperSize', 'bPaperFontSize', 'bKeepQuestionTogether', 'bWordKeepPage', 'bPdfKeepPage'].forEach(idName => {
             const el = $(idName);
             if (!el) return;
             el.addEventListener(el.tagName === 'INPUT' && el.type !== 'checkbox' ? 'input' : 'change', refreshOutput);
         });
+        $('bRawText')?.addEventListener('input', () => {
+            clearTimeout(window._bImportMetaTimer);
+            window._bImportMetaTimer = setTimeout(previewImportMetaFromInputs, 350);
+        });
+        $('bImportFile')?.addEventListener('change', previewImportMetaFromInputs);
+        document.addEventListener('click', event => {
+            if (event.target.closest?.('.b-insert-popover, .b-paper-add, .b-answer-popover, .b-answer-menu-btn, .b-resize-handle, .b-resizable-figure, .b-left-settings-panel, #bExportSettingsToggle, .b-context-menu')) return;
+            hideDraftContextMenu();
+            closeInlineMenus();
+        });
         renderAll();
-        switchView('import');
+        syncPaperMetaButton();
+        syncLeftExportSettings();
+        syncAiProviderControls();
+        syncUndoButton();
+        switchView(addedCommentSamples ? 'bank' : 'import');
+        if (addedCommentSamples) toast('已补齐 7 道 file 页面批注样例题');
     }
     document.addEventListener('DOMContentLoaded', init);
     return {
         switchView, createImport, compareImportModels, seedSamples, reviewCandidate, acceptCandidate, ignoreCandidate, deleteCandidate,
+        setAiProvider, undoLastAction,
         toggleCandidate, toggleAllCandidates, selectAllCandidates, batchDelete, batchIgnore, batchMark, applyBatchMark,
         batchAcceptCandidates,
         renderBank, toggleQuestionSelection, selectFilteredQuestions, toggleFilteredQuestionSelection, clearQuestionSelection, batchAddSelectedToBasket,
         batchArchiveSelected, batchMarkQuestions, applyQuestionBatchMark, locateQuestion,
-        setQuestionImageSize,
+        setQuestionImageSize, toggleBankDensity, saveBankFilterScheme, applyBankFilterScheme,
         uploadCandidateImage, uploadQuestionImage,
         addFilteredToBasket, toggleBasket, clearBasket, generateOutput, copyMarkdown, copyPlain,
         printPdf, downloadWord, downloadHtml, downloadMd, renderQuality, openQuestionEditor, saveQuestion,
-        closeModal, quickFilter, toggleAside, openBasketDrawer, closeBasketDrawer, goComposeFromBasket,
+        closeModal, quickFilter, toggleAside, toggleMainNav, openBasketDrawer, closeBasketDrawer, goComposeFromBasket,
         openHelpDrawer, closeHelpDrawer, closeAllDrawers,
-        moveBasketItem, startBasketDrag, allowBasketDrop, dropBasketItem,
-        renderPapers, loadPaperToBasket, printPaper, deletePaper,
+        moveBasketItem, startBasketDrag, allowBasketDrop, dropBasketItem, addBasketQuestionToDraft, addAllBasketToDraft,
+        renderPapers, clearPaperFilters, loadPaperToBasket, printPaper, deletePaper, togglePaperDetail,
         setOutputType, setOutputMode, switchOutputTab, scrollDraftItem, renderOutputSide, renderOutputHistory,
         toggleFinderExtra, expandQuestionKeywords, toggleSortMenu, setOutputSort, setOutputFilter, setOutputRange, setHistorySort,
+        toggleOutputCardAnswer,
         addQuestionToDraft, clearOutputPaperFilter, previewPaperQuestions,
         savePaperHistory, openHistoryDraft, duplicateHistoryDraft, exportHistoryDraft, deleteHistoryDraft,
         generateAiOutline, applyAiOutline, checkDraftQuality,
-        insertDraftHeading, editDraftHeading, insertDraftText, editDraftText, insertPageBreak, insertDraftTable, editDraftTable, insertDraftImage, editDraftImage,
+        insertDraftMenu, insertDraftHeading, editDraftHeading, insertDraftText, editDraftText, insertPageBreak, insertPageBreakBefore, insertDraftBlank, setDraftBlankRows, insertDraftTable, editDraftTable, insertDraftImage, editDraftImage,
         editDraftTitle, updateDraftTitleFromInline, syncDraftTitleInline, updateDraftHeadingFromInline, syncDraftHeadingInline, updateDraftTextFromInline, syncDraftTextInline,
-        editDraftQuestion, saveDraftQuestionEdit, configureAnswerArea, saveAnswerAreaConfig,
+        updatePaperMetaFromInline, hidePaperMeta, showPaperMeta, togglePaperMeta, toggleLeftExportSettings,
+        editDraftQuestion, saveDraftQuestionEdit, setDraftQuestionImageSize, startDraftImageResize, selectDraftImage, configureAnswerArea, toggleAnswerAreaMenu, chooseAnswerAreaStyle, setAnswerAreaRows, setAnswerAreaPreset, saveAnswerAreaConfig, setDraftAnswerRows,
+        selectQuestionImage, startQuestionImageResize,
         removeDraftItem, moveDraftItem, groupDraftByType,
-        startOutlineResize,
+        selectDraftOutline, toggleOutlineDisplayMode, showDraftContextMenu, hideDraftContextMenu, removeSelectedDraftItems, removeDraftHeadingOnly, removeDraftHeadingSection,
+        startOutlineResize, startBankResize, startOutputSideResize, startDraftDrag, allowDraftDrop, dropDraftItem, toggleDraftHeadingCollapse,
+        autoFillMissingKnowledge, autoFillMissingSource,
         useLastImportText, copyLastImportText
     };
 })();

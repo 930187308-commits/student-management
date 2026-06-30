@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数学题库 B · 全新系统</title>
+    <title>数学题库 · 正式系统</title>
     <style>
         :root {
             --bg: #eef3f9;
@@ -33,11 +33,20 @@
             overflow: hidden;
             transition: grid-template-columns .18s ease;
         }
+        .b-shell.nav-collapsed {
+            grid-template-columns: 0 minmax(0, 1fr) 280px;
+        }
         .b-shell.aside-collapsed {
             grid-template-columns: 248px minmax(0, 1fr) 48px;
         }
+        .b-shell.nav-collapsed.aside-collapsed {
+            grid-template-columns: 0 minmax(0, 1fr) 48px;
+        }
         .b-shell.compose-mode {
             grid-template-columns: 248px minmax(0, 1fr) 0;
+        }
+        .b-shell.compose-mode.nav-collapsed {
+            grid-template-columns: 0 minmax(0, 1fr) 0;
         }
         .b-shell.compose-mode .b-aside {
             display: none;
@@ -53,7 +62,36 @@
             display: flex;
             flex-direction: column;
             border-right: 1px solid var(--line);
+            transition: transform .18s ease, opacity .18s ease;
+            z-index: 9;
         }
+        .b-shell.nav-collapsed .b-nav {
+            transform: translateX(-100%);
+            opacity: 0;
+            pointer-events: none;
+            padding: 0;
+            border-right: 0;
+            overflow: hidden;
+        }
+        .b-nav-toggle {
+            position: fixed;
+            left: 256px;
+            top: 10px;
+            z-index: 30;
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255,255,255,.95);
+            color: #344054;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(15,23,42,.10);
+        }
+        .b-shell.nav-collapsed .b-nav-toggle { left: 8px; }
+        .b-nav-toggle:hover { border-color: #9db9f5; color: var(--blue); background: #f8fbff; }
         .b-brand {
             padding: 14px;
             border: 1px solid #bfd1f5;
@@ -218,10 +256,33 @@
         }
         .b-grid.import-grid { grid-template-columns: minmax(560px, 1fr) 320px; }
         .b-grid.three { grid-template-columns: 300px minmax(0, 1fr); }
+        .b-grid.three.bank-grid { grid-template-columns: var(--b-bank-filter-width, 300px) 6px minmax(0, 1fr); gap: 0; }
+        .b-grid.three.bank-grid > .b-panel:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+        .b-grid.three.bank-grid > .b-panel:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; }
+        .b-bank-resizer {
+            cursor: col-resize;
+            background: #d6deeb;
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            position: relative;
+        }
+        .b-bank-resizer::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 46px;
+            border-left: 1px solid #98a2b3;
+            border-right: 1px solid #98a2b3;
+            transform: translate(-50%, -50%);
+            opacity: .65;
+        }
+        .b-bank-resizer:hover { background: #bfd1f5; }
         .b-grid.compose { grid-template-columns: minmax(320px, 380px) minmax(0, 1fr); }
         .b-compose-workbench {
             display: grid;
-            grid-template-columns: var(--b-outline-width, 210px) 6px minmax(0, 1fr) 320px;
+            grid-template-columns: var(--b-outline-width, 190px) 6px minmax(0, 1fr) 6px var(--b-output-side-width, 320px);
             grid-template-rows: auto minmax(0, 1fr);
             height: 100%;
             min-height: 0;
@@ -233,24 +294,37 @@
         }
         .b-compose-topbar {
             grid-column: 1 / -1;
-            min-height: 46px;
+            min-height: 48px;
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: var(--b-outline-width, 190px) minmax(0, 1fr);
+            grid-template-rows: auto;
             align-items: center;
-            gap: 8px 12px;
-            padding: 0 10px;
+            gap: 10px;
+            padding: 7px 10px;
             background: #fff;
             border-bottom: 1px solid var(--line);
         }
-        .b-compose-brand { font-weight: 850; font-size: 13px; color: #0f3f99; white-space: nowrap; }
-        .b-compose-left-actions,
-        .b-compose-right-actions {
+        .b-compose-brand {
+            grid-column: 1;
+            grid-row: 1;
+            font-weight: 850;
+            font-size: 18px;
+            color: #0f3f99;
+            white-space: nowrap;
+            line-height: 1.1;
+            padding-left: 2px;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .b-compose-control-row {
+            grid-column: 2;
+            grid-row: 1;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 8px;
             min-width: 0;
         }
-        .b-compose-right-actions { justify-content: flex-end; }
         .b-flow-tabs, .b-export-tabs { display: flex; align-items: center; gap: 6px; min-width: 0; }
         .b-doc-type, .b-export-mode {
             border: 1px solid var(--line);
@@ -269,25 +343,21 @@
             color: var(--blue);
             font-weight: 800;
         }
-        .b-export-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: nowrap; min-width: 0; }
+        .b-export-actions { display: flex; align-items: center; justify-content: flex-start; gap: 7px; flex-wrap: wrap; min-width: 0; }
         .b-export-actions .b-mini-note { white-space: nowrap; }
         .b-export-actions .b-btn { white-space: nowrap; }
         @media (max-width: 1320px) {
             .b-compose-topbar {
-                grid-template-columns: 1fr;
+                grid-template-columns: minmax(54px, var(--b-outline-width, 190px)) minmax(0, 1fr);
                 align-items: stretch;
                 padding: 6px 10px;
             }
-            .b-compose-left-actions,
-            .b-compose-right-actions {
-                justify-content: flex-start;
-                width: 100%;
-            }
+            .b-compose-brand { font-size: 16px; align-self: center; }
+            .b-compose-control-row { align-items: center; gap: 6px; }
             .b-export-actions {
-                justify-content: flex-start;
-                width: 100%;
                 overflow-x: auto;
                 padding-bottom: 1px;
+                flex-wrap: nowrap;
             }
             .b-export-actions .b-mini-note { display: none; }
         }
@@ -330,19 +400,60 @@
             justify-content: space-between;
             align-items: center;
         }
-        .b-outline-body { padding: 10px; display: grid; gap: 7px; }
+        .b-outline-body { padding: 8px; display: grid; gap: 5px; align-content: start; }
+        .b-outline-body.number-mode {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            align-content: flex-start;
+        }
         .b-outline-item {
             border: 1px solid transparent;
             background: transparent;
             border-radius: 7px;
-            padding: 7px 8px;
+            padding: 6px 7px;
             text-align: left;
             font-size: 12px;
             color: #344054;
             cursor: pointer;
+            width: 100%;
         }
         .b-outline-item:hover, .b-outline-item.active { background: #eaf1ff; color: var(--blue); border-color: #bfd1f5; }
-        .b-outline-item.sub { margin-left: 20px; display: flex; gap: 8px; align-items: center; }
+        .b-outline-item.selected { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+        .b-outline-item.sub { margin-left: 4px; display: flex; gap: 6px; align-items: center; }
+        .b-outline-body.number-mode .b-outline-item.root,
+        .b-outline-body.number-mode .b-outline-item.heading,
+        .b-outline-body.number-mode .b-outline-item.sub:not(.question-number) {
+            flex: 0 0 100%;
+            margin-left: 0;
+        }
+        .b-outline-body.number-mode .b-outline-item.question-number {
+            width: auto;
+            flex: 0 0 auto;
+            margin-left: 0;
+            padding: 1px;
+            gap: 0;
+        }
+        .b-outline-body.number-mode .b-outline-item.question-number .b-outline-no {
+            min-width: 17px;
+            height: 19px;
+        }
+        .b-outline-item.heading { display: flex; align-items: center; gap: 6px; }
+        .b-outline-item.heading .b-outline-title { flex: 1; min-width: 0; }
+        .b-outline-item.root { display: flex; align-items: center; gap: 6px; }
+        .b-outline-item.root span { flex: 1; }
+        .b-outline-toggle,
+        .b-outline-mode {
+            border: 1px solid #d6e4ff;
+            background: #fff;
+            color: var(--blue);
+            border-radius: 6px;
+            padding: 2px 5px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: 800;
+        }
+        .b-outline-item.dragging { opacity: .45; }
         .b-outline-no {
             min-width: 19px;
             height: 19px;
@@ -355,6 +466,30 @@
             font-size: 11px;
             font-weight: 800;
         }
+        .b-context-menu {
+            position: fixed;
+            z-index: 2200;
+            width: 150px;
+            display: grid;
+            gap: 4px;
+            padding: 5px;
+            border: 1px solid #b8d1ff;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 16px 34px rgba(15,23,42,.18);
+        }
+        .b-context-menu button {
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: #344054;
+            cursor: pointer;
+            padding: 7px 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+        .b-context-menu button:hover { background: #eaf1ff; color: var(--blue); }
+        .b-context-menu button.red { color: #b42318; }
         .b-output-canvas {
             grid-column: 3;
             grid-row: 2;
@@ -363,27 +498,76 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
         }
         .b-paper-toolbar {
-            min-height: 42px;
+            width: 46px;
+            min-width: 46px;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: flex-start;
-            gap: 8px;
-            padding: 7px 10px;
+            padding: 7px 5px;
             background: #fff;
-            border-bottom: 1px solid var(--line);
+            border-right: 1px solid var(--line);
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 3;
         }
-        .b-paper-toolbar .b-actions { justify-content: flex-start; }
+        .b-paper-toolbar .b-actions {
+            justify-content: flex-start;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+        }
+        .b-paper-toolbar .b-btn.small {
+            width: 34px;
+            min-height: 34px;
+            padding: 5px 4px;
+            white-space: normal;
+            line-height: 1.12;
+            font-size: 11px;
+        }
+        @media (max-width: 1560px) {
+            .b-paper-toolbar {
+                align-items: flex-start;
+                width: 46px;
+                min-width: 46px;
+                padding: 7px 5px;
+                border-right: 1px solid var(--line);
+                border-bottom: 0;
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                z-index: 3;
+            }
+            .b-paper-toolbar .b-actions {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+            }
+            .b-paper-toolbar .b-btn.small {
+                width: 34px;
+                min-height: 34px;
+                padding: 5px 4px;
+                white-space: normal;
+                line-height: 1.12;
+                font-size: 11px;
+            }
+            .b-output-canvas { position: relative; }
+            .b-paper-scroll { padding-left: 58px; }
+        }
         .b-paper-scroll {
             flex: 1;
             min-height: 0;
             overflow: auto;
-            padding: 16px 22px 36px;
+            padding: 12px 14px 30px 58px;
             background: #dfe7f2;
         }
         .b-paper-frame {
-            width: min(100%, 780px);
+            width: min(100%, 820px);
             margin: 0 auto;
             background: transparent;
             border: 0;
@@ -393,7 +577,7 @@
             height: auto;
         }
         .b-output-side {
-            grid-column: 4;
+            grid-column: 5;
             grid-row: 2;
             background: #fff;
             border-left: 1px solid var(--line);
@@ -404,10 +588,32 @@
         }
         .b-output-side .tabs {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             height: 42px;
             border-bottom: 1px solid var(--line);
         }
+        .b-output-side-resizer {
+            grid-column: 4;
+            grid-row: 2;
+            position: relative;
+            cursor: col-resize;
+            background: #e7eef8;
+            border-left: 1px solid #d7e0ee;
+            border-right: 1px solid #d7e0ee;
+        }
+        .b-output-side-resizer::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 46px;
+            border-left: 1px solid #98a2b3;
+            border-right: 1px solid #98a2b3;
+            transform: translate(-50%, -50%);
+            opacity: .65;
+        }
+        .b-output-side-resizer:hover { background: #bfd1f5; }
         .b-output-side .tab {
             border: 0;
             background: #fff;
@@ -434,6 +640,11 @@
         }
         .b-finder-chip.active { background: #eaf1ff; color: var(--blue); font-weight: 800; }
         .b-finder-extra.collapsed { display: none; }
+        .b-finder-collapsed-actions {
+            border-top: 1px solid #edf1f7;
+            padding-top: 8px;
+            margin-top: 2px;
+        }
         .b-output-card {
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -444,18 +655,81 @@
         }
         .b-output-card-title { font-weight: 850; line-height: 1.45; margin-bottom: 4px; }
         .b-output-card-meta { color: var(--muted); line-height: 1.45; margin-bottom: 7px; }
+        .b-output-card-preview {
+            margin: 6px 0;
+            display: grid;
+            gap: 5px;
+        }
+        .b-output-card-preview .b-question-image,
+        .b-output-card-preview svg {
+            max-width: 100%;
+            max-height: 120px;
+            object-fit: contain;
+        }
+        .b-output-card-preview .b-box { padding: 5px; }
         .b-sort-row { display: flex; align-items: center; justify-content: space-between; margin: 9px 0 6px; font-size: 12px; color: var(--muted); }
         .b-output {
             width: 100%;
-            min-height: 1040px;
+            min-height: 1160px;
             height: auto;
             overflow: visible;
             border-radius: 0;
             border: 0;
-            padding: 38px 42px;
+            padding: 34px 40px;
         }
         .b-paper-item { position: relative; border: 1px solid transparent; border-radius: 8px; padding: 4px 6px; margin: 3px -6px; }
         .b-paper-item:hover, .b-paper-item.active { border-color: #b8d1ff; background: #f8fbff; }
+        .b-paper-add {
+            position: absolute;
+            left: -30px;
+            top: 6px;
+            width: 22px;
+            height: 22px;
+            border: 1px solid #b8d1ff;
+            border-radius: 50%;
+            background: #fff;
+            color: var(--blue);
+            font-weight: 850;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 14px rgba(15,23,42,.10);
+            opacity: .92;
+        }
+        .b-paper-item:hover .b-paper-add,
+        .b-paper-item.active .b-paper-add,
+        .b-paper-add.active { display: inline-flex; }
+        .b-paper-add.active {
+            background: var(--blue);
+            color: #fff;
+            border-color: var(--blue);
+        }
+        .b-insert-popover {
+            position: absolute;
+            left: -88px;
+            top: 30px;
+            width: 78px;
+            padding: 5px;
+            display: grid;
+            gap: 4px;
+            border: 1px solid #b8d1ff;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 14px 30px rgba(15,23,42,.14);
+            z-index: 8;
+        }
+        .b-insert-popover button {
+            border: 0;
+            background: #f6f9ff;
+            color: #1d4ed8;
+            border-radius: 6px;
+            padding: 6px 4px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .b-insert-popover button:hover { background: #eaf1ff; }
         .b-paper-inline-tools {
             display: none;
             position: absolute;
@@ -469,11 +743,64 @@
             box-shadow: 0 10px 22px rgba(15,23,42,.1);
             z-index: 2;
         }
-        .b-paper-item:hover .b-paper-inline-tools { display: flex; }
+        .b-paper-insert-tools { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+        .b-answer-menu-wrap { position: relative; display: inline-flex; }
+        .b-answer-menu-btn.active { background: #eaf1ff; color: var(--blue); border-color: #b8d1ff; }
+        .b-answer-popover {
+            position: absolute;
+            right: 0;
+            bottom: 31px;
+            width: 184px;
+            padding: 5px;
+            display: flex;
+            gap: 6px;
+            border: 1px solid #b8d1ff;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 14px 30px rgba(15,23,42,.14);
+            z-index: 9;
+        }
+        .b-answer-style-list,
+        .b-answer-row-list { display: grid; gap: 4px; min-width: 80px; }
+        .b-answer-row-list {
+            border-left: 1px solid #edf1f7;
+            padding-left: 6px;
+        }
+        .b-answer-popover button {
+            border: 0;
+            border-radius: 6px;
+            background: #fff;
+            color: #344054;
+            padding: 6px 7px;
+            font-size: 12px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .b-answer-popover button:hover,
+        .b-answer-popover button.active { background: #eaf1ff; color: var(--blue); font-weight: 800; }
+        .b-paper-insert-tools select {
+            width: auto;
+            min-width: 76px;
+            padding: 5px 22px 5px 7px;
+            font-size: 12px;
+        }
+        .b-paper-item:hover .b-paper-inline-tools,
+        .b-paper-item.active .b-paper-inline-tools { display: flex; }
         .b-answer-area { margin: 7px 0 5px 24px; color: #98a2b3; }
         .b-answer-lines { display: grid; gap: 9px; padding-top: 5px; }
         .b-answer-line { border-bottom: 1px solid #cbd5e1; height: 18px; }
-        .b-answer-blank { border: 1px dashed #d0d5dd; border-radius: 6px; background: #fff; }
+        .b-answer-blank { border: 0; border-radius: 0; background: transparent; }
+        .b-draft-blank {
+            border: 1px dashed #d0d5dd;
+            border-radius: 7px;
+            background: #fff;
+            color: #98a2b3;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 8px 0;
+        }
         .b-fill-underline { display: inline-block; min-width: 86px; border-bottom: 1px solid #111827; height: 1em; vertical-align: baseline; }
         .b-page-break-line {
             border-top: 1px dashed #9db9f5;
@@ -493,6 +820,40 @@
             color: #475467;
             padding-right: 8px;
         }
+        .b-auto-page-break-line {
+            border-top: 1px dashed #d0d5dd;
+            color: #667085;
+            text-align: center;
+            font-size: 11px;
+            padding: 4px 0;
+            margin: 10px -6px;
+            position: relative;
+            pointer-events: none;
+        }
+        .b-auto-page-break-line::before {
+            content: attr(data-label);
+            position: relative;
+            top: -8px;
+            background: #fff;
+            padding: 0 8px;
+        }
+        .b-heading-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .b-heading-row .b-paper-section-title { flex: 1; margin-bottom: 0; }
+        .b-heading-collapse {
+            border: 1px solid #d6e4ff;
+            background: #f8fbff;
+            color: var(--blue);
+            border-radius: 6px;
+            min-width: 28px;
+            height: 26px;
+            cursor: pointer;
+            font-weight: 900;
+        }
+        .b-paper-item.collapsed-by-heading { display: none; }
         .b-draft-table {
             width: 100%;
             border-collapse: collapse;
@@ -530,6 +891,7 @@
             font-weight: 850;
             position: relative;
         }
+        .b-rail-btn:disabled { opacity: .42; cursor: not-allowed; }
         .b-help-drawer {
             position: fixed;
             right: 0;
@@ -563,6 +925,122 @@
         }
         .b-panel-body { padding: 13px; min-height: 0; overflow: auto; flex: 1; }
         .b-bank-list-panel .b-panel-body { padding-top: 0; }
+        .b-compact-toggle.active {
+            background: #eef4ff;
+            border-color: #9db9f5;
+            color: var(--blue);
+            font-weight: 800;
+        }
+        .b-filter-schemes {
+            border-top: 1px solid #edf1f7;
+            padding-top: 9px;
+            display: grid;
+            gap: 7px;
+        }
+        .b-filter-more summary {
+            cursor: pointer;
+            color: var(--blue);
+            font-size: 12px;
+            font-weight: 800;
+        }
+        .b-filter-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 7px;
+        }
+        .b-filter-actions .b-btn { width: 100%; }
+        .b-import-help {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.55;
+        }
+        .b-filter-action-block {
+            border-top: 1px solid var(--line);
+            padding-top: 10px;
+            margin-top: 8px;
+        }
+        .b-filter-action-title {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 850;
+            margin-bottom: 6px;
+        }
+        .b-filter-action-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+        }
+        .b-filter-action-row .b-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        .b-paper-question-list {
+            margin-top: 10px;
+            border-top: 1px solid #edf1f7;
+            padding-top: 8px;
+            display: grid;
+            gap: 6px;
+            max-height: 320px;
+            overflow: auto;
+        }
+        .b-paper-question-head,
+        .b-paper-question-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .b-paper-question-head {
+            font-size: 12px;
+            font-weight: 850;
+            color: #344054;
+        }
+        .b-paper-question-row {
+            border: 1px solid #e4eaf4;
+            border-radius: 8px;
+            padding: 7px 8px;
+            background: #fbfdff;
+        }
+        .b-paper-question-row .b-paper-question-no {
+            min-width: 28px;
+            height: 24px;
+            border-radius: 7px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #eaf1ff;
+            color: var(--blue);
+            font-weight: 850;
+            font-size: 12px;
+        }
+        .b-paper-question-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #1f2937;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .b-paper-question-meta {
+            font-size: 11px;
+            color: #667085;
+            margin-top: 2px;
+        }
+        .b-filter-schemes .b-tags { margin: 0; }
+        .b-question-list.compact .b-card,
+        .b-list.compact .b-card {
+            padding: 8px 9px;
+            margin-bottom: 7px;
+        }
+        .b-question-list.compact .b-card-title,
+        .b-list.compact .b-card-title { font-size: 12px; }
+        .b-question-list.compact .b-fold,
+        .b-list.compact .b-fold { margin-top: 5px; padding-top: 5px; }
+        .b-question-list.compact .b-tags,
+        .b-list.compact .b-tags { margin: 5px 0; gap: 4px; }
+        .b-question-list.compact .b-card-top,
+        .b-list.compact .b-card-top { align-items: center; }
         #bView-bank > .b-grid > .b-panel:first-child .b-panel-body {
             display: flex;
             flex-direction: column;
@@ -591,6 +1069,25 @@
         .b-card.highlighted { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(217,119,6,.18); }
         .b-card-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
         .b-card-title { font-weight: 800; font-size: 13px; line-height: 1.45; }
+        .b-card-image-preview {
+            position: relative;
+            margin: 7px 0 4px;
+            padding: 7px;
+            border: 1px solid #edf1f7;
+            border-radius: 8px;
+            background: #fbfdff;
+        }
+        .b-card-image-preview .b-image-role-grid { margin: 0; }
+        .b-card-image-preview .b-mini-note { display: none; }
+        .b-card-image-preview .b-resizable-figure {
+            max-width: 100%;
+            margin-top: 0;
+        }
+        .b-card-image-preview .b-question-image,
+        .b-card-image-preview svg {
+            max-height: 140px;
+            max-width: min(100%, 260px);
+        }
         .b-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 7px 0; }
         .b-tag {
             border: 1px solid #e4e7ec;
@@ -606,6 +1103,27 @@
         .b-tag.red { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
         .b-stem { white-space: pre-wrap; color: #344054; line-height: 1.58; font-size: 13px; margin-top: 8px; }
         .b-stem.compact { color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+        .b-fold {
+            border-top: 1px solid #edf1f7;
+            margin-top: 8px;
+            padding-top: 7px;
+            font-size: 12px;
+        }
+        .b-fold summary {
+            cursor: pointer;
+            color: var(--blue);
+            font-weight: 800;
+            list-style: none;
+        }
+        .b-fold summary::-webkit-details-marker { display: none; }
+        .b-inline-answer-content {
+            margin-top: 7px;
+            padding: 8px;
+            border-radius: 7px;
+            background: #f8fbff;
+            color: #344054;
+            line-height: 1.55;
+        }
         .b-alert {
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -618,6 +1136,27 @@
         .b-alert strong { font-size: 13px; }
         .b-alert.warning { background: #fffbeb; border-color: #fde68a; color: #78350f; }
         .b-alert.success { background: #f0fdf4; border-color: #bbf7d0; color: #14532d; }
+        .b-review-shell {
+            display: grid;
+            grid-template-columns: minmax(260px, .85fr) minmax(0, 1.15fr);
+            gap: 12px;
+            min-height: 100%;
+        }
+        .b-review-section {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .b-review-section h3 {
+            margin: 0 0 8px;
+            font-size: 13px;
+        }
+        .b-review-section .b-box {
+            max-height: 260px;
+            white-space: pre-wrap;
+        }
         .b-advanced-fields {
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -636,6 +1175,29 @@
             font-size: 12px;
             overflow: auto;
         }
+        .b-paper-detail {
+            border-top: 1px solid #edf1f7;
+            margin-top: 9px;
+            padding-top: 9px;
+        }
+        .b-paper-quality {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+            margin: 8px 0;
+        }
+        .b-paper-quality div {
+            border: 1px solid #edf1f7;
+            border-radius: 7px;
+            padding: 6px 7px;
+            font-size: 12px;
+            color: #475467;
+        }
+        .b-paper-quality strong {
+            display: block;
+            color: var(--text);
+            font-size: 14px;
+        }
         .b-diagram { margin-top: 8px; }
         .b-diagram svg { max-width: 100%; height: auto; }
         .b-card .b-diagram,
@@ -646,6 +1208,74 @@
             max-height: var(--question-image-height, 180px);
         }
         .b-question-image { display: block; max-width: min(100%, var(--question-image-width, 360px)); max-height: var(--question-image-height, 220px); margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; object-fit: contain; }
+        .b-import-example {
+            border: 1px solid #d6e4ff;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: #f8fbff;
+        }
+        .b-import-example summary {
+            cursor: pointer;
+            color: var(--blue);
+            font-weight: 800;
+            font-size: 12px;
+        }
+        .b-import-example pre {
+            white-space: pre-wrap;
+            margin: 8px 0 0;
+            color: #475467;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .b-resizable-figure {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            vertical-align: top;
+            margin-top: 8px;
+        }
+        .b-resizable-figure .b-question-image,
+        .b-resizable-figure .b-diagram {
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            max-height: none;
+            margin-top: 0;
+        }
+        .b-resizable-figure .b-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .b-resizable-figure .b-diagram svg {
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            max-height: none;
+        }
+        .b-resizable-figure.is-resizable {
+            border-radius: 8px;
+        }
+        .b-resizable-figure.is-selected,
+        .b-paper-item.active .b-resizable-figure.is-resizable {
+            outline: 1px solid rgba(35,100,232,.28);
+        }
+        .b-resize-handle {
+            display: none;
+            position: absolute;
+            right: -6px;
+            bottom: -6px;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #fff;
+            border-radius: 4px;
+            background: var(--blue);
+            box-shadow: 0 4px 10px rgba(15,23,42,.18);
+            cursor: nwse-resize;
+        }
+        .b-resizable-figure.is-selected .b-resize-handle,
+        .b-paper-item.active .b-resizable-figure.is-resizable .b-resize-handle { display: block; }
+        .b-card-image-preview .b-resizable-figure.is-selected { outline: 1px solid rgba(35,100,232,.28); }
         .b-img-size-small { --question-image-width: 220px; --question-image-height: 130px; }
         .b-img-size-medium { --question-image-width: 360px; --question-image-height: 220px; }
         .b-img-size-large { --question-image-width: 560px; --question-image-height: 320px; }
@@ -676,15 +1306,15 @@
         }
         .b-image-role-item .b-question-image { margin-top: 4px; max-height: 170px; }
         .b-output {
-            min-height: 0;
-            height: 100%;
+            min-height: 1160px;
+            height: auto;
             max-height: none;
-            overflow-y: auto;
+            overflow: visible;
             background: #fff;
             color: #182230;
-            border: 1px solid #cfd8e6;
-            border-radius: 8px;
-            padding: 32px 38px;
+            border: 0;
+            border-radius: 0;
+            padding: 34px 40px;
             line-height: 1.75;
             font-size: 14px;
             font-family: "Times New Roman", "SimSun", serif;
@@ -701,6 +1331,10 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 4px 12px;
             margin: 5px 0 3px 24px;
+        }
+        .b-preview-question > .b-box.b-diagram + .b-option-grid,
+        .b-preview-question > .b-question-image + .b-option-grid {
+            margin-top: 2px;
         }
         .b-option-item {
             border: 0;
@@ -732,12 +1366,12 @@
         }
         .b-teacher-block { margin: 5px 0 0 24px; color: #344054; }
         .b-paper-frame {
-            background: #dfe7f2;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 16px;
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            padding: 0;
             min-height: 0;
-            height: 100%;
+            height: auto;
         }
         .b-compact-list { max-height: none; min-height: 120px; overflow-y: auto; padding-right: 4px; }
         .b-compose-side .b-panel-body { display: flex; flex-direction: column; gap: 12px; }
@@ -825,7 +1459,20 @@
             padding: 8px;
             background: #f8fafc;
         }
-        .b-checkbox-group label { margin: 0; color: var(--text); }
+        .b-checkbox-group label {
+            margin: 0;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 28px;
+        }
+        .b-checkbox-group input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            margin: 0;
+            flex: 0 0 auto;
+        }
         .b-filter-actions {
             margin-top: auto;
             padding-top: 10px;
@@ -839,8 +1486,44 @@
             font-size: 11px;
             margin: 0 0 3px 0;
         }
+        .b-paper-meta-row {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 16px;
+        }
+        .b-paper-meta-row .b-paper-meta { margin: 0; flex: 0 1 auto; }
+        .b-paper-meta-row .b-btn { display: none; }
+        .b-paper-meta-row:hover .b-btn { display: inline-flex; }
+        .b-left-settings-panel {
+            display: none;
+            position: absolute;
+            left: 54px;
+            top: 8px;
+            width: 282px;
+            max-height: calc(100% - 16px);
+            overflow: auto;
+            background: #fff;
+            border: 1px solid #b8d1ff;
+            border-radius: 8px;
+            box-shadow: 0 18px 40px rgba(15,23,42,.16);
+            padding: 10px;
+            z-index: 12;
+        }
+        .b-left-settings-panel.show { display: block; }
+        #bExportSettingsToggle.active { background: #eaf1ff; color: var(--blue); border-color: #b8d1ff; }
+        .b-paper-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(120px, 1fr));
+            gap: 8px;
+            width: 100%;
+        }
         mjx-container { overflow-x: auto; overflow-y: hidden; max-width: 100%; }
         .b-stem mjx-container, .b-output mjx-container { display: inline-block; }
+        .b-output mjx-container { overflow: visible !important; max-width: none; }
+        .b-output mjx-container svg { overflow: visible; }
         .b-output-toolbar {
             display: flex;
             justify-content: space-between;
@@ -906,8 +1589,11 @@
         .b-modal-body { padding: 16px; }
         @media (max-width: 1180px) {
             .b-shell { grid-template-columns: 220px minmax(0, 1fr); }
+            .b-shell.nav-collapsed { grid-template-columns: 0 minmax(0, 1fr); }
             .b-aside { display: none; }
-            .b-grid, .b-grid.three, .b-grid.compose, .b-grid.import-grid { grid-template-columns: 1fr; }
+            .b-grid, .b-grid.three, .b-grid.three.bank-grid, .b-grid.compose, .b-grid.import-grid { grid-template-columns: 1fr; }
+            .b-bank-resizer { display: none; }
+            .b-paper-filter-grid { grid-template-columns: 1fr; }
             .b-kpis, .b-flow-board { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 760px) {
@@ -920,13 +1606,14 @@
 </head>
 <body>
     <div class="b-shell">
+        <button class="b-nav-toggle" id="bMainNavToggle" onclick="B.toggleMainNav()" title="折叠/展开左侧模块">‹</button>
         <aside class="b-nav">
             <div class="b-brand">
-                <h1>数学题库 B</h1>
-                <p>题库 B 主线 · 私有题库流程 · 导入到输出一体化</p>
+                <h1>数学题库</h1>
+                <p>正式题库 · 私有题库流程 · 导入到输出一体化</p>
             </div>
             <div>
-                <div class="b-nav-title">题库 B 流程</div>
+                <div class="b-nav-title">题库流程</div>
                 <button class="active" data-view="import" onclick="B.switchView('import')">导入中心 <small>Word/PDF/OCR</small></button>
                 <button data-view="candidates" onclick="B.switchView('candidates')">待确认题池 <small>左右对照</small></button>
                 <button data-view="bank" onclick="B.switchView('bank')">正式题库 <small>筛选编辑</small></button>
@@ -943,7 +1630,7 @@
             </div>
             <div class="b-nav-bottom">
                 <div class="b-nav-title">系统入口</div>
-                <button data-view="docs" onclick="B.switchView('docs')">设计文档 <small>说明/规划</small></button>
+                <button data-view="docs" onclick="B.switchView('docs')">说明与报告 <small>优化建议</small></button>
                 <button onclick="location.href='/'">返回 AI 教培工作台</button>
             </div>
         </aside>
@@ -975,14 +1662,14 @@
             <section class="b-view active" id="bView-import">
                 <div class="b-grid import-grid">
                     <section class="b-panel">
-                        <div class="b-panel-head"><span>导入中心</span><span class="b-tag blue">题库 B 独立</span></div>
+                        <div class="b-panel-head"><span>导入中心</span><span class="b-tag blue">正式题库</span></div>
                         <div class="b-panel-body b-form">
                             <div class="b-row">
                                 <div><label>导入方式</label><select id="bImportType"><option value="text">OCR 文本粘贴</option><option value="docx">Word .doc / .docx</option><option value="pdf">可复制文字 PDF</option></select></div>
                                 <div><label>上传文件</label><input id="bImportFile" type="file" multiple accept=".doc,.docx,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"></div>
                             </div>
                             <div class="b-row three">
-                                <div><label>解析模型</label><select id="bImportAIProvider"><option value="qwen" selected>Qwen 千问 qwen-plus</option><option value="deepseek">DeepSeek v4-flash</option><option value="global">全局模型</option><option value="rules">本地规则</option></select></div>
+                                <div><label>解析模型</label><select id="bImportAIProvider" onchange="B.setAiProvider(this.value)"><option value="qwen" selected>Qwen 千问 qwen-plus</option><option value="deepseek">DeepSeek v4-flash</option><option value="global">全局模型</option><option value="rules">本地规则</option></select></div>
                                 <div><label>答案位置</label><select id="bAnswerMode"><option value="auto" selected>自动判断</option><option value="inline">题目下面跟答案/解析</option><option value="final">题目先列出，答案在最后</option></select></div>
                                 <div><label>多文件处理</label><select id="bMultiFileMode"><option value="separate" selected>每个文件作为一套试卷</option><option value="merge">合并为同一套资料</option></select></div>
                             </div>
@@ -997,7 +1684,22 @@
                             </div>
                             <div><label>考试/资料名称</label><input id="bExam" placeholder="如：初一下学期期末数学试卷"></div>
                             <div><label>备注</label><input id="bNote" placeholder="页码范围、版本、OCR 来源等"></div>
-                            <div><label>OCR 文本 / 可复制文本</label><textarea id="bRawText" rows="10" placeholder="2026 深圳初一数学期末测试\n1.（5分）题干...\n图片：https://...\n答案：A\n解析：...\n\n参考答案\n1.A 2.x=5"></textarea></div>
+                            <div>
+                                <label>OCR 文本 / 可复制文本（这里不是代码）</label>
+                                <textarea id="bRawText" rows="10" placeholder="把 OCR 文字、可复制 PDF 文字或网页题目粘贴到这里。系统会先尝试识别年份、年级、地区、学校和试卷标题；识别后仍然可以手动修改。"></textarea>
+                                <div class="b-import-help">这里放的是从 Word、PDF、OCR 或网页复制出来的试卷原文，不需要懂代码。系统会先自动识别试卷信息；如果识别不准，上面的年份、年级、地区和资料名称都可以手动改。</div>
+                            </div>
+                            <details class="b-import-example">
+                                <summary>查看导入示例</summary>
+                                <pre>2026 深圳初一数学期末测试
+1.（5分）题干……
+图片：https://……
+答案：A
+解析：……
+
+参考答案
+1.A 2.x=5</pre>
+                            </details>
                             <div class="b-actions" style="justify-content:flex-start;">
                                 <button class="b-btn primary" id="bImportBtn" onclick="B.createImport()">生成候选题</button>
                                 <button class="b-btn" id="bCompareBtn" onclick="B.compareImportModels()">模型对比解析</button>
@@ -1010,10 +1712,14 @@
                     <section class="b-panel">
                         <div class="b-panel-head"><span>导入助手</span><span class="b-tag orange">人工确认入库</span></div>
                         <div class="b-panel-body">
-                            <div class="b-doc-grid">
-                                <article class="b-doc">
-                                    <h3>推荐流程</h3>
-                                    <p>导入文件或 OCR 文本后先进入待确认题池，逐题校对后再入正式题库。</p>
+	                            <div class="b-doc-grid">
+	                                <article class="b-doc" id="bImportBatchStatus">
+	                                    <h3>本次导入状态</h3>
+	                                    <p>导入后这里会显示文件数、AI 成功、规则兜底和需要复核的字段。</p>
+	                                </article>
+	                                <article class="b-doc">
+	                                    <h3>推荐流程</h3>
+	                                    <p>导入文件或 OCR 文本后先进入待确认题池，逐题校对后再入正式题库。</p>
                                 </article>
                                 <article class="b-doc">
                                     <h3>多文件导入</h3>
@@ -1057,7 +1763,7 @@
             </section>
 
             <section class="b-view" id="bView-bank">
-                <div class="b-grid three">
+                <div class="b-grid three bank-grid" id="bBankGrid">
                     <section class="b-panel">
                         <div class="b-panel-head">高级筛选</div>
                         <div class="b-panel-body b-form">
@@ -1068,18 +1774,29 @@
                             <div><label>题型</label><select id="bFilterType" onchange="B.renderBank()"></select></div>
                             <div><label>难度</label><select id="bFilterDifficulty" onchange="B.renderBank()"></select></div>
                             <div class="b-checkbox-group"><label><input id="bFilterFormula" type="checkbox" onchange="B.renderBank()"> 含公式</label><label><input id="bFilterDiagram" type="checkbox" onchange="B.renderBank()"> 含图形</label></div>
-                            <div class="b-actions b-filter-actions" style="justify-content:flex-start;">
-                                <button class="b-btn small primary" onclick="B.addFilteredToBasket()">按筛选加入题篮</button>
-                                <button class="b-btn small" onclick="B.openQuestionEditor()">新增题目</button>
-                                <button class="b-btn small" onclick="B.switchView('quality')">题目质量体检</button>
+                            <div class="b-filter-action-block">
+                                <div class="b-filter-action-title">当前筛选操作</div>
+                                <div class="b-filter-action-row">
+                                    <button class="b-btn small primary" onclick="B.addFilteredToBasket()">加入题篮</button>
+                                    <button class="b-btn small" onclick="B.switchView('quality')">质量体检</button>
+                                </div>
                             </div>
-                        </div>
-                    </section>
+                            <details class="b-filter-more">
+                                <summary>更多管理</summary>
+                                <div class="b-filter-action-row" style="margin-top:8px;">
+                                    <button class="b-btn small" onclick="B.openQuestionEditor()">新增题目</button>
+                                    <button class="b-btn small" onclick="B.saveBankFilterScheme()">保存筛选</button>
+                                </div>
+                                <div class="b-tags" id="bBankFilterSchemes"></div>
+                            </details>
+	                        </div>
+	                    </section>
+                    <div class="b-bank-resizer" onmousedown="B.startBankResize(event)" title="拖动调整筛选栏宽度"></div>
                     <section class="b-panel b-bank-list-panel">
                         <div class="b-panel-body">
-                            <div class="b-actions" style="justify-content:flex-start;margin-bottom:10px;">
-                                <button class="b-btn small" id="bSelectFilteredBtn" onclick="B.toggleFilteredQuestionSelection()">全选当前筛选</button>
-                                <button class="b-btn small" onclick="B.clearQuestionSelection()">清空选择</button>
+		                            <div class="b-actions" style="justify-content:flex-start;margin-bottom:10px;">
+		                                <button class="b-btn small" id="bSelectFilteredBtn" onclick="B.toggleFilteredQuestionSelection()">全选当前筛选</button>
+	                                <button class="b-btn small" onclick="B.clearQuestionSelection()">清空选择</button>
                                 <button class="b-btn small primary" onclick="B.batchAddSelectedToBasket()">批量加入题篮</button>
                                 <button class="b-btn small" onclick="B.batchMarkQuestions()">批量标记</button>
                                 <button class="b-btn small red" onclick="B.batchArchiveSelected()">批量归档</button>
@@ -1095,8 +1812,8 @@
             <section class="b-view" id="bView-compose">
                 <div class="b-compose-workbench">
                     <div class="b-compose-topbar">
-                        <div class="b-compose-left-actions">
-                            <div class="b-compose-brand">数学题库 B 教师输出工作台</div>
+                        <div class="b-compose-brand">工作台</div>
+                        <div class="b-compose-control-row">
                             <div class="b-flow-tabs">
                                 <button class="b-doc-type active" data-output-type="quiz" onclick="B.setOutputType('quiz')">小测卷</button>
                                 <button class="b-doc-type" data-output-type="exam" onclick="B.setOutputType('exam')">正式试卷</button>
@@ -1104,8 +1821,6 @@
                                 <button class="b-doc-type" data-output-type="homework" onclick="B.setOutputType('homework')">作业</button>
                                 <button class="b-doc-type" data-output-type="answerEdit" onclick="B.setOutputType('answerEdit')">答案编辑</button>
                             </div>
-                        </div>
-                        <div class="b-compose-right-actions">
                             <div class="b-export-actions">
                                 <span class="b-mini-note">导出模式</span>
                                 <div class="b-export-tabs">
@@ -1122,7 +1837,7 @@
                     </div>
 
                     <aside class="b-output-outline">
-                        <div class="b-outline-head"><span>本卷结构</span><button class="b-btn small" onclick="B.insertDraftHeading()">+ 栏目</button></div>
+                        <div class="b-outline-head"><span>本卷结构</span></div>
                         <div class="b-outline-body" id="bOutputOutline"></div>
                     </aside>
                     <div class="b-outline-resizer" onmousedown="B.startOutlineResize(event)" title="拖动调整本卷结构宽度"></div>
@@ -1130,46 +1845,66 @@
                     <section class="b-output-canvas">
                         <div class="b-paper-toolbar">
                             <div class="b-actions">
-                                <button class="b-btn small" onclick="B.editDraftTitle()">本卷编辑</button>
-                                <button class="b-btn small" onclick="B.insertDraftHeading()">插入标题</button>
-                                <button class="b-btn small" onclick="B.insertDraftText()">插入说明</button>
-                                <button class="b-btn small" onclick="B.insertDraftTable()">插入表格</button>
-                                <button class="b-btn small" onclick="B.insertDraftImage()">插入图片</button>
-                                <button class="b-btn small primary" onclick="B.insertPageBreak()">插入分页</button>
+                                <button class="b-btn small" id="bPaperMetaToggle" onclick="B.togglePaperMeta()">隐藏信息栏</button>
                                 <button class="b-btn small" onclick="B.groupDraftByType()">整理结构</button>
                                 <button class="b-btn small" onclick="B.savePaperHistory()">保存到历史</button>
+                                <button class="b-btn small" id="bExportSettingsToggle" onclick="B.toggleLeftExportSettings()">导出设置</button>
                                 <button class="b-btn small" onclick="B.copyMarkdown()">复制 MD</button>
                                 <button class="b-btn small" onclick="B.copyPlain()">复制纯文本</button>
                             </div>
                         </div>
+                        <div class="b-left-settings-panel" id="bLeftExportSettings">
+                            <div class="b-form">
+                                <p class="b-panel-head" style="padding:0;border:0;">显示设置</p>
+                                <div class="b-checkbox-group">
+                                    <label><input id="bShowScore" type="checkbox"> 分值</label>
+                                    <label><input id="bShowSource" type="checkbox"> 来源</label>
+                                    <label><input id="bShowTags" type="checkbox"> 知识点</label>
+                                    <label><input id="bShowDifficulty" type="checkbox"> 难度</label>
+                                </div>
+                                <p class="b-panel-head" style="padding:0;border:0;">分页与导出</p>
+                                <div class="b-row"><div><label>纸张</label><select id="bPaperSize"><option>A4</option><option>A3</option></select></div><div><label>字号</label><select id="bPaperFontSize"><option>10.5</option><option>11</option><option>12</option></select></div></div>
+                                <label><input id="bKeepQuestionTogether" type="checkbox" checked> 一道题不跨页</label>
+                                <label><input id="bWordKeepPage" type="checkbox" checked> Word 按分页预览输出</label>
+                                <label><input id="bPdfKeepPage" type="checkbox" checked> PDF 按同一分页生成</label>
+                                <div class="b-alert success"><span>PDF 直接使用当前预览分页和图片公式渲染结果；Word 保留可编辑结构，复杂公式和图片需导出后复核。</span></div>
+                                <p class="b-panel-head" style="padding:0;border:0;">答题区设置</p>
+                                <div class="b-checkbox-group">
+                                    <label><input id="bShowAnswerArea" type="checkbox"> 答题区</label>
+                                    <label><input id="bAnswerAutoByType" type="checkbox" checked> 按题型自动</label>
+                                </div>
+                                <div class="b-row"><div><label>填空题</label><select id="bFillBlankStyle"><option value="underline">横线</option><option value="blank">空白</option></select></div><div><label>解答题</label><select id="bSolutionRows"><option value="4">4 行</option><option value="6" selected>6 行</option><option value="8">8 行</option><option value="10">10 行</option></select></div></div>
+                            </div>
+                        </div>
                         <div class="b-paper-scroll">
-                            <input id="bOutputTitle" type="hidden" value="数学题库 B 专题练习">
+                            <input id="bOutputTitle" type="hidden" value="数学题库专题练习">
                             <select id="bOutputType" style="display:none;"><option value="quiz">小测卷</option><option value="exam">正式试卷</option><option value="handout">专题讲义</option><option value="homework">作业</option><option value="answerEdit">答案编辑</option></select>
                             <select id="bOutputMode" style="display:none;"><option value="student">学生版</option><option value="teacher">教师版</option><option value="answerOnly">答案版</option></select>
                             <div class="b-paper-frame"><div class="b-output" id="bOutput">先把题目加入题篮，预览会自动生成。</div></div>
                         </div>
                     </section>
 
+                    <div class="b-output-side-resizer" onmousedown="B.startOutputSideResize(event)" title="拖动调整右侧栏宽度"></div>
                     <aside class="b-output-side">
                         <div class="tabs">
                             <button class="tab active" data-output-tab="questions" onclick="B.switchOutputTab('questions')">试题</button>
                             <button class="tab" data-output-tab="papers" onclick="B.switchOutputTab('papers')">试卷</button>
                             <button class="tab" data-output-tab="history" onclick="B.switchOutputTab('history')">历史</button>
                             <button class="tab" data-output-tab="ai" onclick="B.switchOutputTab('ai')">AI</button>
-                            <button class="tab" data-output-tab="settings" onclick="B.switchOutputTab('settings')">设置</button>
                         </div>
                         <div class="b-side-body">
                             <section class="b-side-tab active" id="bOutputTab-questions">
                                 <div class="b-finder-panel">
                                     <label>关键词</label><input id="bOutputQuestionSearch" placeholder="多边形面积" oninput="B.renderOutputSide()">
-                                    <div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small primary" onclick="B.renderOutputSide()">搜索</button><button class="b-btn small" onclick="B.toggleFinderExtra('bQuestionFinderExtra')">展开筛选</button><button class="b-btn small" onclick="B.expandQuestionKeywords()">AI 扩展关键词</button></div>
-                                    <div class="b-finder-extra collapsed" id="bQuestionFinderExtra">
-                                        <div class="b-finder-row"><strong>范围</strong><div class="b-finder-options" id="bOutputRangeChips"></div></div>
-                                        <div class="b-finder-row"><strong>学年</strong><div class="b-finder-options" id="bOutputYearChips"></div></div>
-                                        <div class="b-finder-row"><strong>年级</strong><div class="b-finder-options" id="bOutputGradeChips"></div></div>
-                                        <div class="b-finder-row"><strong>题型</strong><div class="b-finder-options" id="bOutputTypeChips"></div></div>
-                                        <div class="b-finder-row"><strong>难度</strong><div class="b-finder-options" id="bOutputDifficultyChips"></div></div>
-                                    </div>
+	                                    <div class="b-actions" style="justify-content:flex-start;"><button class="b-btn small primary" onclick="B.renderOutputSide()">搜索</button><button class="b-btn small" onclick="B.toggleFinderExtra('bQuestionFinderExtra')">展开筛选</button></div>
+	                                    <div class="b-finder-extra collapsed" id="bQuestionFinderExtra">
+	                                        <div class="b-finder-row"><strong>范围</strong><div class="b-finder-options" id="bOutputRangeChips"></div></div>
+	                                        <div class="b-finder-row"><strong>学年</strong><div class="b-finder-options" id="bOutputYearChips"></div></div>
+	                                        <div class="b-finder-row"><strong>年级</strong><div class="b-finder-options" id="bOutputGradeChips"></div></div>
+	                                        <div class="b-finder-row"><strong>题型</strong><div class="b-finder-options" id="bOutputTypeChips"></div></div>
+	                                        <div class="b-finder-row"><strong>难度</strong><div class="b-finder-options" id="bOutputDifficultyChips"></div></div>
+	                                        <div class="b-finder-collapsed-actions"><button class="b-btn small" onclick="B.expandQuestionKeywords()">AI 扩展关键词</button></div>
+	                                    </div>
                                 </div>
                                 <div class="b-sort-row"><span id="bOutputQuestionCount">共 0 道题</span><button class="b-btn small" onclick="B.toggleSortMenu()">综合排序 ↑</button></div>
                                 <div id="bSortMenu" style="display:none;" class="b-output-card"><button class="b-finder-chip active" onclick="B.setOutputSort('综合排序')">综合排序</button><button class="b-finder-chip" onclick="B.setOutputSort('使用次数')">使用次数 ↑</button><button class="b-finder-chip" onclick="B.setOutputSort('难度')">难度 ↑</button><button class="b-finder-chip" onclick="B.setOutputSort('时间')">时间 ↓</button></div>
@@ -1198,32 +1933,10 @@
                                 <div id="bHistoryList"></div>
                             </section>
                             <section class="b-side-tab" id="bOutputTab-ai">
+                                <div class="b-output-card"><div class="b-output-card-title">AI 模型</div><div class="b-output-card-meta">默认跟随导入中心的解析模型，也可以在这里临时切换。</div><select id="bOutputAIProvider" onchange="B.setAiProvider(this.value)"><option value="qwen">Qwen 千问 qwen-plus</option><option value="deepseek">DeepSeek v4-flash</option><option value="global">全局模型</option><option value="rules">本地规则</option></select><div class="b-mini-note" id="bAiProviderStatus"></div></div>
                                 <div class="b-output-card"><div class="b-output-card-title">题篮生成讲义大纲</div><div class="b-output-card-meta">先分析题篮，再按知识梳理、例题、变式、练习生成结构。</div><button class="b-btn small primary" onclick="B.generateAiOutline()">生成大纲</button><button class="b-btn small" onclick="B.applyAiOutline()">一键加入本卷</button><div id="bAiOutline"></div></div>
                                 <div class="b-output-card"><div class="b-output-card-title">检查本卷质量</div><div class="b-output-card-meta">难度递进、题型比例、图片断页、答案解析。</div><button class="b-btn small primary" onclick="B.checkDraftQuality()">检查本卷</button><div id="bDraftQuality"></div></div>
                                 <div class="b-output-card"><div class="b-output-card-title">生成教学补充</div><div class="b-output-card-meta">易错提醒、板书提示、同类变式。</div><button class="b-btn small primary" onclick="B.insertDraftText()">补讲义内容</button></div>
-                            </section>
-                            <section class="b-side-tab" id="bOutputTab-settings">
-                                <div class="b-form">
-                                    <p class="b-panel-head" style="padding:0;border:0;">显示设置</p>
-                                    <div class="b-checkbox-group">
-                                        <label><input id="bShowScore" type="checkbox" checked> 分值</label>
-                                        <label><input id="bShowSource" type="checkbox" checked> 来源</label>
-                                        <label><input id="bShowTags" type="checkbox" checked> 知识点</label>
-                                        <label><input id="bShowDifficulty" type="checkbox" checked> 难度</label>
-                                    </div>
-                                    <p class="b-panel-head" style="padding:0;border:0;">分页与导出</p>
-                                    <div class="b-row"><div><label>纸张</label><select id="bPaperSize"><option>A4</option><option>A3</option></select></div><div><label>字号</label><select id="bPaperFontSize"><option>10.5</option><option>11</option><option>12</option></select></div></div>
-                                    <label><input id="bKeepQuestionTogether" type="checkbox" checked> 一道题不跨页</label>
-                                    <label><input id="bWordKeepPage" type="checkbox" checked> Word 按分页预览输出</label>
-                                    <label><input id="bPdfKeepPage" type="checkbox" checked> PDF 按同一分页生成</label>
-                                    <div class="b-alert success"><span>PDF 直接使用当前预览分页和图片公式渲染结果；Word 保留可编辑结构，复杂公式和图片需导出后复核。</span></div>
-                                    <p class="b-panel-head" style="padding:0;border:0;">答题区设置</p>
-                                    <div class="b-checkbox-group">
-                                        <label><input id="bShowAnswerArea" type="checkbox"> 答题区</label>
-                                        <label><input id="bAnswerAutoByType" type="checkbox" checked> 按题型自动</label>
-                                    </div>
-                                    <div class="b-row"><div><label>填空题</label><select id="bFillBlankStyle"><option value="underline">横线</option><option value="blank">空白</option></select></div><div><label>解答题</label><select id="bSolutionRows"><option value="4">4 行</option><option value="6" selected>6 行</option><option value="8">8 行</option><option value="10">10 行</option></select></div></div>
-                                </div>
                             </section>
                         </div>
                     </aside>
@@ -1236,6 +1949,16 @@
                     <div class="b-panel-body">
                         <div class="b-actions" style="justify-content:flex-start;margin-bottom:10px;">
                             <input id="bPaperSearch" oninput="B.renderPapers()" placeholder="搜索标题/年份/地区/来源" style="max-width:320px;">
+                        </div>
+                        <div class="b-paper-filter-grid" style="margin-bottom:10px;">
+                            <select id="bPaperYearFilter" onchange="B.renderPapers()"></select>
+                            <select id="bPaperGradeFilter" onchange="B.renderPapers()"></select>
+                            <select id="bPaperRegionFilter" onchange="B.renderPapers()"></select>
+                            <select id="bPaperTypeFilter" onchange="B.renderPapers()"></select>
+                        </div>
+                        <div class="b-actions" style="justify-content:flex-start;margin-bottom:10px;">
+                            <select id="bPaperSortFilter" onchange="B.renderPapers()" style="max-width:180px;"><option value="recent">最近导入优先</option><option value="yearDesc">年份从新到旧</option><option value="title">标题排序</option><option value="countDesc">题量从多到少</option></select>
+                            <button class="b-btn small" onclick="B.clearPaperFilters()">清空筛选</button>
                         </div>
                         <div class="b-list" id="bPaperList"></div>
                     </div>
@@ -1251,14 +1974,15 @@
 
             <section class="b-view" id="bView-docs">
                 <section class="b-panel">
-                    <div class="b-panel-head"><span>设计文档 · 题库 B</span><span class="b-tag blue">全新系统</span></div>
+	                    <div class="b-panel-head"><span>说明与模块评估 · 数学题库</span><span class="b-tag blue">正式系统</span></div>
                     <div class="b-panel-body">
                         <div class="b-doc-grid">
                             <article class="b-doc"><h3>使用说明书</h3><p>导入资料后先生成候选题；在待确认题池逐题校对，补齐题干、年级、章节后确认入库；正式题库支持筛选、编辑、加入题篮；组卷输出页保留设置和大预览，题篮统一从右侧抽屉管理。</p></article>
-                            <article class="b-doc"><h3>系统边界</h3><p>后续统一以题库 B 为主。第一阶段支持 Word、可复制 PDF、OCR 文本，不做扫描 PDF、图片 OCR、手写识别和几何图自动识别。</p></article>
+                            <article class="b-doc"><h3>系统边界</h3><p>后续统一以正式数学题库为主。第一阶段支持 Word、可复制 PDF、OCR 文本，不做扫描 PDF、图片 OCR、手写识别和几何图自动识别。</p></article>
                             <article class="b-doc"><h3>质量规则</h3><p>入库最低门槛为题干、年级、章节。缺答案、缺解析、缺知识点、缺来源、疑似公式损坏、疑似重复题、含图但无附件都会进入质量体检。</p></article>
-                            <article class="b-doc"><h3>后续开发规划</h3><p>下一阶段加入扫描版 PDF OCR、公式自动修复、AI 生成变式题、学生错题入口、教学大纲联动、班级薄弱点推荐和题源发现。</p></article>
-                        </div>
+	                            <article class="b-doc"><h3>后续开发规划</h3><p>下一阶段加入扫描版 PDF OCR、公式自动修复、AI 生成变式题、学生错题入口、教学大纲联动、班级薄弱点推荐和题源发现。</p></article>
+	                            <article class="b-doc"><h3>模块评估报告</h3><p>输出模块跑通后，会把导入、待确认、正式题库、试卷库、质量体检等模块截图并生成独立 HTML 报告，避免说明内容干扰主工作流。</p><p><a href="docs/question-bank-module-review.html" target="_blank">打开模块评估报告</a></p></article>
+	                        </div>
                     </div>
                 </section>
             </section>
@@ -1291,6 +2015,7 @@
     <div class="b-side-rail">
         <button class="b-rail-btn" id="basketToggle" onclick="B.openBasketDrawer()">题篮<span class="b-badge" id="bRailBasketBadge">0</span></button>
         <button class="b-rail-btn" id="helpToggle" onclick="B.openHelpDrawer()">说明</button>
+        <button class="b-rail-btn" id="undoToggle" onclick="B.undoLastAction()" disabled>撤回</button>
     </div>
     <aside class="b-drawer" id="bBasketDrawer">
         <div class="b-drawer-head">
@@ -1347,6 +2072,6 @@
         };
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-    <script src="js/question-bank-b-system.js"></script>
+    <script src="js/question-bank-b-system.js?v=20260623-output-ai-import-paper6"></script>
 </body>
 </html>
