@@ -630,8 +630,8 @@ function renderStudentDetail() {
     let chartHtml = '';
     if (displayGrades.length >= 2) {
         chartHtml = `
-            <div style="margin-top: 24px;">
-                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">${escapeHtml(student.name)} · 成绩趋势</div>
+            <div class="student-grade-chart-block">
+                <div class="student-grade-chart-title">${escapeHtml(student.name)} · 成绩趋势</div>
                 <div class="chart-container"><canvas id="gradeChart"></canvas></div>
             </div>
         `;
@@ -646,8 +646,8 @@ function renderStudentDetail() {
             <div class="student-detail-actions">
                 <button class="btn btn-secondary btn-sm" onclick="openStudentModal('${student.id}')">编辑</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteStudent('${student.id}')">删除</button>
-                <button class="btn btn-sm" style="background:#9b59b6;color:white;" onclick="openStudentAIQuestion('${student.id}', 'feedback')">AI 学情反馈</button>
-                <button class="btn btn-sm" style="background:#e67e22;color:white;" onclick="openStudentAIQuestion('${student.id}', 'renewal')">AI 续费话术</button>
+                <button class="btn btn-sm btn-ai-feedback" onclick="openStudentAIQuestion('${student.id}', 'feedback')">AI 学情反馈</button>
+                <button class="btn btn-sm btn-ai-renewal" onclick="openStudentAIQuestion('${student.id}', 'renewal')">AI 续费话术</button>
             </div>
         </div>
 
@@ -778,7 +778,7 @@ function renderStudentDetail() {
                     <button class="btn btn-xs ${currentStudentGradeTab === 'external' ? 'btn-primary' : 'btn-secondary'}" onclick="event.preventDefault(); event.stopPropagation(); switchStudentGradeTab('external')">校外</button>
                 </div>
             </summary>
-            ${displayGrades.length === 0 ? '<div class="empty-state" style="padding: 20px;">暂无记录</div>' : `
+            ${displayGrades.length === 0 ? '<div class="empty-state student-record-empty">暂无记录</div>' : `
                 <div class="student-grade-list">
                     ${[...displayGrades].sort((a, b) => String(b.testDate || '').localeCompare(String(a.testDate || ''))).map(g => `
                         <div class="student-grade-row">
@@ -905,7 +905,7 @@ function openStudentModal(id = null) {
                         <option value="lost" ${student?.followUpStatus === 'lost' ? 'selected' : ''}>已流失</option>
                     </select>
                 </div>
-                <div class="form-group" style="flex:2;"><label>备注</label><input type="text" name="remark" value="${escapeHtml(student?.remark || '')}" placeholder="学员备注信息"></div>
+                <div class="form-group form-group-wide"><label>备注</label><input type="text" name="remark" value="${escapeHtml(student?.remark || '')}" placeholder="学员备注信息"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
@@ -1010,10 +1010,10 @@ function openGradeUpgradePreview() {
     const gradeOptions = getStudentGradeOptions();
     document.getElementById('modalTitle').textContent = '升年级预览';
     document.getElementById('modalBody').innerHTML = `
-        <div style="margin-bottom: 12px; padding: 10px; background: var(--hover-bg); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
+        <div class="grade-upgrade-note">
             只会更新勾选学员的当前年级，不修改首次上课年级、班级关系、班级年级或学员状态。确认前会自动创建服务器备份。
         </div>
-        <div class="table-wrapper" style="max-height: 60vh; overflow: auto;">
+        <div class="table-wrapper grade-upgrade-table-wrap">
             <table>
                 <thead>
                     <tr>

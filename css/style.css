@@ -3284,6 +3284,20 @@ body.dark-mode .reminder-item:hover {
     gap: 6px;
     flex-wrap: wrap;
 }
+.btn-ai-feedback {
+    background: #9b59b6;
+    color: #fff;
+}
+.btn-ai-feedback:hover {
+    background: #8e44ad;
+}
+.btn-ai-renewal {
+    background: #e67e22;
+    color: #fff;
+}
+.btn-ai-renewal:hover {
+    background: #d35400;
+}
 .student-detail-summary-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3739,6 +3753,30 @@ body.dark-mode .student-timeline-row.is-good {
 .student-grade-main span {
     color: var(--text-muted);
     white-space: nowrap;
+}
+.student-grade-chart-block {
+    margin-top: 24px;
+}
+.student-grade-chart-title {
+    margin-bottom: 12px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+.student-record-empty {
+    padding: 20px;
+}
+.grade-upgrade-note {
+    margin-bottom: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--hover-bg);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.grade-upgrade-table-wrap {
+    max-height: 60vh;
+    overflow: auto;
 }
 .record-link-btn {
     border: 0;
