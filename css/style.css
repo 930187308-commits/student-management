@@ -1210,6 +1210,13 @@ body.dark-mode .btn-secondary {
 body.dark-mode .btn-secondary:hover {
     background: #4b5563;
 }
+body.dark-mode #tab-knowledge .knowledge-item-menu-popover button.danger {
+    color: #fca5a5;
+}
+body.dark-mode #tab-knowledge .knowledge-item-menu-popover button.danger:hover {
+    background: rgba(248, 113, 113, 0.14);
+    color: #fecaca;
+}
 
 /* 旧内联浅色样式的夜间模式兜底 */
 body.dark-mode [style*="color:#888"],
@@ -2953,6 +2960,9 @@ body.dark-mode .ai-chat-message.user .ai-chat-bubble {
     color: #b7791f;
     font-weight: 600;
     white-space: nowrap;
+}
+body.dark-mode .system-qa-answer-meta strong {
+    color: #fbbf24;
 }
 .system-qa-run-status {
     margin: 0 0 7px;
