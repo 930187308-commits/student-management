@@ -29,6 +29,11 @@ function renderCommunications() {
                     <button class="btn btn-secondary btn-sm" onclick="openTopicManager()">管理主题</button>
                     <div class="divider"></div>
                     <button class="btn btn-secondary btn-sm" onclick="exportCommunications()">导出</button>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadCommunicationTemplate()">下载模板</button>
+                    <div class="file-input-wrapper">
+                        <button class="btn btn-warning btn-sm">导入</button>
+                        <input type="file" accept=".xlsx,.xls" onchange="importCommunications(event)">
+                    </div>
                     <button class="btn btn-secondary btn-sm" onclick="toggleCommunicationBatchMode()">${communicationBatchMode ? '退出多选' : '多选'}</button>
                     ${communicationBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedCommunications()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedCommunications()">删除选中</button>' : ''}
                 </div>
@@ -143,6 +148,224 @@ function exportCommunicationRows(comms, filename) {
     XLSX.utils.book_append_sheet(wb, ws, '沟通记录');
     XLSX.writeFile(wb, filename);
     showToast('导出成功');
+}
+
+function downloadCommunicationTemplate() {
+    const templateRows = [
+        ['学员', '主题', '日期', '方式', '沟通对象', '状态', '内容', '后续跟进'],
+        ['张三', '续费沟通', '2026-06-01', '微信', '妈妈', '待沟通', '家长咨询暑假课安排，关注计算准确率。', '周五前发送暑假班安排'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(templateRows);
+    formatExcelSheet(ws, templateRows, { maxWidth: 36 });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '沟通记录');
+
+    const instructionRows = [
+        ['沟通记录导入模板 - 填写说明'],
+        ['字段', '说明', '必填', '格式/示例'],
+        ['学员', '系统内已有学员姓名', '是', '如：张三。同名学员请先改名区分'],
+        ['主题', '沟通主题', '选填', '续费沟通 / 学习反馈 / 请假沟通 等；无法匹配时导入为空主题'],
+        ['日期', '沟通日期', '选填', 'yyyy-mm-dd，如 2026-06-01；留空则保存为空'],
+        ['方式', '沟通方式', '选填', '微信 / 电话 / 面谈 / 其他'],
+        ['沟通对象', '本次沟通对象', '选填', '如：妈妈 / 爸爸 / 学生'],
+        ['状态', '沟通状态', '选填', '待沟通 / 已完成 / 已沟通'],
+        ['内容', '沟通正文', '是', '记录本次沟通要点'],
+        ['后续跟进', '下一步动作', '选填', '如：下周反馈试卷情况'],
+        [''],
+        ['注意事项'],
+        ['1. 导入只匹配已有学员，不会自动新建学员。'],
+        ['2. 重复判断：同一学员 + 日期 + 主题 + 内容相同。'],
+        ['3. 发现重复时，导入前会让你选择保留现有或替换已有。'],
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instructionRows);
+    formatExcelSheet(instrWs, instructionRows, { autoFilter: false, maxWidth: 42 });
+    XLSX.utils.book_append_sheet(wb, instrWs, '填写说明');
+    XLSX.writeFile(wb, '沟通记录导入模板.xlsx');
+    showToast('模板已下载');
+}
+
+function importCommunications(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const workbook = XLSX.read(e.target.result, { type: 'binary' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+            const checkResult = precheckCommunicationImport(rows);
+            showImportPreCheck({
+                title: '沟通记录导入预览',
+                checkResult,
+                actionLabel: '导入沟通记录',
+                duplicateStrategy: checkResult.dup > 0 ? null : 'skip',
+                onConfirm: (strategies) => executeCommunicationImport(checkResult, strategies)
+            });
+        } catch (err) {
+            showToast('导入失败：' + err.message);
+        }
+    };
+    reader.readAsBinaryString(file);
+    event.target.value = '';
+}
+
+function getCommunicationTopicByName(name = '') {
+    const normalized = String(name || '').trim();
+    if (!normalized) return null;
+    return (data.communicationTopics || []).find(t => String(t.name || '').trim() === normalized) || null;
+}
+
+function parseCommunicationStatus(statusRaw = '') {
+    const raw = String(statusRaw || '').trim();
+    if (!raw) return 'pending';
+    const map = {
+        pending: 'pending',
+        '待沟通': 'pending',
+        done: 'done',
+        '已完成': 'done',
+        '已沟通': 'done'
+    };
+    return map[raw];
+}
+
+function precheckCommunicationImport(rows) {
+    const validRows = [];
+    const errors = [];
+    const warnings = [];
+    const duplicates = [];
+    const skippedDetails = [];
+    let skipped = 0;
+    let failed = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 1;
+        if (!row || row.every(cell => cell === undefined || cell === null || String(cell).trim() === '')) {
+            skipped++;
+            skippedDetails.push({ row: rowNum, msg: '空行' });
+            continue;
+        }
+
+        const studentName = String(row[0] || '').trim();
+        const content = String(row[6] || '').trim();
+        if (!studentName || !content) {
+            skipped++;
+            skippedDetails.push({ row: rowNum, msg: '缺少学员或沟通内容' });
+            continue;
+        }
+
+        const matchedStudents = (data.students || []).filter(s => normalizeNameForMatch(s.name) === normalizeNameForMatch(studentName));
+        if (matchedStudents.length === 0) {
+            errors.push({ row: rowNum, msg: `学员"${studentName}"不存在` });
+            failed++;
+            continue;
+        }
+        if (matchedStudents.length > 1) {
+            const names = matchedStudents.map(s => `"${s.name}"`).join('、');
+            errors.push({ row: rowNum, msg: `学员"${studentName}"匹配到多个（${names}），请先改名区分` });
+            failed++;
+            continue;
+        }
+
+        const topicName = String(row[1] || '').trim();
+        const topic = getCommunicationTopicByName(topicName);
+        if (topicName && !topic) {
+            warnings.push({ row: rowNum, msg: `主题"${topicName}"不存在，将按空主题导入` });
+        }
+
+        const contactDateRaw = row[2];
+        const contactDate = contactDateRaw ? normalizeExcelDate(contactDateRaw) : '';
+        if (contactDateRaw && !contactDate) {
+            errors.push({ row: rowNum, msg: `日期"${contactDateRaw}"无法识别` });
+            failed++;
+            continue;
+        }
+
+        const statusRaw = row[5];
+        const status = parseCommunicationStatus(statusRaw);
+        if (String(statusRaw || '').trim() && !status) {
+            errors.push({ row: rowNum, msg: `状态"${statusRaw}"无法识别` });
+            failed++;
+            continue;
+        }
+
+        const student = matchedStudents[0];
+        const topicId = topic?.id || '';
+        const isDupe = (data.communications || []).some(c =>
+            c.studentId === student.id &&
+            (c.contactDate || '') === contactDate &&
+            (c.topicId || '') === topicId &&
+            (c.content || '') === content
+        );
+        if (isDupe) {
+            duplicates.push({ row: rowNum, msg: `${student.name} / ${contactDate || '日期空'} / ${topicName || '空主题'} / ${content.slice(0, 24)}` });
+        }
+
+        validRows.push({ row, student, topicId, contactDate, status: status || 'pending', content, isDupe });
+    }
+
+    const total = Math.max(rows.length - 1, 0);
+    const dup = validRows.filter(v => v.isDupe).length;
+    return { total, success: validRows.length - dup, dup, fail: failed, skip: skipped, errors, warnings, duplicates, skippedDetails, validRows };
+}
+
+function buildCommunicationFromImportRow(v, id) {
+    return {
+        id,
+        studentId: v.student.id,
+        studentName: v.student.name,
+        topicId: v.topicId,
+        contactType: String(v.row[3] || '微信').trim(),
+        contactPerson: String(v.row[4] || '').trim(),
+        contactDate: v.contactDate,
+        teacher: '白老师',
+        status: v.status,
+        content: v.content,
+        followUp: String(v.row[7] || '').trim()
+    };
+}
+
+async function executeCommunicationImport(checkResult, strategies = {}) {
+    const dupeStrategy = strategies.duplicateStrategy || 'skip';
+    let imported = 0;
+    let replaced = 0;
+    let skipped = checkResult.skip || 0;
+
+    for (const v of checkResult.validRows) {
+        if (v.isDupe) {
+            if (dupeStrategy === 'skip') { skipped++; continue; }
+            const idx = (data.communications || []).findIndex(c =>
+                c.studentId === v.student.id &&
+                (c.contactDate || '') === v.contactDate &&
+                (c.topicId || '') === v.topicId &&
+                (c.content || '') === v.content
+            );
+            if (idx !== -1) {
+                data.communications[idx] = buildCommunicationFromImportRow(v, data.communications[idx].id);
+                replaced++;
+                imported++;
+                continue;
+            }
+        }
+        data.communications.push(buildCommunicationFromImportRow(v, generateId()));
+        imported++;
+    }
+
+    try {
+        await saveCommunicationsToApi(data.communications);
+    } catch (error) {
+        showToast('导入保存失败：' + error.message);
+        return;
+    }
+    render();
+    const msg = `导入完成：成功 ${imported} 条${replaced > 0 ? `，替换 ${replaced} 条` : ''}${skipped > 0 ? `，跳过 ${skipped} 条` : ''}${checkResult.fail > 0 ? `，失败 ${checkResult.fail} 条` : ''}`;
+    showToast(msg);
+    showImportResultSummary({
+        imported, replaced, skipped, failed: checkResult.fail,
+        total: checkResult.total,
+        actionLabel: '沟通记录导入',
+        failedDetails: checkResult.errors || [],
+        skippedDetails: checkResult.skippedDetails || []
+    });
 }
 
 function openTopicManager() {
