@@ -83,10 +83,10 @@ function openFeeModal(id = null, defaults = {}) {
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveFee(event)">
             <div class="form-row">
-                <div class="form-group" style="flex:2;">
+                <div class="form-group form-group-wide">
                     <label>学员 *</label>
-                    <input type="text" id="feeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterFeeStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
-                    <select id="feeStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectFeeStudent(this)"></select>
+                    <input type="text" id="feeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterFeeStudentList()" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
+                    <select id="feeStudentSelect" class="entity-picker-select" size="5" onclick="selectFeeStudent(this)"></select>
                     <input type="hidden" name="studentId" id="feeStudentId" value="${selectedStudentId}">
                 </div>
                 <div class="form-group"><label>缴费金额 *</label><input type="number" name="amount" value="${fee?.amount ?? defaults.amount ?? ''}" required min="0"></div>

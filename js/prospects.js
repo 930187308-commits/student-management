@@ -287,14 +287,14 @@ function openProspectModal(id = null) {
                 </div>
             </div>
             <div class="form-row">
-                <div class="form-group" style="flex:2;">
+                <div class="form-group form-group-wide">
                     <label>所属组班</label>
                     <select name="classId">
                         <option value="">不分配</option>
                         ${classOptions || '<option value="">无可用组班</option>'}
                     </select>
                 </div>
-                <div class="form-group" style="flex:2;"><label>备注</label><input type="text" name="remark" value="${escapeHtml(prospect?.remark || '')}"></div>
+                <div class="form-group form-group-wide"><label>备注</label><input type="text" name="remark" value="${escapeHtml(prospect?.remark || '')}"></div>
             </div>
             <input type="hidden" name="id" value="${id || ''}">
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
@@ -350,10 +350,10 @@ function openProspectContactModal(prospectId, logId = null) {
                     <div class="form-group"><label>处理状态</label><select name="status">${statusOptions}</select></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group" style="flex:2;"><label>沟通内容 *</label><textarea name="content" rows="3" required placeholder="例如：微信沟通小升初衔接，家长关注计算和应用题。">${escapeHtml(editingLog?.content || '')}</textarea></div>
+                    <div class="form-group form-group-wide"><label>沟通内容 *</label><textarea name="content" rows="3" required placeholder="例如：微信沟通小升初衔接，家长关注计算和应用题。">${escapeHtml(editingLog?.content || '')}</textarea></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group" style="flex:2;"><label>下一步动作</label><input type="text" name="nextAction" value="${escapeHtml(editingLog?.nextAction || '')}" placeholder="例如：周五前发诊断题 / 下周约试课"></div>
+                    <div class="form-group form-group-wide"><label>下一步动作</label><input type="text" name="nextAction" value="${escapeHtml(editingLog?.nextAction || '')}" placeholder="例如：周五前发诊断题 / 下周约试课"></div>
                 </div>
                 <div class="modal-footer">
                     ${editingLog ? `<button type="button" class="btn btn-secondary" onclick="openProspectContactModal('${prospectId}')">取消编辑</button>` : ''}

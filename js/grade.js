@@ -98,10 +98,10 @@ function openGradeModal(id = null, defaults = {}) {
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveGrade(event)">
             <div class="form-row">
-                <div class="form-group" style="flex:2;">
+                <div class="form-group form-group-wide">
                     <label>学员 *</label>
-                    <input type="text" id="gradeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterGradeStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
-                    <select id="gradeStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectGradeStudent(this)"></select>
+                    <input type="text" id="gradeStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterGradeStudentList()" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
+                    <select id="gradeStudentSelect" class="entity-picker-select" size="5" onclick="selectGradeStudent(this)"></select>
                     <input type="hidden" name="studentId" id="gradeStudentId" value="${selectedStudentId}">
                 </div>
                 <div class="form-group"><label>测试名称 *</label><input type="text" name="testName" value="${escapeHtml(grade?.testName ?? defaults.testName ?? '')}" required></div>
@@ -120,7 +120,7 @@ function openGradeModal(id = null, defaults = {}) {
                         <option value="school" ${defaultExamType === 'school' ? 'selected' : ''}>校内成绩</option>
                     </select>
                 </div>
-                <div class="form-group" style="flex:2;"><label>薄弱点</label><input type="text" name="weakPoints" value="${escapeHtml(grade?.weakPoints ?? defaults.weakPoints ?? '')}" placeholder="如：计算准确性、几何证明题"></div>
+                <div class="form-group form-group-wide"><label>薄弱点</label><input type="text" name="weakPoints" value="${escapeHtml(grade?.weakPoints ?? defaults.weakPoints ?? '')}" placeholder="如：计算准确性、几何证明题"></div>
             </div>
             <div class="form-group"><label>备注</label><textarea name="remark" rows="2">${escapeHtml(grade?.remark ?? defaults.remark ?? '')}</textarea></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>

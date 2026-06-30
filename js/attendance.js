@@ -284,22 +284,22 @@ function openAddTempStudentModal(date) {
         <form onsubmit="saveTempStudent(event)">
             <input type="hidden" name="date" value="${date}">
             <div class="form-row">
-                <div class="form-group" style="flex:2;">
+                <div class="form-group form-group-wide">
                     <label>搜索学员 *</label>
-                    <input type="text" id="tempStudentSearch" placeholder="输入学员姓名搜索..." autocomplete="off" oninput="filterTempStudentList()" style="width: 100%;">
-                    <select id="tempStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectTempStudent(this)"></select>
+                    <input type="text" id="tempStudentSearch" placeholder="输入学员姓名搜索..." autocomplete="off" oninput="filterTempStudentList()">
+                    <select id="tempStudentSelect" class="entity-picker-select" size="5" onclick="selectTempStudent(this)"></select>
                     <input type="hidden" name="studentId" id="tempStudentId">
                 </div>
             </div>
             <div class="form-row">
-                <div class="form-group" style="flex:2;">
+                <div class="form-group form-group-wide">
                     <label>来源班级（自动）</label>
-                    <select id="tempFromClassSelect" style="width: 100%;">
+                    <select id="tempFromClassSelect">
                         <option value="">选择学员后自动显示</option>
                     </select>
                 </div>
             </div>
-            <div class="form-group"><label>备注</label><input type="text" id="tempNote" placeholder="如：临时调课" style="width: 100%;"></div>
+            <div class="form-group"><label>备注</label><input type="text" id="tempNote" placeholder="如：临时调课"></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button><button type="submit" class="btn btn-primary">添加</button></div>
         </form>
     `;
@@ -431,7 +431,7 @@ function addAttendanceSession() {
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveAttendanceSession(event)">
             <div class="form-row">
-                <div class="form-group" style="flex:2;">
+                <div class="form-group form-group-wide">
                     <label>课程名称</label>
                     <input type="text" name="sessionName" placeholder="如：秋季第3课-三角函数" required>
                 </div>
@@ -495,7 +495,7 @@ function openEditAttendanceSession(sessionId) {
                 编辑课次名称/日期后，学员出勤状态（1/0/空）保持不变。
             </div>
             <div class="form-row">
-                <div class="form-group" style="flex:2;">
+                <div class="form-group form-group-wide">
                     <label>课程名称</label>
                     <input type="text" name="sessionName" value="${escapeHtml(session.sessionName || '')}" placeholder="如：秋季第3课-三角函数" required>
                 </div>

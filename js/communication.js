@@ -212,10 +212,10 @@ function openCommModal(id = null, defaults = {}) {
     document.getElementById('modalBody').innerHTML = `
         <form onsubmit="saveComm(event)">
             <div class="form-row">
-                <div class="form-group" style="flex:2;">
+                <div class="form-group form-group-wide">
                     <label>学员 *</label>
-                    <input type="text" id="commStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterCommStudentList()" style="width: 100%;" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
-                    <select id="commStudentSelect" size="5" style="width: 100%; display: none; max-height: 150px; overflow-y: auto;" onclick="selectCommStudent(this)"></select>
+                    <input type="text" id="commStudentSearch" placeholder="搜索学员姓名..." autocomplete="off" oninput="filterCommStudentList()" value="${existingStudent ? escapeHtml(existingStudent.name) : ''}">
+                    <select id="commStudentSelect" class="entity-picker-select" size="5" onclick="selectCommStudent(this)"></select>
                     <input type="hidden" name="studentId" id="commStudentId" value="${selectedStudentId}">
                 </div>
                 <div class="form-group"><label>沟通主题</label><select name="topicId"><option value="">无</option>${topicOptions}</select></div>
