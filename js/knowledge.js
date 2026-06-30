@@ -555,15 +555,18 @@ function renderKnowledge() {
                 box-shadow: 0 10px 24px var(--shadow);
             }
             .knowledge-item-menu-popover button {
-                display: block;
+                display: flex;
+                align-items: center;
                 width: 100%;
                 border: 0;
-                border-radius: 6px;
-                padding: 7px 8px;
+                border-radius: 7px;
+                min-height: 24px;
+                padding: 3px 8px;
                 background: transparent;
                 color: var(--text-primary);
                 text-align: left;
-                font-size: 12px;
+                font-size: 11.5px;
+                font-weight: 600;
                 cursor: pointer;
             }
             .knowledge-item-menu-popover button:hover {
@@ -571,6 +574,9 @@ function renderKnowledge() {
             }
             .knowledge-item-menu-popover button.danger {
                 color: #e74c3c;
+            }
+            .knowledge-item-menu-popover button.danger:hover {
+                background: rgba(231, 76, 60, 0.1);
             }
             .knowledge-state-badge {
                 font-size: 10px;
