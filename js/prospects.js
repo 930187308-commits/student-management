@@ -78,6 +78,8 @@ function renderProspects() {
                 <div class="toolbar">
                     <button class="btn btn-primary btn-sm" onclick="openProspectModal()">+ 新增意向</button>
                     <button class="btn btn-secondary btn-sm" onclick="openSourceManager()">渠道管理</button>
+                    <div class="divider"></div>
+                    <button class="btn btn-secondary btn-sm" onclick="exportProspects()">导出</button>
                     <button class="btn btn-secondary btn-sm" onclick="downloadProspectTemplate()">下载模板</button>
                     <div class="file-input-wrapper">
                         <button class="btn btn-warning btn-sm">导入</button>
@@ -185,6 +187,16 @@ function exportSelectedProspects() {
     const ids = getSelectedProspectIds();
     if (ids.length === 0) { showToast('请先勾选意向学员'); return; }
     const selected = (data.prospects || []).filter(p => ids.includes(p.id));
+    exportProspectRows(selected, `选中意向学员_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function exportProspects() {
+    const rows = data.prospects || [];
+    if (!rows.length) { showToast('暂无意向学员可导出'); return; }
+    exportProspectRows(rows, `意向学员_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function exportProspectRows(selected, filename) {
     const statusMap = { pending: '待跟进', contacted: '已联系', trial: '试课中', forming: '组班中', deal: '已成交', lost: '已流失' };
     const headers = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触/沟通条数', '最近接触/沟通', '最近沟通对象', '接触/沟通记录', '备注', '录入日期'];
     const rows = selected.map(p => {
@@ -214,8 +226,8 @@ function exportSelectedProspects() {
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     formatExcelSheet(ws, [headers, ...rows]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '选中意向学员');
-    XLSX.writeFile(wb, `选中意向学员_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, '意向学员');
+    XLSX.writeFile(wb, filename);
     showToast('导出成功');
 }
 

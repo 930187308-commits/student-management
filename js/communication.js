@@ -27,6 +27,8 @@ function renderCommunications() {
                 <div class="toolbar">
                     <button class="btn btn-primary btn-sm" onclick="openCommModal()">+ 新增沟通</button>
                     <button class="btn btn-secondary btn-sm" onclick="openTopicManager()">管理主题</button>
+                    <div class="divider"></div>
+                    <button class="btn btn-secondary btn-sm" onclick="exportCommunications()">导出</button>
                     <button class="btn btn-secondary btn-sm" onclick="toggleCommunicationBatchMode()">${communicationBatchMode ? '退出多选' : '多选'}</button>
                     ${communicationBatchMode ? '<button class="btn btn-secondary btn-sm" onclick="exportSelectedCommunications()">导出选中</button><button class="btn btn-danger btn-sm" onclick="deleteSelectedCommunications()">删除选中</button>' : ''}
                 </div>
@@ -105,6 +107,12 @@ function exportSelectedCommunications() {
     if (ids.length === 0) { showToast('请先勾选沟通记录'); return; }
     const selected = (data.communications || []).filter(c => ids.includes(c.id));
     exportCommunicationRows(selected, `选中沟通记录_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+function exportCommunications() {
+    const rows = data.communications || [];
+    if (!rows.length) { showToast('暂无沟通记录可导出'); return; }
+    exportCommunicationRows(rows, `沟通记录_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 async function deleteSelectedCommunications() {

@@ -517,6 +517,7 @@ function getDataExportProspectContactLogsText(prospect = {}) {
         .map(log => [
             log.contactDate || '',
             log.contactType || '',
+            log.contactPerson || '',
             getDataExportProspectContactStatusLabel(log.status),
             log.content || '',
             log.nextAction || ''
@@ -769,12 +770,12 @@ function exportAllExcel() {
 
     // 导出意向学员
     if (data.prospects && data.prospects.length > 0) {
-        const proHeaders = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触/沟通条数', '最近接触/沟通', '接触/沟通记录', '备注', '录入日期'];
+        const proHeaders = ['姓名', '年级', '电话', '微信', '来源', '目前成绩', '试课日期', '试课状态', '成交状态', '接触/沟通条数', '最近接触/沟通', '最近沟通对象', '接触/沟通记录', '备注', '录入日期'];
         const proRows = data.prospects.map(p => {
             const logs = getDataExportProspectContactLogs(p);
             const latest = logs[0] || {};
             const latestContact = logs.length
-                ? [latest.contactDate || '', latest.contactType || '', getDataExportProspectContactStatusLabel(latest.status)].filter(Boolean).join(' · ')
+                ? [latest.contactDate || '', latest.contactType || '', latest.contactPerson || '', getDataExportProspectContactStatusLabel(latest.status)].filter(Boolean).join(' · ')
                 : '';
             return [
                 p.name || '',
@@ -788,6 +789,7 @@ function exportAllExcel() {
                 p.dealStatus === 'deal' ? '已成交' : p.dealStatus === 'lost' ? '已流失' : '未成交',
                 logs.length,
                 latestContact,
+                latest.contactPerson || '',
                 getDataExportProspectContactLogsText(p),
                 p.remark || '',
                 p.createDate || ''
