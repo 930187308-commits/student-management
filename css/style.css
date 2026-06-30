@@ -59,6 +59,12 @@ body {
 }
 
 .header { background: var(--bg-header); color: white; padding: 16px 24px; flex: 0 0 auto; overflow: visible; }
+.header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
 .header h1 { font-size: 20px; font-weight: 600; }
 .header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
 .theme-toggle {
@@ -121,8 +127,6 @@ body.dark-mode .btn.privacy-toggle.is-on {
     border-color: rgba(255,255,255,0.72);
 }
 .autosave-indicator { font-size: 11px; color: rgba(255,255,255,0.7); }
-.health-check-button { position: relative; }
-.health-badge { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #e74c3c; color: white; font-size: 10px; line-height: 14px; text-align: center; }
 .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
 .file-input-wrapper input {
     position: absolute;
@@ -244,6 +248,18 @@ body.dark-mode .btn.privacy-toggle.is-on {
     flex-shrink: 0;
 }
 
+.hours-ring-chart-wrap {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+}
+
+.hours-ring-chart {
+    width: 60px;
+    height: 60px;
+}
+
 .hours-overview-card .hours-info {
     display: flex;
     flex-direction: column;
@@ -307,6 +323,14 @@ body.dark-mode .btn.privacy-toggle.is-on {
     display: block;
     white-space: nowrap;
     line-height: 1.15;
+}
+
+.hours-overview-card .metric-item .metric-val-success {
+    color: #27ae60;
+}
+
+.hours-overview-card .metric-item .metric-val-warning {
+    color: #f39c12;
 }
 
 .hours-overview-card .metric-item .metric-lbl {
@@ -1749,6 +1773,42 @@ body.dark-mode .archived-class-student-chip {
 .toast { position: fixed; bottom: 20px; right: 20px; background: var(--text-primary); color: var(--bg-primary); padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.3s; }
 .toast.show { opacity: 1; }
 
+.local-server-modal {
+    max-width: 500px;
+}
+
+.local-server-status {
+    margin-bottom: 15px;
+    color: #27ae60;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.local-server-copy {
+    margin-bottom: 15px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.local-server-code {
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.local-server-note {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.local-server-help {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.8;
+}
+
 /* 空状态 */
 .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
 
@@ -2056,6 +2116,9 @@ body.dark-mode .stat-card.row-warning .value { color: #fbbf24; }
     text-align: center;
     font-weight: 700;
     box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+}
+.health-badge.is-hidden {
+    display: none;
 }
 
 /* 文件上传 */

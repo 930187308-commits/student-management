@@ -256,11 +256,11 @@ function updateDataHealthBadge(report = null) {
     const count = getActionableHealthCount(healthReport);
     if (count > 0) {
         badge.textContent = count > 99 ? '99+' : String(count);
-        badge.style.display = 'inline-block';
+        badge.classList.remove('is-hidden');
         badge.title = `有 ${count} 项数据需要处理`;
     } else {
         badge.textContent = '';
-        badge.style.display = 'none';
+        badge.classList.add('is-hidden');
         badge.title = '';
     }
 }

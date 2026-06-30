@@ -10,7 +10,7 @@
 </head>
 <body>
     <div class="header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="header-inner">
             <div>
                 <h1>AI 教培工作台</h1>
                 <p id="headerStatus">Mac mini 本地服务器 · SQLite 数据库 · 多设备同步</p>
@@ -37,7 +37,7 @@
                 </button>
                 <span class="autosave-indicator" id="autosaveIndicator">● 已保存</span>
                 <button class="btn btn-secondary btn-sm" onclick="undoLastChange()" id="undoBtn" title="撤回最近一次保存的修改" disabled>撤回上一步</button>
-                <button class="btn btn-info btn-sm health-check-button" onclick="openDataHealthCheck()">数据体检<span id="dataHealthBadge" class="health-badge" style="display:none;"></span></button>
+                <button class="btn btn-info btn-sm health-check-button" onclick="openDataHealthCheck()">数据体检<span id="dataHealthBadge" class="health-badge is-hidden"></span></button>
                 <button class="btn btn-primary btn-sm" onclick="openDataManager()">数据管理</button>
                 <details class="toolbar-more">
                     <summary class="btn btn-secondary btn-sm">更多</summary>

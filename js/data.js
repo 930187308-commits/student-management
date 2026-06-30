@@ -542,23 +542,23 @@ function showLocalServerSetupModal() {
     const modal = document.getElementById('modal');
     modal.classList.add('show');
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content local-server-modal">
             <div class="modal-header">
                 <h3>本地服务器同步</h3>
                 <button class="modal-close" onclick="closeLocalServerSetupModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="color: #27ae60; font-size: 13px; margin-bottom: 15px;">✓ 已连接到 Mac Mini 服务器</p>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+                <p class="local-server-status">✓ 已连接到 Mac Mini 服务器</p>
+                <p class="local-server-copy">
                     所有设备连接到同一个 Mac Mini，数据自动同步。<br>
-                    服务器地址: <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">${SERVER_URL}</code>
+                    服务器地址: <code class="local-server-code">${SERVER_URL}</code>
                 </p>
-                <p style="color: #999; font-size: 12px;">
+                <p class="local-server-note">
                     Mac Mini 需要保持开机状态才能同步数据。
                 </p>
             </div>
             <div class="modal-footer">
-                <button onclick="closeLocalServerSetupModal()" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">确定</button>
+                <button class="btn btn-success" onclick="closeLocalServerSetupModal()">确定</button>
             </div>
         </div>
     `;
@@ -581,13 +581,13 @@ function clearGistConfig() {
 function showGistHelp() {
     const modal = document.getElementById('modal');
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content local-server-modal">
             <div class="modal-header">
                 <h3>本地服务器同步说明</h3>
                 <button class="modal-close" onclick="showLocalServerSetupModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="color: #666; font-size: 13px; line-height: 1.8;">
+                <p class="local-server-help">
                     本地服务器同步方案：<br><br>
                     1. Mac Mini 作为服务器运行<br>
                     2. 所有设备通过局域网连接<br>
@@ -597,7 +597,7 @@ function showGistHelp() {
                 </p>
             </div>
             <div class="modal-footer">
-                <button onclick="showLocalServerSetupModal()" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">返回</button>
+                <button class="btn btn-primary" onclick="showLocalServerSetupModal()">返回</button>
             </div>
         </div>
     `;
@@ -1379,8 +1379,8 @@ function renderStats() {
     document.getElementById('statGrid').innerHTML = `
         <div class="stat-card hours-overview-card">
             <div class="hours-ring">
-                <div style="position: relative; width: 60px; height: 60px; flex-shrink: 0;">
-                    <canvas id="hoursRingChart" width="120" height="120" style="width: 60px; height: 60px;"></canvas>
+                <div class="hours-ring-chart-wrap">
+                    <canvas id="hoursRingChart" width="120" height="120" class="hours-ring-chart"></canvas>
                     <div class="hours-ring-center">
                         <div class="hours-ring-value">${getPrivacyVal(remainingHours)}</div>
                         <div class="hours-ring-label">剩余</div>
@@ -1393,11 +1393,11 @@ function renderStats() {
             </div>
             <div class="hours-metrics">
                 <div class="metric-item">
-                    <span class="metric-val" style="color:#27ae60;">${getPrivacyVal(usedHours)}</span>
+                    <span class="metric-val metric-val-success">${getPrivacyVal(usedHours)}</span>
                     <span class="metric-lbl">已消</span>
                 </div>
                 <div class="metric-item">
-                    <span class="metric-val" style="color:#f39c12;">${getPrivacyVal(absentHours)}</span>
+                    <span class="metric-val metric-val-warning">${getPrivacyVal(absentHours)}</span>
                     <span class="metric-lbl">请假</span>
                 </div>
                 <div class="metric-item">
