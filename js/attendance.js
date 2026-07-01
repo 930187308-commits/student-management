@@ -2,6 +2,23 @@
 
 let currentAttendanceClassId = null;
 
+function sameId(a, b) {
+    return String(a || '') === String(b || '');
+}
+
+function openClassAttendance(classId) {
+    currentAttendanceClassId = classId;
+    switchTab('attendance');
+    setTimeout(() => {
+        if (!document.getElementById('attendanceClassSelect')) {
+            renderAttendance();
+        }
+        const select = document.getElementById('attendanceClassSelect');
+        if (select) select.value = classId;
+        loadAttendanceClass(classId);
+    }, 50);
+}
+
 function renderAttendance() {
     const container = document.getElementById('tab-attendance');
     const classes = data.classes.filter(c => c.status === 'active');
@@ -41,8 +58,15 @@ function loadAttendanceClass(classId) {
     const content = document.getElementById('attendanceContent');
     if (!classId) { content.innerHTML = '<div class="empty-state">请先选择班级</div>'; return; }
 
-    const cls = data.classes.find(c => c.id === classId);
-    const sessions = data.attendance.filter(a => a.classId === classId).sort((a, b) => a.date.localeCompare(b.date));
+    const cls = data.classes.find(c => sameId(c.id, classId));
+    if (!cls) {
+        content.innerHTML = '<div class="empty-state attendance-empty">未找到该班级，请刷新后重试。</div>';
+        return;
+    }
+
+    const sessions = data.attendance.filter(a => sameId(a.classId, classId)).sort((a, b) => a.date.localeCompare(b.date));
+    const recordStudentIds = new Set();
+    sessions.forEach(sess => Object.keys(sess.records || {}).forEach(id => recordStudentIds.add(String(id))));
     const students = getAttendanceStudentsForClass(classId, sessions);
 
     // 补齐旧记录缺失的 id
@@ -64,7 +88,7 @@ function loadAttendanceClass(classId) {
             <div><span class="attendance-meta-label">班级：</span><strong>${escapeHtml(cls?.name || '')}</strong></div>
             <div><span class="attendance-meta-label">上课：</span>${escapeHtml(cls?.schedule || '-')}</div>
             <div><span class="attendance-meta-label">课次：</span><strong class="text-success">${sessions.length}</strong><span class="attendance-meta-label">/${cls?.plannedSessions || 16}</span></div>
-            <div><span class="attendance-meta-label">学员：</span><strong>${data.students.filter(s => s.classId === classId && s.status === 'active').length}</strong><span class="attendance-meta-label">人</span></div>
+            <div><span class="attendance-meta-label">学员：</span><strong>${data.students.filter(s => sameId(s.classId, classId) && s.status === 'active').length}</strong><span class="attendance-meta-label">人</span></div>
         </div>
     `;
 
@@ -106,8 +130,8 @@ function loadAttendanceClass(classId) {
                         const leaveSession = getStudentLeaveSessionForClass(s, classId);
                         const inactiveStatusMap = { inactive: '停课', withdrawn: '退费', graduated: '毕业' };
                         const inactiveLabel = inactiveStatusMap[s.status] || '';
-                        const isTransferredOut = s.classId !== classId && recordStudentIds.has(s.id);
-                        const isTransferredIn = s.classId === classId && joinSession > 1;
+                        const isTransferredOut = !sameId(s.classId, classId) && recordStudentIds.has(String(s.id));
+                        const isTransferredIn = sameId(s.classId, classId) && joinSession > 1;
                         const studentMarker = inactiveLabel || (isTransferredOut ? '转出' : '') || (isTransferredIn ? '转入' : '');
                         allDates.forEach(date => {
                             const session = sessions.find(sess => sess.date === date);
@@ -146,21 +170,21 @@ function loadAttendanceClass(classId) {
 }
 
 function getAttendanceStudentsForClass(classId, sessions = null) {
-    const classSessions = sessions || data.attendance.filter(a => a.classId === classId);
+    const classSessions = sessions || data.attendance.filter(a => sameId(a.classId, classId));
     const recordStudentIds = new Set();
-    classSessions.forEach(sess => Object.keys(sess.records || {}).forEach(id => recordStudentIds.add(id)));
+    classSessions.forEach(sess => Object.keys(sess.records || {}).forEach(id => recordStudentIds.add(String(id))));
     return data.students.filter(s =>
-        (s.classId === classId && s.status === 'active') ||
-        recordStudentIds.has(s.id)
+        (sameId(s.classId, classId) && s.status === 'active') ||
+        recordStudentIds.has(String(s.id))
     );
 }
 
 function getStudentJoinSessionForClass(student, classId) {
     if (student.classJoinSessions?.[classId]) return student.classJoinSessions[classId];
-    if (student.classId !== classId) return 1;
+    if (!sameId(student.classId, classId)) return 1;
 
     const otherClassLastRecords = data.classes
-        .filter(c => c.id !== classId)
+        .filter(c => !sameId(c.id, classId))
         .map(c => getLastRecordedSessionIndex(student.id, c.id));
     const lastOtherClassRecord = Math.max(0, ...otherClassLastRecords);
     return lastOtherClassRecord > 0 ? lastOtherClassRecord + 1 : 1;
@@ -168,14 +192,14 @@ function getStudentJoinSessionForClass(student, classId) {
 
 function getStudentLeaveSessionForClass(student, classId) {
     if (student.classLeaveSessions?.[classId]) return student.classLeaveSessions[classId];
-    if (student.classId === classId) return Infinity;
+    if (sameId(student.classId, classId)) return Infinity;
     const lastRecord = getLastRecordedSessionIndex(student.id, classId);
     return lastRecord > 0 ? lastRecord : Infinity;
 }
 
 function getLastRecordedSessionIndex(studentId, classId) {
     const sessions = data.attendance
-        .filter(a => a.classId === classId)
+        .filter(a => sameId(a.classId, classId))
         .sort((a, b) => a.date.localeCompare(b.date));
     let lastIndex = 0;
     sessions.forEach((sess, index) => {
@@ -281,7 +305,7 @@ function openAddTempStudentModal(date) {
     if (!currentAttendanceClassId) { showToast('请先选择班级'); return; }
     if (!date) { showToast('请选择课次'); return; }
 
-    const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
+    const session = data.attendance.find(a => sameId(a.classId, currentAttendanceClassId) && a.date === date);
     const sessionInfo = session ? `${session.sessionName || date} (${date})` : date;
 
     document.getElementById('modalTitle').textContent = '添加临时学员 - ' + sessionInfo;
@@ -328,7 +352,7 @@ function filterTempStudentList() {
     // 只显示不在当前班级的活跃学员
     const filtered = data.students.filter(s =>
         s.name.toLowerCase().includes(search) &&
-        s.classId !== currentAttendanceClassId &&
+        !sameId(s.classId, currentAttendanceClassId) &&
         s.status === 'active'
     );
 
@@ -374,7 +398,7 @@ async function saveTempStudent(e) {
     if (!student) { showToast('学员不存在'); return; }
 
     // 检查是否已在records中（不管是本班还是临时）
-    const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
+    const session = data.attendance.find(a => sameId(a.classId, currentAttendanceClassId) && a.date === date);
     if (!session) { showToast('考勤课次不存在'); return; }
 
     // 如果已在records中有记录，弹出提示
@@ -411,7 +435,7 @@ async function saveTempStudent(e) {
 async function removeTemporaryStudent(studentId, date) {
     if (!confirm('确定从本次课移除该临时学员？')) return;
 
-    const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
+    const session = data.attendance.find(a => sameId(a.classId, currentAttendanceClassId) && a.date === date);
     if (!session) return;
 
     if (session.temporaryStudents) {
@@ -462,7 +486,7 @@ async function saveAttendanceSession(e) {
     const date = form.date.value;
     const sessionName = form.sessionName.value;
 
-    if (data.attendance.some(a => a.classId === currentAttendanceClassId && a.date === date)) {
+    if (data.attendance.some(a => sameId(a.classId, currentAttendanceClassId) && a.date === date)) {
         showToast('该日期已存在');
         return;
     }
@@ -485,7 +509,7 @@ async function saveAttendanceSession(e) {
     }
     closeModal();
     loadAttendanceClass(currentAttendanceClassId);
-    const count = data.attendance.filter(a => a.classId === currentAttendanceClassId).length;
+    const count = data.attendance.filter(a => sameId(a.classId, currentAttendanceClassId)).length;
     showToast(`已添加第${count}次课：${sessionName}`);
 }
 
@@ -531,7 +555,7 @@ async function saveEditAttendanceSession(e, sessionId) {
 
     // 检查日期冲突（同班级已有其他课次）
     if (newDate !== session.date) {
-        const exists = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === newDate && a.id !== sessionId);
+        const exists = data.attendance.find(a => sameId(a.classId, currentAttendanceClassId) && a.date === newDate && a.id !== sessionId);
         if (exists) { showToast('该日期已存在'); return; }
     }
 
@@ -584,7 +608,7 @@ async function updateAttendance(input) {
     else if (value === 0) input.classList.add('absent');
 
     // 找到对应的考勤记录并更新
-    const session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === date);
+    const session = data.attendance.find(a => sameId(a.classId, currentAttendanceClassId) && a.date === date);
     if (session) {
         if (value === 1 || value === 0) {
             session.records[studentId] = value;
@@ -602,8 +626,8 @@ async function updateAttendance(input) {
 function exportAttendance() {
     if (!currentAttendanceClassId) return;
 
-    const cls = data.classes.find(c => c.id === currentAttendanceClassId);
-    const sessions = data.attendance.filter(a => a.classId === currentAttendanceClassId).sort((a, b) => a.date.localeCompare(b.date));
+    const cls = data.classes.find(c => sameId(c.id, currentAttendanceClassId));
+    const sessions = data.attendance.filter(a => sameId(a.classId, currentAttendanceClassId)).sort((a, b) => a.date.localeCompare(b.date));
     const students = getAttendanceStudentsForClass(currentAttendanceClassId, sessions);
     const allDates = [...new Set(sessions.map(s => s.date))].sort();
 
@@ -713,9 +737,9 @@ function precheckAttendanceImport(rows) {
     const duplicates = [];
     const skippedDetails = [];
     const existingSessions = data.attendance
-        .filter(a => a.classId === currentAttendanceClassId)
+        .filter(a => sameId(a.classId, currentAttendanceClassId))
         .sort((a, b) => a.date.localeCompare(b.date));
-    const students = data.students.filter(s => s.classId === currentAttendanceClassId && s.status === 'active');
+    const students = data.students.filter(s => sameId(s.classId, currentAttendanceClassId) && s.status === 'active');
     const seen = new Set();
     let skipped = 0;
     let failed = 0;
@@ -805,7 +829,7 @@ async function executeAttendanceImport(checkResult, strategies = {}) {
     for (const v of checkResult.validRows) {
         if (v.isDupe && dupeStrategy === 'skip') { skipped++; continue; }
 
-        let session = data.attendance.find(a => a.classId === currentAttendanceClassId && a.date === v.date);
+        let session = data.attendance.find(a => sameId(a.classId, currentAttendanceClassId) && a.date === v.date);
         if (!session) {
             session = {
                 id: generateId(),

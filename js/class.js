@@ -153,19 +153,6 @@ function switchToStudentTab() {
     document.querySelector('[data-tab="students"]').click();
 }
 
-function openClassAttendance(classId) {
-    currentAttendanceClassId = classId;
-    switchTab('attendance');
-    setTimeout(() => {
-        if (!document.getElementById('attendanceClassSelect') && typeof renderAttendance === 'function') {
-            renderAttendance();
-        }
-        const select = document.getElementById('attendanceClassSelect');
-        if (select) select.value = classId;
-        if (typeof loadAttendanceClass === 'function') loadAttendanceClass(classId);
-    }, 100);
-}
-
 function openClassGrades(classId) {
     switchTab('grades');
     setTimeout(() => {
