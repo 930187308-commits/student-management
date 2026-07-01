@@ -154,8 +154,12 @@ function switchToStudentTab() {
 }
 
 function openClassAttendance(classId) {
+    currentAttendanceClassId = classId;
     switchTab('attendance');
     setTimeout(() => {
+        if (!document.getElementById('attendanceClassSelect') && typeof renderAttendance === 'function') {
+            renderAttendance();
+        }
         const select = document.getElementById('attendanceClassSelect');
         if (select) select.value = classId;
         if (typeof loadAttendanceClass === 'function') loadAttendanceClass(classId);
