@@ -171,6 +171,48 @@ function getAiStatus(providerOverride = '') {
     };
 }
 
+function getConfiguredFallbackProviders(primaryProvider = '') {
+    const preferredOrder = ['deepseek', 'qwen', 'minimax'];
+    const providers = Object.values(config.ai.providers || {})
+        .map(item => normalizeProvider(item.provider))
+        .filter(Boolean);
+    return [...new Set([...preferredOrder, ...providers])]
+        .filter(provider => provider && provider !== normalizeProvider(primaryProvider))
+        .filter(provider => getAiStatus(provider).enabled);
+}
+
+async function callRealAIWithFallback(context, primaryStatus) {
+    try {
+        return {
+            result: await callRealAI(context),
+            status: primaryStatus,
+            fallbackFrom: '',
+            warning: ''
+        };
+    } catch (primaryError) {
+        let lastError = primaryError;
+        const originalProvider = context.modelProvider;
+        const fallbackProviders = getConfiguredFallbackProviders(primaryStatus.provider);
+        for (const provider of fallbackProviders) {
+            const fallbackStatus = getAiStatus(provider);
+            try {
+                context.modelProvider = provider;
+                return {
+                    result: await callRealAI(context),
+                    status: fallbackStatus,
+                    fallbackFrom: primaryStatus.provider,
+                    warning: `${primaryStatus.label || primaryStatus.provider} 调用失败，已自动改用 ${fallbackStatus.label || fallbackStatus.provider}。`
+                };
+            } catch (error) {
+                lastError = error;
+            } finally {
+                context.modelProvider = originalProvider;
+            }
+        }
+        throw lastError;
+    }
+}
+
 function getDefaultBaseUrl(provider) {
     if (provider === 'openai') return 'https://api.openai.com/v1';
     if (provider === 'deepseek') return 'https://api.deepseek.com';
@@ -1134,7 +1176,7 @@ async function generateAIResponse(payload) {
     }
     let context = buildAIContext({ ...payload, agent, task, requestedTask });
     context = await augmentContextWithWebSearch(context);
-    const status = getAiStatus(context.modelProvider);
+    let status = getAiStatus(context.modelProvider);
     const taskId = newId('ai_task');
     const createdAt = nowIso();
     insertAiTask({
@@ -1182,7 +1224,14 @@ async function generateAIResponse(payload) {
             ].join('\n');
         } else if (status.enabled) {
             try {
-                result = await callRealAI(context);
+                const aiResult = await callRealAIWithFallback(context, status);
+                result = aiResult.result;
+                if (aiResult.fallbackFrom) {
+                    fallbackFrom = aiResult.fallbackFrom;
+                    status = aiResult.status;
+                    mode = status.mode;
+                    warnings.push(aiResult.warning);
+                }
             } catch (error) {
                 const message = error.name === 'AbortError' ? 'AI 接口超时' : error.message;
                 if (payload.fallbackOnError === false) throw error;

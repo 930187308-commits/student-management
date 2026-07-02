@@ -182,6 +182,7 @@ function saveClassWithTransitions(classItem, options = {}) {
     const oldStatus = oldClass?.status;
     const newStatus = classItem.status || 'active';
     let changedStudents = 0;
+    let restoredStudents = 0;
     let clearedProspects = 0;
 
     const nextClass = {
